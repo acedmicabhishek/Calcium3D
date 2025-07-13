@@ -43,7 +43,7 @@ int main() {
     }
 
     // New shader program
-    Shader shaderProgram("/home/light/Documents/Calcium3D/shaders/cbench.vert", "/home/light/Documents/Calcium3D/shaders/cbench.frag");
+    Shader shaderProgram("../shaders/cbench.vert", "../shaders/cbench.frag");
 
     // Triangle vertices with texture coordinates
     // Vertices coordinates
