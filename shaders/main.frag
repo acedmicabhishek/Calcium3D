@@ -3,7 +3,6 @@ out vec4 FragColor;
 
 uniform vec2 iResolution;
 uniform float iTime;
-uniform vec2 iMouse;
 
 const int MAX_ITERATIONS = 256;
 
@@ -15,17 +14,22 @@ void main()
 {
     vec2 uv = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
 
-    // Zoom and pan based on mouse input
-    float zoom = 1.0;
-    vec2 pan = vec2(0.0);
-
-    if (iMouse.x > 0.0 || iMouse.y > 0.0) {
-        zoom = mix(1.0, 0.001, iMouse.y / iResolution.y);
-        pan = mix(vec2(0.0), vec2(-0.75, 0.0), iMouse.x / iResolution.x);
-    }
-
-    vec2 c = uv / zoom + pan;
-    c.x -= 0.5; // Center the fractal
+    // Infinite zoom
+    float zoomSpeed = 0.3; // zoom speed
+    float zoom = exp(iTime * zoomSpeed);
+    
+    // Target point in the "steam" - a thin filament with infinite detail
+    vec2 target = vec2(-0.74529, 0.11307); // A point known for deep zoom potential
+    
+    // Add slight rotation for more dynamic effect
+    float angle = iTime * 0.02;
+    float cosA = cos(angle);
+    float sinA = sin(angle);
+    
+    vec2 c = uv / zoom;
+    // Apply rotation
+    c = vec2(c.x * cosA - c.y * sinA, c.x * sinA + c.y * cosA);
+    c += target;
 
     vec2 z = vec2(0.0);
     float iter = 0.0;
@@ -40,7 +44,8 @@ void main()
 
     vec3 color = vec3(0.0);
     if (iter > 0.0) {
-        color = palette(iter / float(MAX_ITERATIONS) + iTime * 0.05);
+        float colorShift = log(zoom) * 0.1 + iTime * 0.1;
+        color = palette(iter / float(MAX_ITERATIONS) + colorShift);
     }
 
     FragColor = vec4(color, 1.0);

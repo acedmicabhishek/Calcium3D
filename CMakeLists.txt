@@ -18,7 +18,7 @@ set(SOURCES
     src/main.cpp
     src/Shader.cpp
     src/Camera.cpp
-    src/glad.c  # Include glad source file
+    src/glad.c
     src/VAO.cpp
     src/VBO.cpp
     src/EBO.cpp

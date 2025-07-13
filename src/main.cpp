@@ -26,7 +26,7 @@ int main() {
         return -1;
     }
 
-    GLFWwindow* window = glfwCreateWindow(1920, 1080, "CshaderEngine", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "CshaderEngine", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window\n";
         glfwTerminate();
