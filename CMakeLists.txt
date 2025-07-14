@@ -19,6 +19,10 @@ set(SOURCES
     src/Shader.cpp
     src/Camera.cpp
     src/glad.c  # Include glad source file
+    src/VAO.cpp
+    src/VBO.cpp
+    src/EBO.cpp
+    src/Texture.cpp
 )
 
 # Create executable
@@ -42,5 +46,5 @@ target_link_directories(calcium3d PRIVATE
     ${GLEW_LIBRARY_DIRS}
 )
 
-# Optional: enable compiler warnings
-target_compile_options(calcium3d PRIVATE -Wall -Wextra -pedantic)
+# # Optional: enable compiler warnings
+# target_compile_options(calcium3d PRIVATE -Wall -Wextra -pedantic)
