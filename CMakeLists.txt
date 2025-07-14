@@ -46,5 +46,5 @@ target_link_directories(calcium3d PRIVATE
     ${GLEW_LIBRARY_DIRS}
 )
 
-# Optional: enable compiler warnings
-target_compile_options(calcium3d PRIVATE -Wall -Wextra -pedantic)
+# # Optional: enable compiler warnings
+# target_compile_options(calcium3d PRIVATE -Wall -Wextra -pedantic)
