@@ -1,4 +1,3 @@
-// src/main.cpp
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -17,10 +16,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
+struct WindowData {
+    Camera* camera;
+    unsigned int* framebufferTexture;
+    unsigned int* RBO;
+};
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
 int main() {
-    // Initialize GLFW
-    if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW\n";
+	// Initialize GLFW
+	if (!glfwInit()) {
+		std::cerr << "Failed to initialize GLFW\n";
         return -1;
     }
 
@@ -35,7 +41,8 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwMakeContextCurrent(window);
-
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+   
     // glad: load all OpenGL function pointers
     // ---------------------------------------
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -139,7 +146,11 @@ int main() {
 
     // Creates camera object
     Camera camera(800, 600, glm::vec3(0.0f, 0.0f, 2.0f));
-
+    unsigned int framebufferTexture;
+    unsigned int RBO;
+    WindowData data = { &camera, &framebufferTexture, &RBO };
+    glfwSetWindowUserPointer(window, &data);
+   
     float rectangleVertices[] =
     {
     	// Coords    // texCoords
@@ -170,10 +181,9 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, FBO);
    
     // Create Framebuffer Texture
-    unsigned int framebufferTexture;
     glGenTextures(1, &framebufferTexture);
     glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, camera.width, camera.height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
@@ -181,10 +191,9 @@ int main() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
    
     // Create Render Buffer Object
-    unsigned int RBO;
     glGenRenderbuffers(1, &RBO);
     glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, camera.width, camera.height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
    
    
@@ -366,4 +375,20 @@ int main() {
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
+   }
+   
+   void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+   {
+   	glViewport(0, 0, width, height);
+   	WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
+   	if (data && data->camera)
+   	{
+   		data->camera->width = width;
+   		data->camera->height = height;
+   	}
+   	// Recreate framebuffer texture and RBO with new size
+   	glBindTexture(GL_TEXTURE_2D, *data->framebufferTexture);
+   	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+   	glBindRenderbuffer(GL_RENDERBUFFER, *data->RBO);
+   	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
    }
