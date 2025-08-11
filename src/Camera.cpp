@@ -116,3 +116,13 @@ void Camera::Inputs(GLFWwindow* window)
 		glfwSetCursorPos(window, (width / 2), (height / 2));
 	}
 }
+
+glm::mat4 Camera::GetViewMatrix()
+{
+	return glm::lookAt(Position, Position + Orientation, Up);
+}
+
+glm::mat4 Camera::GetProjectionMatrix()
+{
+	return glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
+}

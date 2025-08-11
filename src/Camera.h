@@ -40,5 +40,7 @@ public:
 	void Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shader, const char* uniform);
 	// Handles camera inputs
 	void Inputs(GLFWwindow* window);
+	glm::mat4 GetViewMatrix();
+	glm::mat4 GetProjectionMatrix();
 };
 #endif
