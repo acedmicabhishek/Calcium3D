@@ -92,17 +92,18 @@ int main() {
 
     // Generates Shader object using shaders default.vert and default.frag
     Shader shaderProgram("../shaders/default.vert", "../shaders/default.frag");
- std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
- std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
-
-
+    Shader framebufferProgram("../shaders/framebuffer.vert", "../shaders/framebuffer.frag");
+    std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
+    std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
+   
+   
     // Shader for light cube
- Shader lightShader("../shaders/light.vert", "../shaders/light.frag");
- std::vector <Vertex> lightVerts(lightVertices, lightVertices + sizeof(lightVertices) / sizeof(Vertex));
- std::vector <GLuint> lightInd(lightIndices, lightIndices + sizeof(lightIndices) / sizeof(GLuint));
-
-
-
+    Shader lightShader("../shaders/light.vert", "../shaders/light.frag");
+    std::vector <Vertex> lightVerts(lightVertices, lightVertices + sizeof(lightVertices) / sizeof(Vertex));
+    std::vector <GLuint> lightInd(lightIndices, lightIndices + sizeof(lightIndices) / sizeof(GLuint));
+   
+   
+   
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos = glm::vec3(0.5f, 0.5f, 0.5f);
     glm::mat4 lightModel = glm::mat4(1.0f);
@@ -138,28 +139,97 @@ int main() {
     // Creates camera object
     Camera camera(800, 600, glm::vec3(0.0f, 0.0f, 2.0f));
 
-    // Main while loop
+    float rectangleVertices[] =
+    {
+    	// Coords    // texCoords
+    	 1.0f, -1.0f,  1.0f, 0.0f,
+    	-1.0f, -1.0f,  0.0f, 0.0f,
+    	-1.0f,  1.0f,  0.0f, 1.0f,
+   
+    	 1.0f,  1.0f,  1.0f, 1.0f,
+    	 1.0f, -1.0f,  1.0f, 0.0f,
+    	-1.0f,  1.0f,  0.0f, 1.0f
+    };
+   
+    unsigned int rectVAO, rectVBO;
+    glGenVertexArrays(1, &rectVAO);
+    glGenBuffers(1, &rectVBO);
+    glBindVertexArray(rectVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, rectVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices), &rectangleVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+   
+   
+    // Create Frame Buffer Object
+    unsigned int FBO;
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+   
+    // Create Framebuffer Texture
+    unsigned int framebufferTexture;
+    glGenTextures(1, &framebufferTexture);
+    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
+   
+    // Create Render Buffer Object
+    unsigned int RBO;
+    glGenRenderbuffers(1, &RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+   
+   
+    // Error checking framebuffer
+    auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+    	std::cout << "Framebuffer error: " << fboStatus << std::endl;
+
     while (!glfwWindowShouldClose(window))
     {
-        // Specify the color of the background
-        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-        // Clean the back buffer and depth buffer
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Handles camera inputs
-        camera.Inputs(window);
-        // Updates and exports the camera matrix to the Vertex Shader
-
-
-        // Tells OpenGL which Shader Program we want to use
-  floor.Draw(shaderProgram, camera);
-  light.Draw(lightShader, camera);
-
-
-        // Swap the back buffer with the front buffer
-        glfwSwapBuffers(window);
-        // Take care of all GLFW events
-        glfwPollEvents();
+    	// Bind the custom framebuffer
+    	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    	// Specify the color of the background
+    	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+    	// Clean the back buffer and depth buffer
+    	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
+    	glEnable(GL_DEPTH_TEST);
+   
+   
+    	// Handles camera inputs
+    	camera.Inputs(window);
+    	// Updates and exports the camera matrix to the Vertex Shader
+   
+   
+    	// Tells OpenGL which Shader Program we want to use
+    	floor.Draw(shaderProgram, camera);
+    	light.Draw(lightShader, camera);
+   
+    	// Bind the default framebuffer
+    	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    	// Use the framebuffer shader
+    	framebufferProgram.use();
+    	glUniform1i(glGetUniformLocation(framebufferProgram.ID, "screenTexture"), 0);
+    	// Disable depth testing so the framebuffer rectangle is always drawn
+    	glDisable(GL_DEPTH_TEST);
+    	// Draw the framebuffer rectangle
+    	glBindVertexArray(rectVAO);
+    	glActiveTexture(GL_TEXTURE0);
+    	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    	glDrawArrays(GL_TRIANGLES, 0, 6);
+   
+   
+    	// Swap the back buffer with the front buffer
+    	glfwSwapBuffers(window);
+    	glfwPollEvents();
     }
 
 
@@ -167,10 +237,15 @@ int main() {
     // Delete all the objects we've created
     shaderProgram.Delete();
     lightShader.Delete();
+    framebufferProgram.Delete();
+    glDeleteFramebuffers(1, &FBO);
+    glDeleteVertexArrays(1, &rectVAO);
+    glDeleteBuffers(1, &rectVBO);
+    glDeleteRenderbuffers(1, &RBO);
     //lightShader.Delete();
     // Delete window before ending the program
-
+   
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
-}
+   }
