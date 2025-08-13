@@ -12,6 +12,8 @@ find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
 pkg_check_modules(GLEW REQUIRED glew)
+find_package(nlohmann_json 3 REQUIRED)
+find_package(tinyobjloader REQUIRED)
 
 # Set sources
 set(SOURCES
@@ -24,6 +26,7 @@ set(SOURCES
     src/EBO.cpp
     src/Texture.cpp
     src/Mesh.cpp
+    src/Model.cpp
 )
 
 # Create executable
@@ -34,12 +37,15 @@ target_link_libraries(calcium3d
     ${OPENGL_LIBRARIES}
     ${GLFW_LIBRARIES}
     ${GLEW_LIBRARIES}
+    nlohmann_json::nlohmann_json
+    tinyobjloader
 )
 
 # Include pkg-config flags (in case needed)
 target_include_directories(calcium3d PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
+    ${TINYOBJLOADER_INCLUDE_DIRS}
 )
 
 target_link_directories(calcium3d PRIVATE

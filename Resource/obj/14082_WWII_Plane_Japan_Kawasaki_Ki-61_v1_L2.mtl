@@ -1,0 +1,100 @@
+# 3ds Max Wavefront OBJ Exporter v0.97b - (c)2007 guruware
+# File Created: 21.03.2012 13:18:53
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_01
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 14082_WWII_Plane_Japan_Kawasaki_Ki-61_diffuse_v1.jpg
+	map_Kd 14082_WWII_Plane_Japan_Kawasaki_Ki-61_diffuse_v1.jpg
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_06
+	Ns 31.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.6784 0.6784 0.6784
+	Kd 0.3608 0.4745 0.5765
+	Ks 0.5216 0.5216 0.5216
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_07
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.4510 0.4314 0.4078
+	Kd 0.4510 0.4314 0.4078
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_04
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.1176 0.1176 0.1176
+	Kd 0.1176 0.1176 0.1176
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_03
+	Ns 77.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.2941 0.2941 0.2941
+	Kd 0.2941 0.2941 0.2941
+	Ks 0.6300 0.6300 0.6300
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_02
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.4667 0.2667 0.2549
+	Kd 0.4667 0.2667 0.2549
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_05
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5882 0.5882 0.5882
+	Kd 0.5882 0.5882 0.5882
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+
+newmtl 14082_WWII_Plane_Japan_Kawasaki_Ki_61_body_08
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.3098 0.3020 0.4000
+	Kd 0.3098 0.3020 0.4000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000

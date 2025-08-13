@@ -13,6 +13,7 @@
 #include "EBO.h"
 #include "Texture.h"
 #include "Mesh.h"
+#include "Model.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
@@ -140,6 +141,7 @@ int main() {
  std::vector <Texture> tex(textures, textures + sizeof(textures) / sizeof(Texture));
  Mesh floor(verts, ind, tex);
  Mesh light(lightVerts, lightInd, tex);
+ Model plane("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
 
     // Enables the Depth Buffer
     glEnable(GL_DEPTH_TEST);
@@ -318,8 +320,10 @@ int main() {
    
    
     	// Tells OpenGL which Shader Program we want to use
-    	floor.Draw(shaderProgram, camera);
-    	light.Draw(lightShader, camera);
+    //	floor.Draw(shaderProgram, camera);
+		light.Draw(lightShader, camera);
+
+		plane.Draw(shaderProgram, camera, glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
     	// Draw the skybox
     	glDepthFunc(GL_LEQUAL);
     	skyboxShader.use();
