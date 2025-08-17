@@ -19,13 +19,19 @@
 #include "Model.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
+#include "Editor.h"
+#include "Gizmo.h"
 
 struct WindowData {
     Camera* camera;
     unsigned int* framebufferTexture;
     unsigned int* RBO;
+    Model* plane;
+    int* selectedMesh;
 };
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
 int main() {
 	// Initialize GLFW
@@ -46,6 +52,8 @@ int main() {
 
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
    
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -119,6 +127,8 @@ int main() {
     // Generates Shader object using shaders default.vert and default.frag
     Shader shaderProgram("../shaders/default.vert", "../shaders/default.frag");
     Shader framebufferProgram("../shaders/framebuffer.vert", "../shaders/framebuffer.frag");
+    Shader celShadingProgram("../shaders/cel_shading.vert", "../shaders/cel_shading.frag");
+    Shader gizmoProgram("../shaders/gizmo.vert", "../shaders/gizmo.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
    
@@ -153,13 +163,15 @@ int main() {
     // Textures
  Texture textures[]
  {
-  Texture("../Resource/texture/planks.png", "diffuse", 0, GL_RGBA, GL_UNSIGNED_BYTE),
-  Texture("../Resource/texture/planksSpec.png", "specular", 1, GL_RED, GL_UNSIGNED_BYTE)
+  Texture("../Resource/texture/planks.png", "diffuse", 0),
+  Texture("../Resource/texture/planksSpec.png", "specular", 1)
  };
  std::vector <Texture> tex(textures, textures + sizeof(textures) / sizeof(Texture));
  Mesh floor(verts, ind, tex);
  Mesh light(lightVerts, lightInd, tex);
  Model plane("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
+ Gizmo gizmo;
+ int selectedMesh = -1;
 
     // Enables the Depth Buffer
     glEnable(GL_DEPTH_TEST);
@@ -168,7 +180,7 @@ int main() {
     Camera camera(800, 600, glm::vec3(0.0f, 0.0f, 2.0f));
     unsigned int framebufferTexture;
     unsigned int RBO;
-    WindowData data = { &camera, &framebufferTexture, &RBO };
+    WindowData data = { &camera, &framebufferTexture, &RBO, &plane, &selectedMesh };
     glfwSetWindowUserPointer(window, &data);
    
     float rectangleVertices[] =
@@ -331,10 +343,44 @@ int main() {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            ImGui::Begin("Controls");
-            ImGui::Checkbox("Cubemap", &showCubemap);
-            ImGui::Checkbox("Light Source", &showLightSource);
-            ImGui::Checkbox("Plane", &showPlane);
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            ImGui::SetNextWindowSize(ImVec2(300, ImGui::GetIO().DisplaySize.y));
+            ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+            if (ImGui::CollapsingHeader("Display Options")) {
+                ImGui::Checkbox("Show Cubemap", &showCubemap);
+                ImGui::Checkbox("Show Light Source", &showLightSource);
+                ImGui::Checkbox("Show Plane", &showPlane);
+            }
+
+            if (ImGui::CollapsingHeader("Editor Mode")) {
+                if (ImGui::RadioButton("Edit", Editor::isEditMode)) {
+                    Editor::isEditMode = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Play", !Editor::isEditMode)) {
+                    Editor::isEditMode = false;
+                }
+            }
+
+            if (Editor::isEditMode) {
+                if (ImGui::CollapsingHeader("Transform")) {
+                    if (ImGui::RadioButton("Translate", Editor::selectionMode == Editor::TRANSLATE)) {
+                        Editor::selectionMode = Editor::TRANSLATE;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("Rotate", Editor::selectionMode == Editor::ROTATE)) {
+                        Editor::selectionMode = Editor::ROTATE;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("Scale", Editor::selectionMode == Editor::SCALE)) {
+                        Editor::selectionMode = Editor::SCALE;
+                    }
+                }
+                ImGui::Checkbox("Free Movement", &Editor::isFreeMovement);
+                ImGui::SliderFloat("Sensitivity", &camera.sensitivity, 0.0f, 200.0f);
+            }
+
             ImGui::End();
 
     		// Bind the custom framebuffer
@@ -348,10 +394,12 @@ int main() {
    
    
     	// Handles camera inputs
-    	camera.Inputs(window);
+    	if (Editor::isEditMode) {
+    		camera.Inputs(window);
+    	}
     	// Updates and exports the camera matrix to the Vertex Shader
-   
-   
+    
+    
     	// Tells OpenGL which Shader Program we want to use
     //	floor.Draw(shaderProgram, camera);
         if (showLightSource)
@@ -362,8 +410,14 @@ int main() {
         if (showPlane)
         {
 		    plane.Draw(shaderProgram, camera, glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-        }
-    	// Draw the skybox
+		          if (Editor::isEditMode) {
+		              if (selectedMesh != -1) {
+		                  plane.meshes[selectedMesh].Draw(celShadingProgram, camera);
+		                  gizmo.Draw(gizmoProgram, camera, plane.meshes[selectedMesh].vertices[0].position);
+		              }
+		          }
+		      }
+		   // Draw the skybox
         if (showCubemap)
         {
     	    glDepthFunc(GL_LEQUAL);
@@ -445,4 +499,45 @@ int main() {
    	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
    	glBindRenderbuffer(GL_RENDERBUFFER, *data->RBO);
    	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+   }
+
+   void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+   {
+   	   if (key == GLFW_KEY_F3 && action == GLFW_PRESS)
+   	   {
+   	       Editor::ToggleMode();
+   	   }
+   	      if (key == GLFW_KEY_F4 && action == GLFW_PRESS)
+   	      {
+   	          Editor::ToggleFreeMovement();
+   	      }
+   	      if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+   	      {
+   	          Editor::isFreeMovement = false;
+   	      }
+   }
+
+   void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+   {
+   	   if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+   	   {
+   	       if (Editor::isEditMode)
+   	       {
+   	           WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
+   	           glm::vec3 ray = data->camera->GetRay(window);
+   	           
+   	           float closest_intersection = std::numeric_limits<float>::max();
+   	           *data->selectedMesh = -1;
+
+   	           for (int i = 0; i < data->plane->meshes.size(); ++i) {
+   	               float intersection_distance;
+   	               if (data->plane->meshes[i].Intersect(data->camera->Position, ray, intersection_distance)) {
+   	                   if (intersection_distance < closest_intersection) {
+   	                       closest_intersection = intersection_distance;
+   	                       *data->selectedMesh = i;
+   	                   }
+   	               }
+   	           }
+   	       }
+   	   }
    }

@@ -27,6 +27,8 @@ set(SOURCES
     src/Texture.cpp
     src/Mesh.cpp
     src/Model.cpp
+    src/Editor.cpp
+    src/Gizmo.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp

@@ -17,12 +17,12 @@ public:
 	void Draw(Shader& shader, Camera& camera, glm::vec3 translation, glm::quat rotation, glm::vec3 scale);
 	void Draw(Shader& shader, Camera& camera);
 
+	std::vector<Mesh> meshes;
 private:
 	const char* file;
 	std::vector<unsigned char> data;
 	json JSON;
 
-	std::vector<Mesh> meshes;
 	std::vector<glm::vec3> translationsMeshes;
 	std::vector<glm::quat> rotationsMeshes;
 	std::vector<glm::vec3> scalesMeshes;
