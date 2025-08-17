@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Include directories
-include_directories(include include/stb include/glm include/glad)
+include_directories(include include/stb include/glm include/glad imgui imgui/backends)
 
 # Find required packages
 find_package(OpenGL REQUIRED)
@@ -27,6 +27,13 @@ set(SOURCES
     src/Texture.cpp
     src/Mesh.cpp
     src/Model.cpp
+    imgui/imgui.cpp
+    imgui/imgui_demo.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
 )
 
 # Create executable

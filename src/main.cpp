@@ -1,3 +1,6 @@
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -51,6 +54,21 @@ int main() {
         std::cerr << "Failed to initialize GLAD\n";
         return -1;
     }
+
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
 
     // Triangle vertices with texture coordinates
     // Vertices coordinates
@@ -304,6 +322,15 @@ int main() {
     
     	while (!glfwWindowShouldClose(window))
     	{
+            // Start the Dear ImGui frame
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
+            ImGui::Begin("Hello, world!");
+            ImGui::Text("This is some useful text.");
+            ImGui::End();
+
     		// Bind the custom framebuffer
     		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
     	// Specify the color of the background
@@ -353,6 +380,9 @@ int main() {
     	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
     	glDrawArrays(GL_TRIANGLES, 0, 6);
    
+        // Rendering ImGui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
    
     	// Swap the back buffer with the front buffer
     	glfwSwapBuffers(window);
@@ -376,10 +406,15 @@ int main() {
     //lightShader.Delete();
     // Delete window before ending the program
    
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
-   }
+}
    
    void framebuffer_size_callback(GLFWwindow* window, int width, int height)
    {
