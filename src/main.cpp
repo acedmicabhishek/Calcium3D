@@ -180,8 +180,8 @@ int main() {
    
     	 1.0f,  1.0f,  1.0f, 1.0f,
     	 1.0f, -1.0f,  1.0f, 0.0f,
-    	-1.0f,  1.0f,  0.0f, 1.0f
-    };
+    	-1.0f,  1.0f,  0.0f, 1.0f}
+    ;
    
     unsigned int rectVAO, rectVBO;
     glGenVertexArrays(1, &rectVAO);
@@ -320,6 +320,10 @@ int main() {
     		}
     	}
     
+        bool showCubemap = true;
+        bool showLightSource = true;
+        bool showPlane = true;
+
     	while (!glfwWindowShouldClose(window))
     	{
             // Start the Dear ImGui frame
@@ -327,8 +331,10 @@ int main() {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            ImGui::Begin("Hello, world!");
-            ImGui::Text("This is some useful text.");
+            ImGui::Begin("Controls");
+            ImGui::Checkbox("Cubemap", &showCubemap);
+            ImGui::Checkbox("Light Source", &showLightSource);
+            ImGui::Checkbox("Plane", &showPlane);
             ImGui::End();
 
     		// Bind the custom framebuffer
@@ -348,23 +354,32 @@ int main() {
    
     	// Tells OpenGL which Shader Program we want to use
     //	floor.Draw(shaderProgram, camera);
-		light.Draw(lightShader, camera);
+        if (showLightSource)
+        {
+		    light.Draw(lightShader, camera);
+        }
 
-		plane.Draw(shaderProgram, camera, glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+        if (showPlane)
+        {
+		    plane.Draw(shaderProgram, camera, glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+        }
     	// Draw the skybox
-    	glDepthFunc(GL_LEQUAL);
-    	skyboxShader.use();
-    	glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
-    	glm::mat4 projection = camera.GetProjectionMatrix();
-    	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        if (showCubemap)
+        {
+    	    glDepthFunc(GL_LEQUAL);
+    	    skyboxShader.use();
+    	    glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
+    	    glm::mat4 projection = camera.GetProjectionMatrix();
+    	    glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    	    glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
    
-    	glBindVertexArray(skyboxVAO);
-    	glActiveTexture(GL_TEXTURE0);
-    	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-    	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    	glBindVertexArray(0);
-    	glDepthFunc(GL_LESS);
+    	    glBindVertexArray(skyboxVAO);
+    	    glActiveTexture(GL_TEXTURE0);
+    	    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+    	    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    	    glBindVertexArray(0);
+    	    glDepthFunc(GL_LESS);
+        }
    
    
     	// Bind the default framebuffer
