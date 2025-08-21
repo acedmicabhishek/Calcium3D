@@ -24,10 +24,15 @@
 
 struct WindowData {
     Camera* camera;
-    unsigned int* framebufferTexture;
-    unsigned int* RBO;
+    unsigned int framebufferTexture;
+    unsigned int RBO;
     Model* plane;
     int* selectedMesh;
+    int msaaSamples;
+    unsigned int msaaFBO;
+    unsigned int msaaColorBuffer;
+    unsigned int msaaRBO;
+    int currentMsaaIndex;
 };
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -180,7 +185,15 @@ int main() {
     Camera camera(800, 600, glm::vec3(0.0f, 0.0f, 2.0f));
     unsigned int framebufferTexture;
     unsigned int RBO;
-    WindowData data = { &camera, &framebufferTexture, &RBO, &plane, &selectedMesh };
+    WindowData data;
+    data.camera = &camera;
+    data.plane = &plane;
+    data.selectedMesh = &selectedMesh;
+    data.msaaSamples = 0;
+    data.msaaFBO = 0;
+    data.msaaColorBuffer = 0;
+    data.msaaRBO = 0;
+    data.currentMsaaIndex = 0;
     glfwSetWindowUserPointer(window, &data);
    
     float rectangleVertices[] =
@@ -234,6 +247,9 @@ int main() {
     if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
     	std::cout << "Framebuffer error: " << fboStatus << std::endl;
     
+    data.framebufferTexture = framebufferTexture;
+    data.RBO = RBO;
+
     	float skyboxVertices[] =
     	{
     		//   Coordinates
@@ -285,15 +301,51 @@ int main() {
     	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     
     	// Cubemap texture
-    	unsigned int cubemapTexture;
-    	glGenTextures(1, &cubemapTexture);
-    	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-    	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    
+    unsigned int cubemapTexture;
+    glGenTextures(1, &cubemapTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    const char* msaaOptions[] = { "Off", "2x", "4x", "8x" };
+    int msaaSamplesValues[] = { 0, 2, 4, 8, 16 };
+
+    auto createMsaaFramebuffer = [&](int samples) {
+        WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
+        if (data->msaaFBO != 0) {
+            glDeleteFramebuffers(1, &data->msaaFBO);
+            glDeleteTextures(1, &data->msaaColorBuffer);
+            glDeleteRenderbuffers(1, &data->msaaRBO);
+            data->msaaFBO = 0;
+            data->msaaColorBuffer = 0;
+            data->msaaRBO = 0;
+        }
+
+        data->msaaSamples = samples;
+        if (data->msaaSamples > 0) {
+            glGenFramebuffers(1, &data->msaaFBO);
+            glBindFramebuffer(GL_FRAMEBUFFER, data->msaaFBO);
+
+            glGenTextures(1, &data->msaaColorBuffer);
+            glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, data->msaaColorBuffer);
+            glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, data->msaaSamples, GL_RGB, data->camera->width, data->camera->height, GL_TRUE);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, data->msaaColorBuffer, 0);
+
+            glGenRenderbuffers(1, &data->msaaRBO);
+            glBindRenderbuffer(GL_RENDERBUFFER, data->msaaRBO);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER, data->msaaSamples, GL_DEPTH24_STENCIL8, data->camera->width, data->camera->height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, data->msaaRBO);
+
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "MSAA Framebuffer error" << std::endl;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    };
+
+    createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
     	std::string facesCubemap[6] =
     	{
     		"../Resource/cubemap/px.png",
@@ -351,6 +403,9 @@ int main() {
                 ImGui::Checkbox("Show Cubemap", &showCubemap);
                 ImGui::Checkbox("Show Light Source", &showLightSource);
                 ImGui::Checkbox("Show Plane", &showPlane);
+                if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
+                    createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
+                }
             }
 
             if (ImGui::CollapsingHeader("Editor Mode")) {
@@ -384,7 +439,11 @@ int main() {
             ImGui::End();
 
     		// Bind the custom framebuffer
-    		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+            if (data.msaaSamples > 0) {
+                glBindFramebuffer(GL_FRAMEBUFFER, data.msaaFBO);
+            } else {
+    		    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+            }
     	// Specify the color of the background
     	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
     	// Clean the back buffer and depth buffer
@@ -435,6 +494,11 @@ int main() {
     	    glDepthFunc(GL_LESS);
         }
    
+        if (data.msaaSamples > 0) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, data.msaaFBO);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO);
+            glBlitFramebuffer(0, 0, camera.width, camera.height, 0, 0, camera.width, camera.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        }
    
     	// Bind the default framebuffer
     	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -466,6 +530,11 @@ int main() {
     framebufferProgram.Delete();
     skyboxShader.Delete();
     glDeleteFramebuffers(1, &FBO);
+    if (data.msaaSamples > 0) {
+        glDeleteFramebuffers(1, &data.msaaFBO);
+        glDeleteTextures(1, &data.msaaColorBuffer);
+        glDeleteRenderbuffers(1, &data.msaaRBO);
+    }
     glDeleteVertexArrays(1, &rectVAO);
     glDeleteBuffers(1, &rectVBO);
     glDeleteRenderbuffers(1, &RBO);
@@ -495,10 +564,16 @@ int main() {
    		data->camera->height = height;
    	}
    	// Recreate framebuffer texture and RBO with new size
-   	glBindTexture(GL_TEXTURE_2D, *data->framebufferTexture);
+   	glBindTexture(GL_TEXTURE_2D, data->framebufferTexture);
    	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-   	glBindRenderbuffer(GL_RENDERBUFFER, *data->RBO);
+   	glBindRenderbuffer(GL_RENDERBUFFER, data->RBO);
    	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    if (data->msaaSamples > 0) {
+        glBindRenderbuffer(GL_RENDERBUFFER, data->msaaRBO);
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, data->msaaSamples, GL_DEPTH24_STENCIL8, width, height);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, data->msaaColorBuffer);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, data->msaaSamples, GL_RGB, width, height, GL_TRUE);
+    }
    }
 
    void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
