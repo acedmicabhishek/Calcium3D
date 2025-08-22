@@ -33,7 +33,7 @@ Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::v
 }
 
 
-void Mesh::Draw(Shader& shader, Camera& camera)
+void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale)
 {
 	shader.use();
 	vao.Bind();
@@ -43,12 +43,12 @@ void Mesh::Draw(Shader& shader, Camera& camera)
 	for (unsigned int i = 0; i < textures.size(); i++)
 	{
 		std::string num;
-		const char* type = textures[i].type;
-		if (strcmp(type, "diffuse") == 0)
+		std::string type = textures[i].type;
+		if (type == "diffuse")
 		{
 			num = std::to_string(numDiffuse++);
 		}
-		else if (strcmp(type, "specular") == 0)
+		else if (type == "specular")
 		{
 			num = std::to_string(numSpecular++);
 		}
@@ -59,8 +59,16 @@ void Mesh::Draw(Shader& shader, Camera& camera)
 	glUniform3f(glGetUniformLocation(shader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	camera.Matrix(45.0f, 0.1f, 100.0f, shader, "camMatrix");
 
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::translate(model, position);
+	model *= glm::mat4_cast(rotation);
+	model = glm::scale(model, scale);
+
+	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
 	// Draw the actual mesh
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+	vao.Unbind();
 }
 
 bool Mesh::Intersect(const glm::vec3& ray_origin, const glm::vec3& ray_direction, float& intersection_distance)

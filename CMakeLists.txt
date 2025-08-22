@@ -29,6 +29,7 @@ set(SOURCES
     src/Model.cpp
     src/Editor.cpp
     src/Gizmo.cpp
+    src/ObjectFactory.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp

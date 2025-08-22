@@ -21,13 +21,25 @@
 #include "stb/stb_image.h"
 #include "Editor.h"
 #include "Gizmo.h"
+#include "ObjectFactory.h"
+
+struct SceneObject {
+    Mesh mesh;
+    glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    glm::vec3 scale = glm::vec3(1.0f);
+
+    SceneObject(Mesh& m) : mesh(m) {}
+};
 
 struct WindowData {
     Camera* camera;
     unsigned int framebufferTexture;
     unsigned int RBO;
     Model* plane;
+    std::vector<SceneObject>* cubes;
     int* selectedMesh;
+    int* selectedCube;
     int msaaSamples;
     unsigned int msaaFBO;
     unsigned int msaaColorBuffer;
@@ -177,6 +189,8 @@ int main() {
  Model plane("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
  Gizmo gizmo;
  int selectedMesh = -1;
+ int selectedCube = -1;
+ std::vector<SceneObject> cubes;
 
     // Enables the Depth Buffer
     glEnable(GL_DEPTH_TEST);
@@ -188,9 +202,12 @@ int main() {
     WindowData data;
     data.camera = &camera;
     data.plane = &plane;
+    data.cubes = &cubes;
     data.selectedMesh = &selectedMesh;
+    data.selectedCube = &selectedCube;
     data.msaaSamples = 0;
     data.msaaFBO = 0;
+    data.msaaColorBuffer = 0;
     data.msaaColorBuffer = 0;
     data.msaaRBO = 0;
     data.currentMsaaIndex = 0;
@@ -408,6 +425,13 @@ int main() {
                 }
             }
 
+            if (ImGui::CollapsingHeader("Create")) {
+                if (ImGui::Button("Add Cube")) {
+                    Mesh newCube = ObjectFactory::createCube();
+                    cubes.push_back(SceneObject(newCube));
+                }
+            }
+
             if (ImGui::CollapsingHeader("Editor Mode")) {
                 if (ImGui::RadioButton("Edit", Editor::isEditMode)) {
                     Editor::isEditMode = true;
@@ -463,7 +487,7 @@ int main() {
     //	floor.Draw(shaderProgram, camera);
         if (showLightSource)
         {
-		    light.Draw(lightShader, camera);
+		    light.Draw(lightShader, camera, lightPos);
         }
 
         if (showPlane)
@@ -474,8 +498,16 @@ int main() {
 		                  plane.meshes[selectedMesh].Draw(celShadingProgram, camera);
 		                  gizmo.Draw(gizmoProgram, camera, plane.meshes[selectedMesh].vertices[0].position);
 		              }
+                      if (selectedCube != -1) {
+                          cubes[selectedCube].mesh.Draw(celShadingProgram, camera, cubes[selectedCube].position, cubes[selectedCube].rotation, cubes[selectedCube].scale);
+                          gizmo.Draw(gizmoProgram, camera, cubes[selectedCube].position);
+                          gizmo.HandleMouse(window, camera, cubes[selectedCube].position, cubes[selectedCube].position);
+                      }
 		          }
 		      }
+            for (auto& cube : cubes) {
+                cube.mesh.Draw(shaderProgram, camera, cube.position, cube.rotation, cube.scale);
+            }
 		   // Draw the skybox
         if (showCubemap)
         {
@@ -603,6 +635,7 @@ int main() {
    	           
    	           float closest_intersection = std::numeric_limits<float>::max();
    	           *data->selectedMesh = -1;
+               *data->selectedCube = -1;
 
    	           for (int i = 0; i < data->plane->meshes.size(); ++i) {
    	               float intersection_distance;
@@ -610,9 +643,20 @@ int main() {
    	                   if (intersection_distance < closest_intersection) {
    	                       closest_intersection = intersection_distance;
    	                       *data->selectedMesh = i;
+                               *data->selectedCube = -1;
    	                   }
    	               }
    	           }
+                for (int i = 0; i < data->cubes->size(); ++i) {
+                    float intersection_distance;
+                    if (data->cubes->at(i).mesh.Intersect(data->camera->Position, ray, intersection_distance)) {
+                        if (intersection_distance < closest_intersection) {
+                            closest_intersection = intersection_distance;
+                            *data->selectedCube = i;
+                            *data->selectedMesh = -1;
+                        }
+                    }
+                }
    	       }
    	   }
    }
