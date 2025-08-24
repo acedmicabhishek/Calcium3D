@@ -57,6 +57,7 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 	}
 	// Take care of the camera Matrix
 	glUniform3f(glGetUniformLocation(shader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+	glUniform3f(glGetUniformLocation(shader.ID, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	camera.Matrix(45.0f, 0.1f, 100.0f, shader, "camMatrix");
 
 	glm::mat4 model = glm::mat4(1.0f);
@@ -71,21 +72,24 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 	vao.Unbind();
 }
 
-bool Mesh::Intersect(const glm::vec3& ray_origin, const glm::vec3& ray_direction, float& intersection_distance)
+bool Mesh::Intersect(const glm::vec3& ray_origin, const glm::vec3& ray_direction, const glm::mat4& modelMatrix, float& intersection_distance)
 {
 	float tmin = 0.0;
 	float tmax = std::numeric_limits<float>::max();
 
+    glm::vec3 worldMinAABB = glm::vec3(modelMatrix * glm::vec4(minAABB, 1.0f));
+    glm::vec3 worldMaxAABB = glm::vec3(modelMatrix * glm::vec4(maxAABB, 1.0f));
+
 	for (int i = 0; i < 3; ++i) {
 		if (abs(ray_direction[i]) < 1e-6) {
-			if (ray_origin[i] < minAABB[i] || ray_origin[i] > maxAABB[i]) {
+			if (ray_origin[i] < worldMinAABB[i] || ray_origin[i] > worldMaxAABB[i]) {
 				return false;
 			}
 		}
 		else {
 			float ood = 1.0f / ray_direction[i];
-			float t1 = (minAABB[i] - ray_origin[i]) * ood;
-			float t2 = (maxAABB[i] - ray_origin[i]) * ood;
+			float t1 = (worldMinAABB[i] - ray_origin[i]) * ood;
+			float t2 = (worldMaxAABB[i] - ray_origin[i]) * ood;
 
 			if (t1 > t2) {
 				std::swap(t1, t2);

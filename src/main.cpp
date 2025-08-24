@@ -40,6 +40,9 @@ struct WindowData {
     std::vector<SceneObject>* cubes;
     int* selectedMesh;
     int* selectedCube;
+    bool* isLightSelected;
+    Mesh* lightMesh;
+    glm::vec3* lightPos;
     int msaaSamples;
     unsigned int msaaFBO;
     unsigned int msaaColorBuffer;
@@ -177,6 +180,12 @@ int main() {
     glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
 
 
+    celShadingProgram.use();
+    glUniform4f(glGetUniformLocation(celShadingProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
+    glUniform3f(glGetUniformLocation(celShadingProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+    shaderProgram.use();
+
+
     // Textures
  Texture textures[]
  {
@@ -190,6 +199,7 @@ int main() {
  Gizmo gizmo;
  int selectedMesh = -1;
  int selectedCube = -1;
+ bool isLightSelected = false;
  std::vector<SceneObject> cubes;
 
     // Enables the Depth Buffer
@@ -205,6 +215,9 @@ int main() {
     data.cubes = &cubes;
     data.selectedMesh = &selectedMesh;
     data.selectedCube = &selectedCube;
+    data.isLightSelected = &isLightSelected;
+    data.lightMesh = &light;
+    data.lightPos = &lightPos;
     data.msaaSamples = 0;
     data.msaaFBO = 0;
     data.msaaColorBuffer = 0;
@@ -487,27 +500,50 @@ int main() {
     //	floor.Draw(shaderProgram, camera);
         if (showLightSource)
         {
-		    light.Draw(lightShader, camera, lightPos);
+            if (Editor::isEditMode && isLightSelected) {
+                light.Draw(celShadingProgram, camera, lightPos);
+            } else {
+		        light.Draw(lightShader, camera, lightPos);
+            }
         }
 
+        // Draw the plane
         if (showPlane)
         {
-		    plane.Draw(shaderProgram, camera, glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-		          if (Editor::isEditMode) {
-		              if (selectedMesh != -1) {
-		                  plane.meshes[selectedMesh].Draw(celShadingProgram, camera);
-		                  gizmo.Draw(gizmoProgram, camera, plane.meshes[selectedMesh].vertices[0].position);
-		              }
-                      if (selectedCube != -1) {
-                          cubes[selectedCube].mesh.Draw(celShadingProgram, camera, cubes[selectedCube].position, cubes[selectedCube].rotation, cubes[selectedCube].scale);
-                          gizmo.Draw(gizmoProgram, camera, cubes[selectedCube].position);
-                          gizmo.HandleMouse(window, camera, cubes[selectedCube].position, cubes[selectedCube].position);
-                      }
-		          }
-		      }
-            for (auto& cube : cubes) {
-                cube.mesh.Draw(shaderProgram, camera, cube.position, cube.rotation, cube.scale);
+            for (int i = 0; i < plane.meshes.size(); ++i)
+            {
+                if (Editor::isEditMode && i == selectedMesh) {
+                    plane.meshes[i].Draw(celShadingProgram, camera);
+                } else {
+                    plane.meshes[i].Draw(shaderProgram, camera);
+                }
             }
+        }
+
+        // Draw the cubes
+        for (int i = 0; i < cubes.size(); ++i)
+        {
+            if (Editor::isEditMode && i == selectedCube) {
+                cubes[i].mesh.Draw(celShadingProgram, camera, cubes[i].position, cubes[i].rotation, cubes[i].scale);
+            } else {
+                cubes[i].mesh.Draw(shaderProgram, camera, cubes[i].position, cubes[i].rotation, cubes[i].scale);
+            }
+        }
+
+        if (Editor::isEditMode)
+        {
+            if (selectedMesh != -1) {
+                gizmo.Draw(gizmoProgram, camera, plane.meshes[selectedMesh].vertices[0].position);
+            }
+            if (selectedCube != -1) {
+                gizmo.Draw(gizmoProgram, camera, cubes[selectedCube].position);
+                gizmo.HandleMouse(window, camera, cubes[selectedCube].position, cubes[selectedCube].position);
+            }
+            if (isLightSelected) {
+                gizmo.Draw(gizmoProgram, camera, lightPos);
+                gizmo.HandleMouse(window, camera, lightPos, lightPos);
+            }
+        }
 		   // Draw the skybox
         if (showCubemap)
         {
@@ -622,11 +658,19 @@ int main() {
    	      {
    	          Editor::isFreeMovement = false;
    	      }
+        if (key == GLFW_KEY_0 && action == GLFW_PRESS)
+        {
+            WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
+            if (data) {
+                *data->selectedMesh = 0;
+                *data->selectedCube = -1;
+            }
+        }
    }
 
    void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
    {
-   	   if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+   	   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
    	   {
    	       if (Editor::isEditMode)
    	       {
@@ -636,25 +680,44 @@ int main() {
    	           float closest_intersection = std::numeric_limits<float>::max();
    	           *data->selectedMesh = -1;
                *data->selectedCube = -1;
+               *data->isLightSelected = false;
 
    	           for (int i = 0; i < data->plane->meshes.size(); ++i) {
    	               float intersection_distance;
-   	               if (data->plane->meshes[i].Intersect(data->camera->Position, ray, intersection_distance)) {
+                   glm::mat4 modelMatrix = glm::mat4(1.0f);
+   	               if (data->plane->meshes[i].Intersect(data->camera->Position, ray, modelMatrix, intersection_distance)) {
    	                   if (intersection_distance < closest_intersection) {
    	                       closest_intersection = intersection_distance;
    	                       *data->selectedMesh = i;
-                               *data->selectedCube = -1;
+                           *data->selectedCube = -1;
+                           *data->isLightSelected = false;
    	                   }
    	               }
    	           }
                 for (int i = 0; i < data->cubes->size(); ++i) {
                     float intersection_distance;
-                    if (data->cubes->at(i).mesh.Intersect(data->camera->Position, ray, intersection_distance)) {
+                    glm::mat4 modelMatrix = glm::mat4(1.0f);
+                    modelMatrix = glm::translate(modelMatrix, data->cubes->at(i).position);
+                    modelMatrix *= glm::mat4_cast(data->cubes->at(i).rotation);
+                    modelMatrix = glm::scale(modelMatrix, data->cubes->at(i).scale);
+                    if (data->cubes->at(i).mesh.Intersect(data->camera->Position, ray, modelMatrix, intersection_distance)) {
                         if (intersection_distance < closest_intersection) {
                             closest_intersection = intersection_distance;
                             *data->selectedCube = i;
                             *data->selectedMesh = -1;
+                            *data->isLightSelected = false;
                         }
+                    }
+                }
+                float intersection_distance;
+                glm::mat4 modelMatrix = glm::mat4(1.0f);
+                modelMatrix = glm::translate(modelMatrix, *data->lightPos);
+                if (data->lightMesh->Intersect(data->camera->Position, ray, modelMatrix, intersection_distance)) {
+                    if (intersection_distance < closest_intersection) {
+                        closest_intersection = intersection_distance;
+                        *data->selectedCube = -1;
+                        *data->selectedMesh = -1;
+                        *data->isLightSelected = true;
                     }
                 }
    	       }
