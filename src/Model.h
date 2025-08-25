@@ -26,9 +26,6 @@ private:
 	std::vector<glm::vec3> scalesMeshes;
 	std::vector<glm::mat4> matricesMeshes;
 
-	std::vector<std::string> loadedTexName;
-	std::vector<Texture> loadedTex;
-
 	void loadMesh(unsigned int indMesh);
 
 	void traverseNode(unsigned int nextNode, glm::mat4 matrix = glm::mat4(1.0f));

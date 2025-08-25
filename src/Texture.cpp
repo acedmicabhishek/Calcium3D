@@ -1,4 +1,5 @@
 #include"Texture.h"
+#include<iostream>
 #include<stdexcept>
 
 Texture::Texture(const char* image, const char* texType, GLuint slot)
@@ -12,6 +13,11 @@ Texture::Texture(const char* image, const char* texType, GLuint slot)
 	stbi_set_flip_vertically_on_load(true);
 	// Reads the image from a file and stores it in bytes
 	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 0);
+	if (!bytes)
+	{
+		std::cout << "Failed to load texture: " << image << std::endl;
+		return;
+	}
 
 	// Generates an OpenGL texture object
 	glGenTextures(1, &ID);

@@ -418,17 +418,9 @@ int main() {
     	}
     
         bool showCubemap = true;
-        bool showLightSource = true;
-        bool showPlane = true;
+        bool showLightSource = false;
+        bool showPlane = false;
 
-        if (showPlane) {
-            plane = new Model("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
-            data.plane = plane;
-        }
-        if (showLightSource) {
-            light = new Mesh(lightVerts, lightInd, tex);
-            data.lightMesh = light;
-        }
 
     	while (!glfwWindowShouldClose(window))
     	{
@@ -484,6 +476,16 @@ int main() {
                     cubes.push_back(SceneObject(newCube));
                     Logger::AddLog("Added a new cube");
                 }
+                if (ImGui::Button("Add Plane")) {
+					Mesh newPlane = ObjectFactory::createPlane();
+					cubes.push_back(SceneObject(newPlane));
+					Logger::AddLog("Added a new plane");
+				}
+				if (ImGui::Button("Add Sphere")) {
+					Mesh newSphere = ObjectFactory::createSphere(32, 16);
+					cubes.push_back(SceneObject(newSphere));
+					Logger::AddLog("Added a new sphere");
+				}
             }
 
             if (ImGui::CollapsingHeader("Editor Mode")) {
