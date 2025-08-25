@@ -588,7 +588,6 @@ int main() {
                     
                     // Global texture tiling factor
                     if (ImGui::SliderFloat("Global Texture Tiling", &globalTilingFactor, 0.1f, 10.0f)) {
-                        // This will be applied when objects are drawn
                     }
                     
                     // Sun position controls
@@ -654,7 +653,10 @@ int main() {
                     
                     Logger::AddLog("Destroyed all objects");
                 }
+                 
                 
+
+
                 if (ImGui::Button("Clear Selection", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
                     selectedCube = -1;
                     selectedMesh = -1;
@@ -751,7 +753,7 @@ int main() {
             // Draw outline for selected light
             if (Editor::isEditMode && isLightSelected) {
                 outlineProgram.use();
-                // Draw outline with slightly larger scale
+// Draw outline with slightly larger scale                
                 glm::vec3 outlineScale = lightScale * 1.05f;
                 light->Draw(outlineProgram, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
             }
