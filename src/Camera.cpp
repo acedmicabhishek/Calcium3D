@@ -129,7 +129,7 @@ glm::mat4 Camera::GetViewMatrix()
 
 glm::mat4 Camera::GetProjectionMatrix()
 {
-	return glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, farPlane);
+	return glm::perspective(glm::radians(FOV), (float)width / height, 0.1f, farPlane);
 }
 
 glm::vec3 Camera::GetRay(GLFWwindow* window)

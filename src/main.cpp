@@ -487,11 +487,28 @@ int main() {
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
-bool showGraphics = true;
+
+// Performance tracking variables
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+int frameCount = 0;
+float fps = 0.0f;
+float avgFrameTime = 0.0f;
 
 
     	while (!glfwWindowShouldClose(window))
     	{
+            // Calculate performance metrics
+            float currentFrame = glfwGetTime();
+            deltaTime = currentFrame - lastFrame;
+            lastFrame = currentFrame;
+            
+            frameCount++;
+            if (frameCount % 60 == 0) { // Update FPS every 60 frames
+                fps = 1.0f / deltaTime;
+                avgFrameTime = deltaTime * 1000.0f; // Convert to milliseconds
+            }
+            
             // Start the Dear ImGui frame
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -525,11 +542,10 @@ bool showGraphics = true;
                     }
                     ImGui::EndMenu();
                 }
-                if (ImGui::BeginMenu("View")) {
-                    ImGui::MenuItem("Performance", nullptr, &showPerformance);
-                    ImGui::MenuItem("Graphics", nullptr, &showGraphics);
-                    ImGui::EndMenu();
-                }
+                            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Performance Info", nullptr, &showPerformance);
+                ImGui::EndMenu();
+            }
                             if (ImGui::BeginMenu("Help")) {
                 if (ImGui::MenuItem("About")) {
                     Logger::AddLog("a light weigth game engine");
@@ -582,10 +598,31 @@ bool showGraphics = true;
                         Logger::AddLog("Destroyed plane object");
                     }
                 }
+
+
+            }
+
+            if (ImGui::CollapsingHeader("Graphics")) {
+                if (ImGui::SliderFloat("Render Distance", data.farPlane, 10.0f, 1000.0f, "%.1f")) {
+                    camera.farPlane = *data.farPlane;
+                }
+                if (ImGui::SliderFloat("Field of View", &camera.FOV, 30.0f, 120.0f, "%.1f")) {
+                    // FOV is updated in the camera
+                }
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
                 }
+            }
 
+            if (showPerformance && ImGui::CollapsingHeader("Performance")) {
+                ImGui::Text("FPS: %.1f", fps);
+                ImGui::Text("Frame Time: %.2f ms", avgFrameTime);
+                ImGui::Text("Delta Time: %.4f s", deltaTime);
+                ImGui::Separator();
+                ImGui::Text("Scene Objects: %zu", cubes.size());
+                ImGui::Text("MSAA Samples: %d", data.msaaSamples);
+                ImGui::Text("Render Distance: %.1f", camera.farPlane);
+                ImGui::Text("Field of View: %.1f°", camera.FOV);
             }
 
             if (ImGui::CollapsingHeader("Sun Settings")) {
@@ -838,10 +875,7 @@ bool showGraphics = true;
                     }
                 }
                 
-                // Performance Info at top
-                if (showPerformance) {
-                    ImGui::Text("Performance Info");
-                }
+
                 
                 // Selection info and Object Management
                 if (ImGui::CollapsingHeader("Selection & Objects")) {
@@ -883,14 +917,7 @@ bool showGraphics = true;
                     ImGui::BulletText("Sun: %s", sun ? "Visible" : "Hidden");
                 }
                 
-                // Graphics Settings
-                if (showGraphics) {
-                    ImGui::Begin("Graphics", &showGraphics);
-                    if (ImGui::SliderFloat("Render Distance", data.farPlane, 10.0f, 1000.0f, "%.1f")) {
-                        camera.farPlane = *data.farPlane;
-                    }
-                    ImGui::End();
-                }
+
                 
                 // Camera Settings
                 if (ImGui::CollapsingHeader("Camera")) {
