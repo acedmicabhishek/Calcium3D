@@ -22,24 +22,31 @@ uniform vec4 lightColor;
 uniform vec3 lightPos;
 // Gets the position of the camera from the main function
 uniform vec3 camPos;
+// Sun (Global Light) uniforms
+uniform vec4 sunColor;
+uniform vec3 sunPos;
+uniform float sunIntensity;
 
 void main()
 {
-	// ambient lighting
-	float ambient = 0.20f;
+	// ambient lighting (reduced since sun will provide most lighting)
+	float ambient = 0.10f;
 
-	// diffuse lighting
+	// diffuse lighting from sun (primary light source)
 	vec3 normal = normalize(Normal);
-	vec3 lightDirection = normalize(lightPos - crntPos);
-	float diffuse = max(dot(normal, lightDirection), 0.0f);
+	vec3 sunDirection = normalize(sunPos - crntPos);
+	float sunDiffuse = max(dot(normal, sunDirection), 0.0f) * sunIntensity;
 
-	// specular lighting
+	// specular lighting from sun
 	float specularLight = 0.50f;
 	vec3 viewDirection = normalize(camPos - crntPos);
-	vec3 reflectionDirection = reflect(-lightDirection, normal);
-	float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 16);
-	float specular = specAmount * specularLight;
+	vec3 sunReflectionDirection = reflect(-sunDirection, normal);
+	float sunSpecAmount = pow(max(dot(viewDirection, sunReflectionDirection), 0.0f), 16);
+	float sunSpecular = sunSpecAmount * specularLight * sunIntensity;
 
-	// outputs final color
-	FragColor = (texture(tex0, texCoord) * (diffuse + ambient) + texture(tex1, texCoord).r * specular) * lightColor;
+	// Calculate lighting primarily from sun
+	vec4 sunLighting = (texture(tex0, texCoord) * (sunDiffuse + ambient) + texture(tex1, texCoord).r * sunSpecular) * sunColor;
+	
+	// outputs final color (sun is the main light source)
+	FragColor = sunLighting;
 }

@@ -52,7 +52,7 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 		{
 			num = std::to_string(numSpecular++);
 		}
-		textures[i].texUnit(shader, (type + num).c_str(), i);
+		textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
 		textures[i].Bind();
 	}
 	// Take care of the camera Matrix

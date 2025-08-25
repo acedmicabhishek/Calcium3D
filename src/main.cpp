@@ -49,10 +49,35 @@ struct WindowData {
     unsigned int msaaColorBuffer;
     unsigned int msaaRBO;
     int currentMsaaIndex;
+    // Sun (Global Light) variables
+    bool* isSunSelected;
+    Mesh* sunMesh;
+    glm::vec3* sunPos;
+    glm::vec4* sunColor;
+    float* sunIntensity;
 };
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+
+// Function to update sun uniforms in all shaders
+void updateSunUniforms(Shader& shaderProgram, Shader& celShadingProgram, Shader& sunProgram, const glm::vec4& sunColor, const glm::vec3& sunPos, float sunIntensity) {
+    shaderProgram.use();
+    glUniform4f(glGetUniformLocation(shaderProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+    glUniform3f(glGetUniformLocation(shaderProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+    glUniform1f(glGetUniformLocation(shaderProgram.ID, "sunIntensity"), sunIntensity);
+    
+    celShadingProgram.use();
+    glUniform4f(glGetUniformLocation(celShadingProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+    glUniform3f(glGetUniformLocation(celShadingProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+    glUniform1f(glGetUniformLocation(celShadingProgram.ID, "sunIntensity"), sunIntensity);
+    
+    sunProgram.use();
+    glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+    glUniform1f(glGetUniformLocation(sunProgram.ID, "sunIntensity"), sunIntensity);
+    
+    shaderProgram.use();
+}
 
 int main() {
 	// Initialize GLFW
@@ -152,6 +177,7 @@ int main() {
     Shader gizmoProgram("../shaders/gizmo.vert", "../shaders/gizmo.frag");
     Shader outlineProgram("../shaders/outline.vert", "../shaders/outline.frag");
     Shader highlightProgram("../shaders/highlight.vert", "../shaders/highlight.frag");
+    Shader sunProgram("../shaders/sun.vert", "../shaders/sun.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
    
@@ -168,6 +194,14 @@ int main() {
     glm::vec3 lightPos = glm::vec3(0.5f, 0.5f, 0.5f);
     glm::mat4 lightModel = glm::mat4(1.0f);
     lightModel = glm::translate(lightModel, lightPos);
+
+    // Sun (Global Light) variables
+    glm::vec4 sunColor = glm::vec4(1.0f, 0.95f, 0.8f, 1.0f); // Warm sunlight color
+    glm::vec3 sunPos = glm::vec3(10.0f, 15.0f, 5.0f); // Position the sun high and far
+    float sunIntensity = 2.0f; // Higher intensity for better lighting
+    glm::mat4 sunModel = glm::mat4(1.0f);
+    sunModel = glm::translate(sunModel, sunPos);
+    sunModel = glm::scale(sunModel, glm::vec3(2.0f)); // Make sun larger
 
     glm::vec3 pyramidPos = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::mat4 pyramidModel = glm::mat4(1.0f);
@@ -186,6 +220,18 @@ int main() {
     celShadingProgram.use();
     glUniform4f(glGetUniformLocation(celShadingProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
     glUniform3f(glGetUniformLocation(celShadingProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+    
+    // Set sun uniforms for all shaders
+    shaderProgram.use();
+    glUniform4f(glGetUniformLocation(shaderProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+    glUniform3f(glGetUniformLocation(shaderProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+    glUniform1f(glGetUniformLocation(shaderProgram.ID, "sunIntensity"), sunIntensity);
+    
+    celShadingProgram.use();
+    glUniform4f(glGetUniformLocation(celShadingProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+    glUniform3f(glGetUniformLocation(celShadingProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+    glUniform1f(glGetUniformLocation(celShadingProgram.ID, "sunIntensity"), sunIntensity);
+    
     shaderProgram.use();
 
 
@@ -199,10 +245,12 @@ int main() {
     Mesh floor(verts, ind, tex);
  Model* plane = nullptr;
  Mesh* light = nullptr;
+ Mesh* sun = nullptr;
  Gizmo gizmo;
  int selectedMesh = -1;
  int selectedCube = -1;
  bool isLightSelected = false;
+ bool isSunSelected = false;
  std::vector<SceneObject> cubes;
 
     // Enables the Depth Buffer
@@ -227,6 +275,18 @@ int main() {
     data.msaaColorBuffer = 0;
     data.msaaRBO = 0;
     data.currentMsaaIndex = 0;
+    // Initialize sun data
+    data.isSunSelected = &isSunSelected;
+    data.sunMesh = sun;
+    data.sunPos = &sunPos;
+    data.sunColor = &sunColor;
+    data.sunIntensity = &sunIntensity;
+    
+    // Create initial sun mesh
+    Mesh sunSphere = ObjectFactory::createSphere(32, 16);
+    sun = new Mesh(sunSphere);
+    data.sunMesh = sun;
+    
     glfwSetWindowUserPointer(window, &data);
    
     float rectangleVertices[] =
@@ -435,11 +495,15 @@ int main() {
 
             if (ImGui::CollapsingHeader("Display Options")) {
                 ImGui::Checkbox("Show Cubemap", &showCubemap);
-                if (ImGui::Checkbox("Show Light Source", &showLightSource)) {
+                if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
-                        light = new Mesh(lightVerts, lightInd, tex);
+                        // Create light mesh with proper textures
+                        std::vector<Texture> lightTex;
+                        lightTex.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
+                        lightTex.emplace_back("../Resource/default/texture/DefaultTex.png", "specular", 1);
+                        light = new Mesh(lightVerts, lightInd, lightTex);
                         data.lightMesh = light;
-                        Logger::AddLog("Created light source");
+                        Logger::AddLog("Created local light source");
                     } else if (!showLightSource && light) {
                         if (isLightSelected) {
                             isLightSelected = false;
@@ -447,14 +511,21 @@ int main() {
                         delete light;
                         light = nullptr;
                         data.lightMesh = nullptr;
-                        Logger::AddLog("Destroyed light source");
+                        Logger::AddLog("Destroyed local light source");
                     }
                 }
                 if (ImGui::Checkbox("Show Plane", &showPlane)) {
                     if (showPlane && !plane) {
                         plane = new Model("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
+                        // Apply default texture to all meshes in the plane model
+                        for (auto& mesh : plane->meshes) {
+                            std::vector<Texture> defaultTextures;
+                            defaultTextures.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
+                            defaultTextures.emplace_back("../Resource/default/texture/DefaultTex.png", "specular", 1);
+                            mesh.textures = defaultTextures;
+                        }
                         data.plane = plane;
-                        Logger::AddLog("Created plane object");
+                        Logger::AddLog("Created plane object with default texture");
                     } else if (!showPlane && plane) {
                         if (selectedMesh != -1) {
                             selectedMesh = -1;
@@ -467,6 +538,80 @@ int main() {
                 }
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
+                }
+            }
+
+            if (ImGui::CollapsingHeader("Sun Settings")) {
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Primary Light Source");
+                ImGui::SameLine();
+                ImGui::TextDisabled("(Objects are lit by the sun)");
+                ImGui::Separator();
+                
+                static bool showSun = true;
+                if (ImGui::Checkbox("Show Sun", &showSun)) {
+                    if (showSun && !sun) {
+                        // Create a sphere for the sun with proper textures
+                        Mesh sunSphere = ObjectFactory::createSphere(32, 16);
+                        sun = new Mesh(sunSphere);
+                        data.sunMesh = sun;
+                        Logger::AddLog("Created sun");
+                    } else if (!showSun && sun) {
+                        if (isSunSelected) {
+                            isSunSelected = false;
+                        }
+                        delete sun;
+                        sun = nullptr;
+                        data.sunMesh = nullptr;
+                        Logger::AddLog("Destroyed sun");
+                    }
+                }
+                
+                if (sun) {
+                    ImGui::Separator();
+                    ImGui::Text("Sun Properties");
+                    
+                    // Sun color picker
+                    float sunColorArray[4] = { sunColor.x, sunColor.y, sunColor.z, sunColor.w };
+                    if (ImGui::ColorEdit4("Sun Color", sunColorArray)) {
+                        sunColor = glm::vec4(sunColorArray[0], sunColorArray[1], sunColorArray[2], sunColorArray[3]);
+                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
+                    
+                    // Sun intensity slider
+                    if (ImGui::SliderFloat("Sun Intensity", &sunIntensity, 0.0f, 10.0f)) {
+                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
+                    
+                    // Sun position controls
+                    ImGui::Separator();
+                    ImGui::Text("Sun Position");
+                    float sunPosArray[3] = { sunPos.x, sunPos.y, sunPos.z };
+                    if (ImGui::DragFloat3("Position", sunPosArray, 0.1f)) {
+                        sunPos = glm::vec3(sunPosArray[0], sunPosArray[1], sunPosArray[2]);
+                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
+                    
+                    // Preset sun positions
+                    if (ImGui::Button("Dawn")) {
+                        sunPos = glm::vec3(-10.0f, 5.0f, 0.0f);
+                        sunColor = glm::vec4(1.0f, 0.6f, 0.3f, 1.0f); // Orange-red
+                        sunIntensity = 1.5f;
+                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Noon")) {
+                        sunPos = glm::vec3(0.0f, 20.0f, 0.0f);
+                        sunColor = glm::vec4(1.0f, 1.0f, 0.9f, 1.0f); // Bright white
+                        sunIntensity = 2.5f;
+                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Dusk")) {
+                        sunPos = glm::vec3(10.0f, 5.0f, 0.0f);
+                        sunColor = glm::vec4(1.0f, 0.4f, 0.2f, 1.0f); // Deep orange
+                        sunIntensity = 1.2f;
+                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
                 }
             }
 
@@ -558,6 +703,22 @@ int main() {
             }
         }
 
+        // Draw the sun
+        if (sun)
+        {
+            if (Editor::isEditMode && isSunSelected) {
+                highlightProgram.use();
+                sun->Draw(highlightProgram, camera, sunPos);
+            } else {
+                // Use the sun shader for better visual effect
+                sunProgram.use();
+                glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+                glUniform1f(glGetUniformLocation(sunProgram.ID, "sunIntensity"), sunIntensity);
+                glUniform3f(glGetUniformLocation(sunProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+                sun->Draw(sunProgram, camera, sunPos);
+            }
+        }
+
         // Draw the plane
         if (showPlane && plane)
         {
@@ -595,6 +756,10 @@ int main() {
             if (isLightSelected && light) {
                 gizmo.Draw(gizmoProgram, camera, lightPos);
                 gizmo.HandleMouse(window, camera, lightPos, lightPos);
+            }
+            if (isSunSelected && sun) {
+                gizmo.Draw(gizmoProgram, camera, sunPos);
+                gizmo.HandleMouse(window, camera, sunPos, sunPos);
             }
         }
 		   // Draw the skybox
@@ -650,8 +815,10 @@ int main() {
     lightShader.Delete();
     framebufferProgram.Delete();
     skyboxShader.Delete();
+    sunProgram.Delete();
     if (plane) delete plane;
     if (light) delete light;
+    if (sun) delete sun;
     glDeleteFramebuffers(1, &FBO);
     if (data.msaaSamples > 0) {
         glDeleteFramebuffers(1, &data.msaaFBO);
@@ -739,6 +906,7 @@ int main() {
                             *data->selectedMesh = i;
                             *data->selectedCube = -1;
                             *data->isLightSelected = false;
+                            *data->isSunSelected = false;
                             Logger::AddLog("Selected plane mesh %d", i);
                         }
                     }
@@ -756,6 +924,7 @@ int main() {
                         *data->selectedCube = i;
                         *data->selectedMesh = -1;
                         *data->isLightSelected = false;
+                        *data->isSunSelected = false;
                         Logger::AddLog("Selected cube %d", i);
                     }
                 }
@@ -770,7 +939,26 @@ int main() {
                         *data->selectedCube = -1;
                         *data->selectedMesh = -1;
                         *data->isLightSelected = true;
+                        *data->isSunSelected = false;
                         Logger::AddLog("Selected light source");
+                    }
+                }
+            }
+            
+            // Check sun selection
+            if (data->sunMesh) {
+                float intersection_distance;
+                glm::mat4 modelMatrix = glm::mat4(1.0f);
+                modelMatrix = glm::translate(modelMatrix, *data->sunPos);
+                modelMatrix = glm::scale(modelMatrix, glm::vec3(2.0f)); // Scale for sun size
+                if (data->sunMesh->Intersect(data->camera->Position, ray, modelMatrix, intersection_distance)) {
+                    if (intersection_distance < closest_intersection) {
+                        closest_intersection = intersection_distance;
+                        *data->selectedCube = -1;
+                        *data->selectedMesh = -1;
+                        *data->isLightSelected = false;
+                        *data->isSunSelected = true;
+                        Logger::AddLog("Selected sun");
                     }
                 }
             }
