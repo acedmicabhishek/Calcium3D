@@ -55,6 +55,7 @@ struct WindowData {
     glm::vec3* sunPos;
     glm::vec4* sunColor;
     float* sunIntensity;
+    float* farPlane;
 };
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -285,6 +286,7 @@ int main() {
     data.sunPos = &sunPos;
     data.sunColor = &sunColor;
     data.sunIntensity = &sunIntensity;
+    data.farPlane = &camera.farPlane;
     
     // Create initial sun mesh
     Mesh sunSphere = ObjectFactory::createSphere(32, 16);
@@ -528,12 +530,12 @@ bool showGraphics = true;
                     ImGui::MenuItem("Graphics", nullptr, &showGraphics);
                     ImGui::EndMenu();
                 }
-                if (ImGui::BeginMenu("Help")) {
-                    if (ImGui::MenuItem("About")) {
-                        Logger::AddLog("a light weigth game engine 'Calcium3D'");
-                    }
-                    ImGui::EndMenu();
+                            if (ImGui::BeginMenu("Help")) {
+                if (ImGui::MenuItem("About")) {
+                    Logger::AddLog("a light weigth game engine");
                 }
+                ImGui::EndMenu();
+            }
                 ImGui::EndMenuBar();
             }
 
@@ -583,6 +585,7 @@ bool showGraphics = true;
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
                 }
+
             }
 
             if (ImGui::CollapsingHeader("Sun Settings")) {
@@ -683,6 +686,23 @@ bool showGraphics = true;
 				}
                 
                 ImGui::Separator();
+                if (ImGui::Button("Delete Selected", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
+                    if (selectedCube != -1) {
+                        cubes.erase(cubes.begin() + selectedCube);
+                        selectedCube = -1;
+                        Logger::AddLog("Deleted selected object");
+                    } else if (selectedMesh != -1) {
+                        selectedMesh = -1;
+                        Logger::AddLog("Cleared plane selection");
+                    } else if (isLightSelected) {
+                        isLightSelected = false;
+                        Logger::AddLog("Cleared light selection");
+                    } else if (isSunSelected) {
+                        isSunSelected = false;
+                        Logger::AddLog("Cleared sun selection");
+                    }
+                }
+                
                 if (ImGui::Button("Destroy All Objects", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
                     // Clear all cubes (Mesh destructor will handle cleanup)
                     cubes.clear();
@@ -818,11 +838,9 @@ bool showGraphics = true;
                     }
                 }
                 
-                // FPS Meter
+                // Performance Info at top
                 if (showPerformance) {
-                    ImGui::Begin("Performance", &showPerformance);
                     ImGui::Text("Performance Info");
-                    ImGui::End();
                 }
                 
                 // Selection info and Object Management
@@ -832,14 +850,8 @@ bool showGraphics = true;
                         ImGui::Text("Position: %.2f, %.2f, %.2f", cubes[selectedCube].position.x, cubes[selectedCube].position.y, cubes[selectedCube].position.z);
                         ImGui::Text("Scale: %.2f, %.2f, %.2f", cubes[selectedCube].scale.x, cubes[selectedCube].scale.y, cubes[selectedCube].scale.z);
                         
-                        // Delete selected cube button
+                        // Duplicate cube button
                         ImGui::Separator();
-                        if (ImGui::Button("Delete Selected Cube", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
-                            cubes.erase(cubes.begin() + selectedCube);
-                            selectedCube = -1;
-                            Logger::AddLog("Deleted cube");
-                        }
-                        ImGui::SameLine();
                         if (ImGui::Button("Duplicate Cube", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
                             if (selectedCube >= 0 && selectedCube < cubes.size()) {
                                 SceneObject newCube = cubes[selectedCube];
@@ -874,9 +886,8 @@ bool showGraphics = true;
                 // Graphics Settings
                 if (showGraphics) {
                     ImGui::Begin("Graphics", &showGraphics);
-                    ImGui::Text("Render Distance: %.1f", camera.farPlane);
-                    if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
-                        createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
+                    if (ImGui::SliderFloat("Render Distance", data.farPlane, 10.0f, 1000.0f, "%.1f")) {
+                        camera.farPlane = *data.farPlane;
                     }
                     ImGui::End();
                 }
@@ -1210,10 +1221,21 @@ bool showGraphics = true;
   if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
   {
    WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
-   if (data && *data->selectedCube != -1)
-   {
-   	data->cubes->erase(data->cubes->begin() + *data->selectedCube);
-   	*data->selectedCube = -1;
+   if (data) {
+       if (*data->selectedCube != -1) {
+           data->cubes->erase(data->cubes->begin() + *data->selectedCube);
+           *data->selectedCube = -1;
+           Logger::AddLog("Deleted selected object (Delete key)");
+       } else if (*data->selectedMesh != -1) {
+           *data->selectedMesh = -1;
+           Logger::AddLog("Cleared plane selection (Delete key)");
+       } else if (*data->isLightSelected) {
+           *data->isLightSelected = false;
+           Logger::AddLog("Cleared light selection (Delete key)");
+       } else if (*data->isSunSelected) {
+           *data->isSunSelected = false;
+           Logger::AddLog("Cleared sun selection (Delete key)");
+       }
    }
   }
    }
