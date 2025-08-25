@@ -30,6 +30,7 @@ set(SOURCES
     src/Editor.cpp
     src/Gizmo.cpp
     src/ObjectFactory.cpp
+    src/Logger.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
