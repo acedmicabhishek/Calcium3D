@@ -1,9 +1,13 @@
 #version 330 core
+
+// Output color
 out vec4 FragColor;
 
-in vec3 ourColor;
+// Input from vertex shader
+in vec3 color;
 
 void main()
 {
-    FragColor = vec4(ourColor, 1.0f);
+    // Output the gizmo color directly
+    FragColor = vec4(color, 1.0);
 }

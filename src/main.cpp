@@ -177,6 +177,7 @@ int main() {
     Shader gizmoProgram("../shaders/gizmo.vert", "../shaders/gizmo.frag");
     Shader outlineProgram("../shaders/outline.vert", "../shaders/outline.frag");
     Shader highlightProgram("../shaders/highlight.vert", "../shaders/highlight.frag");
+    Shader selectionProgram("../shaders/selection.vert", "../shaders/selection.frag");
     Shader sunProgram("../shaders/sun.vert", "../shaders/sun.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
@@ -246,7 +247,8 @@ int main() {
  Model* plane = nullptr;
  Mesh* light = nullptr;
  Mesh* sun = nullptr;
- Gizmo gizmo;
+     Gizmo gizmo;
+    gizmo.SetMode(Gizmo::TRANSLATE); // Set default mode
  int selectedMesh = -1;
  int selectedCube = -1;
      bool isLightSelected = false;
@@ -680,15 +682,38 @@ int main() {
                 if (ImGui::CollapsingHeader("Transform")) {
                     if (ImGui::RadioButton("Translate", Editor::selectionMode == Editor::TRANSLATE)) {
                         Editor::selectionMode = Editor::TRANSLATE;
+                        gizmo.SetMode(Gizmo::TRANSLATE);
                     }
                     ImGui::SameLine();
                     if (ImGui::RadioButton("Rotate", Editor::selectionMode == Editor::ROTATE)) {
                         Editor::selectionMode = Editor::ROTATE;
+                        gizmo.SetMode(Gizmo::ROTATE);
                     }
                     ImGui::SameLine();
                     if (ImGui::RadioButton("Scale", Editor::selectionMode == Editor::SCALE)) {
                         Editor::selectionMode = Editor::SCALE;
+                        gizmo.SetMode(Gizmo::SCALE);
                     }
+                }
+                
+                // Gizmo settings
+                if (ImGui::CollapsingHeader("Gizmo Settings")) {
+                    ImGui::Text("Current Mode: %s", 
+                        gizmo.GetMode() == Gizmo::TRANSLATE ? "Translate" : 
+                        gizmo.GetMode() == Gizmo::ROTATE ? "Rotate" : "Scale");
+                    
+                    if (gizmo.IsDragging()) {
+                        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Dragging: %s axis", 
+                            gizmo.GetSelectedAxis() == Gizmo::X ? "X" : 
+                            gizmo.GetSelectedAxis() == Gizmo::Y ? "Y" : 
+                            gizmo.GetSelectedAxis() == Gizmo::Z ? "Z" : "None");
+                    }
+                    
+                    ImGui::Separator();
+                    ImGui::Text("Controls:");
+                    ImGui::BulletText("Left-click and drag on colored axes/handles");
+                    ImGui::BulletText("Red = X axis, Green = Y axis, Blue = Z axis");
+                    ImGui::BulletText("Switch modes using Transform radio buttons above");
                 }
                 
                 // Selection info
@@ -747,15 +772,18 @@ int main() {
         {
             glm::vec3 lightScale = glm::vec3(1.0f); // Light scale
             
-            // Draw the main light
-            light->Draw(lightShader, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), lightScale);
-            
-            // Draw outline for selected light
             if (Editor::isEditMode && isLightSelected) {
-                outlineProgram.use();
-// Draw outline with slightly larger scale                
-                glm::vec3 outlineScale = lightScale * 1.05f;
-                light->Draw(outlineProgram, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
+                // Draw selected light with selection shader (bright red)
+                selectionProgram.use();
+                // Set sun uniforms for lighting
+                glUniform4f(glGetUniformLocation(selectionProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+                glUniform3f(glGetUniformLocation(selectionProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+                glUniform1f(glGetUniformLocation(selectionProgram.ID, "sunIntensity"), sunIntensity);
+                glUniform3f(glGetUniformLocation(selectionProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+                light->Draw(selectionProgram, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), lightScale);
+            } else {
+                // Draw normal light
+                light->Draw(lightShader, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), lightScale);
             }
         }
 
@@ -764,19 +792,22 @@ int main() {
         {
             glm::vec3 sunScale = glm::vec3(2.0f); // Sun is scaled up for visibility
             
-            // Draw the main sun
-            sunProgram.use();
-            glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
-            glUniform1f(glGetUniformLocation(sunProgram.ID, "sunIntensity"), sunIntensity);
-            glUniform3f(glGetUniformLocation(sunProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-            sun->Draw(sunProgram, camera, sunPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), sunScale);
-            
-            // Draw outline for selected sun
             if (Editor::isEditMode && isSunSelected) {
-                outlineProgram.use();
-                // Draw outline with slightly larger scale
-                glm::vec3 outlineScale = sunScale * 1.05f;
-                sun->Draw(outlineProgram, camera, sunPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
+                // Draw selected sun with selection shader (bright red)
+                selectionProgram.use();
+                // Set sun uniforms for lighting
+                glUniform4f(glGetUniformLocation(selectionProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+                glUniform3f(glGetUniformLocation(selectionProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+                glUniform1f(glGetUniformLocation(selectionProgram.ID, "sunIntensity"), sunIntensity);
+                glUniform3f(glGetUniformLocation(selectionProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+                sun->Draw(selectionProgram, camera, sunPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), sunScale);
+            } else {
+                // Draw normal sun
+                sunProgram.use();
+                glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+                glUniform1f(glGetUniformLocation(sunProgram.ID, "sunIntensity"), sunIntensity);
+                glUniform3f(glGetUniformLocation(sunProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+                sun->Draw(sunProgram, camera, sunPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), sunScale);
             }
         }
 
@@ -786,15 +817,18 @@ int main() {
             glm::vec3 planeScale = glm::vec3(1.0f); // Plane scale
             for (int i = 0; i < plane->meshes.size(); ++i)
             {
-                // Draw the main object
-                plane->meshes[i].Draw(shaderProgram, camera, glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), planeScale);
-                
-                // Draw outline for selected mesh
                 if (Editor::isEditMode && i == selectedMesh) {
-                    outlineProgram.use();
-                    // Draw outline with slightly larger scale
-                    glm::vec3 outlineScale = planeScale * 1.05f;
-                    plane->meshes[i].Draw(outlineProgram, camera, glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
+                    // Draw selected plane mesh with selection shader (bright red)
+                    selectionProgram.use();
+                    // Set sun uniforms for lighting
+                    glUniform4f(glGetUniformLocation(selectionProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+                    glUniform3f(glGetUniformLocation(selectionProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+                    glUniform1f(glGetUniformLocation(selectionProgram.ID, "sunIntensity"), sunIntensity);
+                    glUniform3f(glGetUniformLocation(selectionProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+                    plane->meshes[i].Draw(selectionProgram, camera, glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), planeScale);
+                } else {
+                    // Draw normal plane mesh
+                    plane->meshes[i].Draw(shaderProgram, camera, glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), planeScale);
                 }
             }
         }
@@ -805,15 +839,18 @@ int main() {
             // Apply global tiling factor to scale for texture tiling
             glm::vec3 tiledScale = cubes[i].scale * globalTilingFactor;
             
-            // Draw the main object
-            cubes[i].mesh.Draw(shaderProgram, camera, cubes[i].position, cubes[i].rotation, tiledScale);
-            
-            // Draw outline for selected objects
             if (Editor::isEditMode && i == selectedCube) {
-                outlineProgram.use();
-                // Draw outline with slightly larger scale
-                glm::vec3 outlineScale = tiledScale * 1.05f;
-                cubes[i].mesh.Draw(outlineProgram, camera, cubes[i].position, cubes[i].rotation, outlineScale);
+                // Draw selected cube with selection shader (bright red)
+                selectionProgram.use();
+                // Set sun uniforms for lighting
+                glUniform4f(glGetUniformLocation(selectionProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+                glUniform3f(glGetUniformLocation(selectionProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
+                glUniform1f(glGetUniformLocation(selectionProgram.ID, "sunIntensity"), sunIntensity);
+                glUniform3f(glGetUniformLocation(selectionProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+                cubes[i].mesh.Draw(selectionProgram, camera, cubes[i].position, cubes[i].rotation, tiledScale);
+            } else {
+                // Draw normal cube
+                cubes[i].mesh.Draw(shaderProgram, camera, cubes[i].position, cubes[i].rotation, tiledScale);
             }
         }
 
@@ -821,18 +858,56 @@ int main() {
         {
             if (selectedMesh != -1 && plane) {
                 gizmo.Draw(gizmoProgram, camera, plane->meshes[selectedMesh].vertices[0].position);
+
             }
             if (selectedCube != -1) {
                 gizmo.Draw(gizmoProgram, camera, cubes[selectedCube].position);
-                gizmo.HandleMouse(window, camera, cubes[selectedCube].position, cubes[selectedCube].position);
+                
+                // Handle gizmo interaction for cubes
+                glm::vec3 newPosition = cubes[selectedCube].position;
+                glm::vec3 newRotation = glm::degrees(glm::eulerAngles(cubes[selectedCube].rotation));
+                glm::vec3 newScale = cubes[selectedCube].scale;
+                
+                gizmo.HandleMouse(window, camera, cubes[selectedCube].position, 
+                                newPosition, newRotation, newScale);
+                
+                if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != cubes[selectedCube].position) {
+                    cubes[selectedCube].position = newPosition;
+                }
+                if (gizmo.GetMode() == Gizmo::ROTATE && (newRotation.x != 0.0f || newRotation.y != 0.0f || newRotation.z != 0.0f)) {
+                    // Coack to quaternionnvert euler angles b
+                    glm::quat rotationDelta = glm::quat(glm::radians(newRotation));
+                    cubes[selectedCube].rotation = rotationDelta * cubes[selectedCube].rotation;
+                }
+                if (gizmo.GetMode() == Gizmo::SCALE && newScale != cubes[selectedCube].scale) {
+                    cubes[selectedCube].scale = newScale;
+                }
             }
             if (isLightSelected && light) {
                 gizmo.Draw(gizmoProgram, camera, lightPos);
-                gizmo.HandleMouse(window, camera, lightPos, lightPos);
+                // Handle gizmo interaction for light
+                glm::vec3 newPosition = lightPos;
+                glm::vec3 newRotation(0.0f);
+                glm::vec3 newScale(1.0f);
+                gizmo.HandleMouse(window, camera, lightPos, newPosition, newRotation, newScale);
+
+                if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != lightPos) {
+                    lightPos = newPosition;
+                }
+                // Light doesn't support rotation/scale, so we only handle translation
             }
             if (isSunSelected && sun) {
                 gizmo.Draw(gizmoProgram, camera, sunPos);
-                gizmo.HandleMouse(window, camera, sunPos, sunPos);
+                glm::vec3 newPosition = sunPos;
+                glm::vec3 newRotation(0.0f);
+                glm::vec3 newScale(1.0f);
+                gizmo.HandleMouse(window, camera, sunPos, newPosition, newRotation, newScale);
+                
+                // Apply changes based on gizmo mode
+                if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != sunPos) {
+                    sunPos = newPosition;
+                    updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                }
             }
         }
 		   // Draw the skybox
@@ -888,6 +963,7 @@ int main() {
     lightShader.Delete();
     framebufferProgram.Delete();
     skyboxShader.Delete();
+    selectionProgram.Delete();
     sunProgram.Delete();
     if (plane) delete plane;
     if (light) delete light;
