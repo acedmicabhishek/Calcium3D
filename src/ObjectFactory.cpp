@@ -50,7 +50,7 @@ Mesh ObjectFactory::createCube() {
     std::vector<Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector<GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
     std::vector<Texture> tex;
-    tex.push_back(Texture());
+    tex.push_back(Texture("./Resource/default/texture/DefaultTex.png", "diffuse", 0));
 
     return Mesh(verts, ind, tex);
 
@@ -74,7 +74,7 @@ Mesh ObjectFactory::createPlane() {
     std::vector<Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector<GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
     std::vector<Texture> tex;
-    tex.push_back(Texture());
+    tex.push_back(Texture("./Resource/default/texture/DefaultTex.png", "diffuse", 0));
 
     return Mesh(verts, ind, tex);
 }
@@ -140,6 +140,6 @@ Mesh ObjectFactory::createSphere(int sectorCount, int stackCount) {
     }
 
     std::vector<Texture> tex;
-    tex.push_back(Texture());
+    tex.push_back(Texture("./Resource/default/texture/DefaultTex.png", "diffuse", 0));
     return Mesh(vertices, indices, tex);
 }
