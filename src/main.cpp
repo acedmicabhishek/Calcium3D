@@ -190,13 +190,13 @@ int main() {
 
 
     // Textures
- Texture textures[]
- {
-  Texture("../Resource/texture/planks.png", "diffuse", 0),
-  Texture("../Resource/texture/planksSpec.png", "specular", 1)
- };
- std::vector <Texture> tex(textures, textures + sizeof(textures) / sizeof(Texture));
- Mesh floor(verts, ind, tex);
+    Texture textures[]
+    {
+    	Texture("../Resource/default/texture/DefaultTex.png", "diffuse", 0),
+    	Texture("../Resource/default/texture/DefaultTex.png", "specular", 1)
+    };
+    std::vector <Texture> tex(textures, textures + sizeof(textures) / sizeof(Texture));
+    Mesh floor(verts, ind, tex);
  Model* plane = nullptr;
  Mesh* light = nullptr;
  Gizmo gizmo;
