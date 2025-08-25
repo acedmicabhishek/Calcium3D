@@ -36,6 +36,6 @@ void main()
 	color = aColor;
 	// Assigns the texture coordinates from the Vertex Data to "texCoord"
 	texCoord = aTex;
-	// Assigns the normal from the Vertex Data to "Normal"
-	Normal = aNormal;
+	// Transform normal to world space (handles non-uniform scale)
+	Normal = mat3(transpose(inverse(model))) * aNormal;
 }
