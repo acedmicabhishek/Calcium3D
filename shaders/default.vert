@@ -23,6 +23,8 @@ out vec3 crntPos;
 uniform mat4 camMatrix;
 // Imports the model matrix from the main function
 uniform mat4 model;
+// Texture tiling factor
+uniform vec3 tilingFactor;
 
 
 void main()
@@ -34,8 +36,8 @@ void main()
 
 	// Assigns the colors from the Vertex Data to "color"
 	color = aColor;
-	// Assigns the texture coordinates from the Vertex Data to "texCoord"
-	texCoord = aTex;
+	// Apply texture tiling based on scale
+	texCoord = aTex * tilingFactor.xy;
 	// Transform normal to world space (handles non-uniform scale)
 	Normal = mat3(transpose(inverse(model))) * aNormal;
 }

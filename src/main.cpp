@@ -249,9 +249,12 @@ int main() {
  Gizmo gizmo;
  int selectedMesh = -1;
  int selectedCube = -1;
- bool isLightSelected = false;
- bool isSunSelected = false;
- std::vector<SceneObject> cubes;
+     bool isLightSelected = false;
+    bool isSunSelected = false;
+    std::vector<SceneObject> cubes;
+    
+    // Global texture tiling factor
+    float globalTilingFactor = 1.0f;
 
     // Enables the Depth Buffer
     glEnable(GL_DEPTH_TEST);
@@ -275,7 +278,6 @@ int main() {
     data.msaaColorBuffer = 0;
     data.msaaRBO = 0;
     data.currentMsaaIndex = 0;
-    // Initialize sun data
     data.isSunSelected = &isSunSelected;
     data.sunMesh = sun;
     data.sunPos = &sunPos;
@@ -550,7 +552,6 @@ int main() {
                 static bool showSun = true;
                 if (ImGui::Checkbox("Show Sun", &showSun)) {
                     if (showSun && !sun) {
-                        // Create a sphere for the sun with proper textures
                         Mesh sunSphere = ObjectFactory::createSphere(32, 16);
                         sun = new Mesh(sunSphere);
                         data.sunMesh = sun;
@@ -580,6 +581,14 @@ int main() {
                     // Sun intensity slider
                     if (ImGui::SliderFloat("Sun Intensity", &sunIntensity, 0.0f, 10.0f)) {
                         updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    }
+                    
+                    ImGui::Separator();
+                    ImGui::Text("Texture Settings");
+                    
+                    // Global texture tiling factor
+                    if (ImGui::SliderFloat("Global Texture Tiling", &globalTilingFactor, 0.1f, 10.0f)) {
+                        // This will be applied when objects are drawn
                     }
                     
                     // Sun position controls
@@ -631,6 +640,28 @@ int main() {
 					cubes.push_back(SceneObject(newSphere));
 					Logger::AddLog("Added a new sphere");
 				}
+                
+                ImGui::Separator();
+                if (ImGui::Button("Destroy All Objects", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
+                    // Clear all cubes (Mesh destructor will handle cleanup)
+                    cubes.clear();
+                    
+                    // Clear selection states
+                    selectedCube = -1;
+                    selectedMesh = -1;
+                    isLightSelected = false;
+                    isSunSelected = false;
+                    
+                    Logger::AddLog("Destroyed all objects");
+                }
+                
+                if (ImGui::Button("Clear Selection", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
+                    selectedCube = -1;
+                    selectedMesh = -1;
+                    isLightSelected = false;
+                    isSunSelected = false;
+                    Logger::AddLog("Cleared all selections");
+                }
             }
 
             if (ImGui::CollapsingHeader("Editor Mode")) {
@@ -657,6 +688,23 @@ int main() {
                         Editor::selectionMode = Editor::SCALE;
                     }
                 }
+                
+                // Selection info
+                if (ImGui::CollapsingHeader("Selection Info")) {
+                    if (selectedCube != -1) {
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Cube %d", selectedCube);
+                        ImGui::Text("Position: %.2f, %.2f, %.2f", cubes[selectedCube].position.x, cubes[selectedCube].position.y, cubes[selectedCube].position.z);
+                    } else if (selectedMesh != -1) {
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Plane Mesh %d", selectedMesh);
+                    } else if (isLightSelected) {
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Light Source");
+                    } else if (isSunSelected) {
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Sun");
+                    } else {
+                        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No object selected");
+                    }
+                }
+                
                 ImGui::Checkbox("Free Movement", &Editor::isFreeMovement);
                 ImGui::SliderFloat("Sensitivity", &camera.sensitivity, 0.0f, 200.0f);
             }
@@ -695,40 +743,56 @@ int main() {
 
         if (showLightSource && light)
         {
+            glm::vec3 lightScale = glm::vec3(1.0f); // Light scale
+            
+            // Draw the main light
+            light->Draw(lightShader, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), lightScale);
+            
+            // Draw outline for selected light
             if (Editor::isEditMode && isLightSelected) {
-                highlightProgram.use();
-                light->Draw(highlightProgram, camera, lightPos);
-            } else {
-                light->Draw(lightShader, camera, lightPos);
+                outlineProgram.use();
+                // Draw outline with slightly larger scale
+                glm::vec3 outlineScale = lightScale * 1.05f;
+                light->Draw(outlineProgram, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
             }
         }
 
         // Draw the sun
         if (sun)
         {
+            glm::vec3 sunScale = glm::vec3(2.0f); // Sun is scaled up for visibility
+            
+            // Draw the main sun
+            sunProgram.use();
+            glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
+            glUniform1f(glGetUniformLocation(sunProgram.ID, "sunIntensity"), sunIntensity);
+            glUniform3f(glGetUniformLocation(sunProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+            sun->Draw(sunProgram, camera, sunPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), sunScale);
+            
+            // Draw outline for selected sun
             if (Editor::isEditMode && isSunSelected) {
-                highlightProgram.use();
-                sun->Draw(highlightProgram, camera, sunPos);
-            } else {
-                // Use the sun shader for better visual effect
-                sunProgram.use();
-                glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
-                glUniform1f(glGetUniformLocation(sunProgram.ID, "sunIntensity"), sunIntensity);
-                glUniform3f(glGetUniformLocation(sunProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-                sun->Draw(sunProgram, camera, sunPos);
+                outlineProgram.use();
+                // Draw outline with slightly larger scale
+                glm::vec3 outlineScale = sunScale * 1.05f;
+                sun->Draw(outlineProgram, camera, sunPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
             }
         }
 
         // Draw the plane
         if (showPlane && plane)
         {
+            glm::vec3 planeScale = glm::vec3(1.0f); // Plane scale
             for (int i = 0; i < plane->meshes.size(); ++i)
             {
+                // Draw the main object
+                plane->meshes[i].Draw(shaderProgram, camera, glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), planeScale);
+                
+                // Draw outline for selected mesh
                 if (Editor::isEditMode && i == selectedMesh) {
-                    highlightProgram.use();
-                    plane->meshes[i].Draw(highlightProgram, camera);
-                } else {
-                    plane->meshes[i].Draw(shaderProgram, camera);
+                    outlineProgram.use();
+                    // Draw outline with slightly larger scale
+                    glm::vec3 outlineScale = planeScale * 1.05f;
+                    plane->meshes[i].Draw(outlineProgram, camera, glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), outlineScale);
                 }
             }
         }
@@ -736,11 +800,18 @@ int main() {
         // Draw the cubes
         for (int i = 0; i < cubes.size(); ++i)
         {
+            // Apply global tiling factor to scale for texture tiling
+            glm::vec3 tiledScale = cubes[i].scale * globalTilingFactor;
+            
+            // Draw the main object
+            cubes[i].mesh.Draw(shaderProgram, camera, cubes[i].position, cubes[i].rotation, tiledScale);
+            
+            // Draw outline for selected objects
             if (Editor::isEditMode && i == selectedCube) {
-                highlightProgram.use();
-                cubes[i].mesh.Draw(highlightProgram, camera, cubes[i].position, cubes[i].rotation, cubes[i].scale);
-            } else {
-                cubes[i].mesh.Draw(shaderProgram, camera, cubes[i].position, cubes[i].rotation, cubes[i].scale);
+                outlineProgram.use();
+                // Draw outline with slightly larger scale
+                glm::vec3 outlineScale = tiledScale * 1.05f;
+                cubes[i].mesh.Draw(outlineProgram, camera, cubes[i].position, cubes[i].rotation, outlineScale);
             }
         }
 
@@ -879,6 +950,18 @@ int main() {
    	      if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
    	      {
    	          Editor::isFreeMovement = false;
+   	      }
+   	      if (key == GLFW_KEY_C && action == GLFW_PRESS && (mods & GLFW_MOD_CONTROL))
+   	      {
+   	          // Ctrl+C to clear selection
+   	          WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
+   	          if (data) {
+   	              *data->selectedCube = -1;
+   	              *data->selectedMesh = -1;
+   	              *data->isLightSelected = false;
+   	              *data->isSunSelected = false;
+   	              Logger::AddLog("Cleared all selections (Ctrl+C)");
+   	          }
    	      }
    }
 

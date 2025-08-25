@@ -11,13 +11,15 @@ out vec2 texCoord;
 
 uniform mat4 camMatrix;
 uniform mat4 model;
+uniform vec3 tilingFactor;
 
 void main()
 {
 	crntPos = vec3(model * vec4(aPos, 1.0f));
 	color = aColor;
 	Normal = aNormal;
-	texCoord = aTex;
+	// Apply texture tiling based on scale
+	texCoord = aTex * tilingFactor.xy;
 
 	gl_Position = camMatrix * vec4(crntPos, 1.0f);
 }

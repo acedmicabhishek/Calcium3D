@@ -67,6 +67,10 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 	model = glm::scale(model, scale);
 
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+	
+	// Calculate texture tiling factor based on scale
+	glm::vec3 tilingFactor = glm::vec3(scale.x, scale.y, scale.z);
+	glUniform3f(glGetUniformLocation(shader.ID, "tilingFactor"), tilingFactor.x, tilingFactor.y, tilingFactor.z);
 
 	// Draw the actual mesh
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
