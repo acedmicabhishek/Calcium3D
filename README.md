@@ -87,4 +87,4 @@ Calcium3D is a lightweight 3D game engine built with C++ and OpenGL. It features
 
 ## License
 
-Do whatever the fuck you want (GPL)
+This project is licensed under the [WTFPL](LICENSE.txt) - see the `LICENSE.txt` file for details.
