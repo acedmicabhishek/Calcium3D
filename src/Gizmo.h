@@ -6,7 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 
-// Forward declarations
+
 class Shader;
 class Camera;
 
@@ -50,20 +50,20 @@ private:
     void handleRotate(GLFWwindow* window, Camera& camera, const glm::vec3& objectPosition, glm::vec3& newRotation);
     void handleScale(GLFWwindow* window, Camera& camera, const glm::vec3& objectPosition, glm::vec3& newScale);
 
-    // OpenGL objects
+    
     GLuint VAO, VBO;
     
-    // State
+    
     bool isDragging;
     Axis selectedAxis;
     TransformMode currentMode;
     
-    // Drag state
+    
     glm::vec3 dragStartWorldPos;
     glm::vec3 objectStartPos;
     glm::vec2 dragStartMousePos;
     
-    // Gizmo properties
+    
     float arrowLength;
     float arrowRadius;
     float handleRadius;

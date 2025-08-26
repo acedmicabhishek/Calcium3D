@@ -31,3 +31,4 @@ void main()
 	texCoord = aTex * tilingFactor.xy;
 	Normal = mat3(transpose(inverse(model))) * aNormal;
 }
+

@@ -47,3 +47,4 @@ void main()
 	// Output bright red with lighting
 	FragColor = vec4(finalColor, 1.0);
 }
+
