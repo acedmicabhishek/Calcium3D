@@ -56,10 +56,9 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 		textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
 		textures[i].Bind();
 	}
-	// Take care of the camera Matrix
 	glUniform3f(glGetUniformLocation(shader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	glUniform3f(glGetUniformLocation(shader.ID, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-	camera.Matrix(45.0f, 0.1f, 100.0f, shader, "camMatrix");
+	camera.Matrix(camera.FOV, camera.nearPlane, camera.farPlane, shader, "camMatrix");
 
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::translate(model, position);
@@ -68,33 +67,33 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 	
-	// Calculate texture tiling factor based on scale
 	glm::vec3 tilingFactor = glm::vec3(scale.x, scale.y, scale.z);
 	glUniform3f(glGetUniformLocation(shader.ID, "tilingFactor"), tilingFactor.x, tilingFactor.y, tilingFactor.z);
 
-	// Draw the actual mesh
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 	vao.Unbind();
 }
 
 bool Mesh::Intersect(const glm::vec3& ray_origin, const glm::vec3& ray_direction, const glm::mat4& modelMatrix, float& intersection_distance)
 {
+	glm::mat4 invModelMatrix = glm::inverse(modelMatrix);
+	glm::vec3 localRayOrigin = glm::vec3(invModelMatrix * glm::vec4(ray_origin, 1.0f));
+	glm::vec3 localRayDirection = glm::vec3(invModelMatrix * glm::vec4(ray_direction, 0.0f));
+	localRayDirection = glm::normalize(localRayDirection);
+
 	float tmin = 0.0;
 	float tmax = std::numeric_limits<float>::max();
 
-    glm::vec3 worldMinAABB = glm::vec3(modelMatrix * glm::vec4(minAABB, 1.0f));
-    glm::vec3 worldMaxAABB = glm::vec3(modelMatrix * glm::vec4(maxAABB, 1.0f));
-
 	for (int i = 0; i < 3; ++i) {
-		if (abs(ray_direction[i]) < 1e-6) {
-			if (ray_origin[i] < worldMinAABB[i] || ray_origin[i] > worldMaxAABB[i]) {
+		if (abs(localRayDirection[i]) < 1e-6) {
+			if (localRayOrigin[i] < minAABB[i] || localRayOrigin[i] > maxAABB[i]) {
 				return false;
 			}
 		}
 		else {
-			float ood = 1.0f / ray_direction[i];
-			float t1 = (worldMinAABB[i] - ray_origin[i]) * ood;
-			float t2 = (worldMaxAABB[i] - ray_origin[i]) * ood;
+			float ood = 1.0f / localRayDirection[i];
+			float t1 = (minAABB[i] - localRayOrigin[i]) * ood;
+			float t2 = (maxAABB[i] - localRayOrigin[i]) * ood;
 
 			if (t1 > t2) {
 				std::swap(t1, t2);
@@ -109,6 +108,9 @@ bool Mesh::Intersect(const glm::vec3& ray_origin, const glm::vec3& ray_direction
 		}
 	}
 
-	intersection_distance = tmin;
+	glm::vec3 intersectionPoint = localRayOrigin + localRayDirection * tmin;
+	glm::vec3 worldIntersectionPoint = glm::vec3(modelMatrix * glm::vec4(intersectionPoint, 1.0f));
+	intersection_distance = glm::length(worldIntersectionPoint - ray_origin);
+	
 	return true;
 }

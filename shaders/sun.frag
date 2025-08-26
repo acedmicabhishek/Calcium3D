@@ -34,3 +34,4 @@ void main()
     
     FragColor = vec4(finalColor * atmospheric, 1.0);
 }
+

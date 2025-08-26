@@ -55,6 +55,7 @@ struct WindowData {
     glm::vec3* sunPos;
     glm::vec4* sunColor;
     float* sunIntensity;
+    float* farPlane;
 };
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -285,6 +286,7 @@ int main() {
     data.sunPos = &sunPos;
     data.sunColor = &sunColor;
     data.sunIntensity = &sunIntensity;
+    data.farPlane = &camera.farPlane;
     
     // Create initial sun mesh
     Mesh sunSphere = ObjectFactory::createSphere(32, 16);
@@ -408,7 +410,7 @@ int main() {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
     const char* msaaOptions[] = { "Off", "2x", "4x", "8x" };
-    int msaaSamplesValues[] = { 0, 2, 4, 8, 16 };
+    int msaaSamplesValues[] = { 0, 2, 4, 8 };
 
     auto createMsaaFramebuffer = [&](int samples) {
         WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
@@ -482,12 +484,31 @@ int main() {
     	}
     
         bool showCubemap = true;
-        bool showLightSource = false;
-        bool showPlane = false;
+bool showLightSource = false;
+bool showPlane = false;
+bool showPerformance = true;
+
+// Performance tracking variables
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+int frameCount = 0;
+float fps = 0.0f;
+float avgFrameTime = 0.0f;
 
 
     	while (!glfwWindowShouldClose(window))
     	{
+            // Calculate performance metrics
+            float currentFrame = glfwGetTime();
+            deltaTime = currentFrame - lastFrame;
+            lastFrame = currentFrame;
+            
+            frameCount++;
+            if (frameCount % 60 == 0) { // Update FPS every 60 frames
+                fps = 1.0f / deltaTime;
+                avgFrameTime = deltaTime * 1000.0f; // Convert to milliseconds
+            }
+            
             // Start the Dear ImGui frame
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -495,13 +516,49 @@ int main() {
 
             ImGui::SetNextWindowPos(ImVec2(0, 0));
             ImGui::SetNextWindowSize(ImVec2(300, ImGui::GetIO().DisplaySize.y));
-            ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+            ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
+            
+            // Menu bar
+            if (ImGui::BeginMenuBar()) {
+                if (ImGui::BeginMenu("File")) {
+                    if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
+                        cubes.clear();
+                        selectedCube = -1;
+                        selectedMesh = -1;
+                        isLightSelected = false;
+                        isSunSelected = false;
+                        Logger::AddLog("Created new scene");
+                    }
+                    if (ImGui::MenuItem("Clear Selection", "Ctrl+D")) {
+                        selectedCube = -1;
+                        selectedMesh = -1;
+                        isLightSelected = false;
+                        isSunSelected = false;
+                        Logger::AddLog("Cleared all selections");
+                    }
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Exit", "Alt+F4")) {
+                        glfwSetWindowShouldClose(window, true);
+                    }
+                    ImGui::EndMenu();
+                }
+                            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Performance Info", nullptr, &showPerformance);
+                ImGui::EndMenu();
+            }
+                            if (ImGui::BeginMenu("Help")) {
+                if (ImGui::MenuItem("About")) {
+                    Logger::AddLog("a light weigth game engine");
+                }
+                ImGui::EndMenu();
+            }
+                ImGui::EndMenuBar();
+            }
 
             if (ImGui::CollapsingHeader("Display Options")) {
                 ImGui::Checkbox("Show Cubemap", &showCubemap);
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
-                        // Create light mesh with proper textures
                         std::vector<Texture> lightTex;
                         lightTex.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
                         lightTex.emplace_back("../Resource/default/texture/DefaultTex.png", "specular", 1);
@@ -521,7 +578,6 @@ int main() {
                 if (ImGui::Checkbox("Show Plane", &showPlane)) {
                     if (showPlane && !plane) {
                         plane = new Model("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
-                        // Apply default texture to all meshes in the plane model
                         for (auto& mesh : plane->meshes) {
                             std::vector<Texture> defaultTextures;
                             defaultTextures.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
@@ -540,9 +596,35 @@ int main() {
                         Logger::AddLog("Destroyed plane object");
                     }
                 }
+
+
+            }
+
+            if (ImGui::CollapsingHeader("Graphics")) {
+                if (ImGui::SliderFloat("Render Distance", data.farPlane, 10.0f, 1000.0f, "%.1f")) {
+                    camera.farPlane = *data.farPlane;
+                }
+                if (ImGui::SliderFloat("Field of View", &camera.FOV, 30.0f, 120.0f, "%.1f")) {
+                    // FOV is updated in the camera
+                }
+                if (ImGui::SliderFloat("Near Plane", &camera.nearPlane, 0.01f, 1.0f, "%.3f")) {
+                    // Near plane is updated in the camera
+                }
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
                 }
+            }
+
+            if (showPerformance && ImGui::CollapsingHeader("Performance")) {
+                ImGui::Text("FPS: %.1f", fps);
+                ImGui::Text("Frame Time: %.2f ms", avgFrameTime);
+                ImGui::Text("Delta Time: %.4f s", deltaTime);
+                ImGui::Separator();
+                ImGui::Text("Scene Objects: %zu", cubes.size());
+                ImGui::Text("MSAA Samples: %d", data.msaaSamples);
+                ImGui::Text("Render Distance: %.1f", camera.farPlane);
+                ImGui::Text("Near Plane: %.3f", camera.nearPlane);
+                ImGui::Text("Field of View: %.1f°", camera.FOV);
             }
 
             if (ImGui::CollapsingHeader("Sun Settings")) {
@@ -643,6 +725,23 @@ int main() {
 				}
                 
                 ImGui::Separator();
+                if (ImGui::Button("Delete Selected", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
+                    if (selectedCube != -1) {
+                        cubes.erase(cubes.begin() + selectedCube);
+                        selectedCube = -1;
+                        Logger::AddLog("Deleted selected object");
+                    } else if (selectedMesh != -1) {
+                        selectedMesh = -1;
+                        Logger::AddLog("Cleared plane selection");
+                    } else if (isLightSelected) {
+                        isLightSelected = false;
+                        Logger::AddLog("Cleared light selection");
+                    } else if (isSunSelected) {
+                        isSunSelected = false;
+                        Logger::AddLog("Cleared sun selection");
+                    }
+                }
+                
                 if (ImGui::Button("Destroy All Objects", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
                     // Clear all cubes (Mesh destructor will handle cleanup)
                     cubes.clear();
@@ -694,46 +793,147 @@ int main() {
                         Editor::selectionMode = Editor::SCALE;
                         gizmo.SetMode(Gizmo::SCALE);
                     }
-                }
-                
-                // Gizmo settings
-                if (ImGui::CollapsingHeader("Gizmo Settings")) {
-                    ImGui::Text("Current Mode: %s", 
-                        gizmo.GetMode() == Gizmo::TRANSLATE ? "Translate" : 
-                        gizmo.GetMode() == Gizmo::ROTATE ? "Rotate" : "Scale");
                     
-                    if (gizmo.IsDragging()) {
-                        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Dragging: %s axis", 
-                            gizmo.GetSelectedAxis() == Gizmo::X ? "X" : 
-                            gizmo.GetSelectedAxis() == Gizmo::Y ? "Y" : 
-                            gizmo.GetSelectedAxis() == Gizmo::Z ? "Z" : "None");
-                    }
-                    
+                    // Transformation Value Sliders
                     ImGui::Separator();
-                    ImGui::Text("Controls:");
-                    ImGui::BulletText("Left-click and drag on colored axes/handles");
-                    ImGui::BulletText("Red = X axis, Green = Y axis, Blue = Z axis");
-                    ImGui::BulletText("Switch modes using Transform radio buttons above");
+                    ImGui::Text("Manual Transformation Values:");
+                    
+                    // Position sliders
+                    if (selectedCube != -1) {
+                        ImGui::Text("Position:");
+                        static float posX = 0.0f, posY = 0.0f, posZ = 0.0f;
+                        if (ImGui::SliderFloat("X##Pos", &posX, -10.0f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].position.x = posX;
+                        }
+                        if (ImGui::SliderFloat("Y##Pos", &posY, -10.0f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].position.y = posY;
+                        }
+                        if (ImGui::SliderFloat("Z##Pos", &posZ, -10.0f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].position.z = posZ;
+                        }
+                        
+                        // Update slider values when object moves via gizmo
+                        posX = cubes[selectedCube].position.x;
+                        posY = cubes[selectedCube].position.y;
+                        posZ = cubes[selectedCube].position.z;
+                        
+                        // Rotation sliders (in degrees)
+                        ImGui::Text("Rotation (degrees):");
+                        static float rotX = 0.0f, rotY = 0.0f, rotZ = 0.0f;
+                        glm::vec3 eulerAngles = glm::degrees(glm::eulerAngles(cubes[selectedCube].rotation));
+                        
+                        if (ImGui::SliderFloat("X##Rot", &rotX, -180.0f, 180.0f, "%.1f")) {
+                            cubes[selectedCube].rotation = glm::quat(glm::radians(glm::vec3(rotX, eulerAngles.y, eulerAngles.z)));
+                        }
+                        if (ImGui::SliderFloat("Y##Rot", &rotY, -180.0f, 180.0f, "%.1f")) {
+                            cubes[selectedCube].rotation = glm::quat(glm::radians(glm::vec3(eulerAngles.x, rotY, eulerAngles.z)));
+                        }
+                        if (ImGui::SliderFloat("Z##Rot", &rotZ, -180.0f, 180.0f, "%.1f")) {
+                            cubes[selectedCube].rotation = glm::quat(glm::vec3(eulerAngles.x, eulerAngles.y, glm::radians(rotZ)));
+                        }
+                        
+                        // Update slider values when object rotates via gizmo
+                        rotX = eulerAngles.x;
+                        rotY = eulerAngles.y;
+                        rotZ = eulerAngles.z;
+                        
+                        // Scale sliders
+                        ImGui::Text("Scale:");
+                        static float scaleX = 1.0f, scaleY = 1.0f, scaleZ = 1.0f;
+                        if (ImGui::SliderFloat("X##Scale", &scaleX, 0.1f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].scale.x = scaleX;
+                        }
+                        if (ImGui::SliderFloat("Y##Scale", &scaleY, 0.1f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].scale.y = scaleY;
+                        }
+                        if (ImGui::SliderFloat("Z##Scale", &scaleZ, 0.1f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].scale.z = scaleZ;
+                        }
+                        
+                        // Update slider values when object scales via gizmo
+                        scaleX = cubes[selectedCube].scale.x;
+                        scaleY = cubes[selectedCube].scale.y;
+                        scaleZ = cubes[selectedCube].scale.z;
+                        
+                        // Uniform scale slider
+                        ImGui::Text("Uniform Scale:");
+                        static float uniformScale = 1.0f;
+                        if (ImGui::SliderFloat("Scale All", &uniformScale, 0.1f, 10.0f, "%.2f")) {
+                            cubes[selectedCube].scale = glm::vec3(uniformScale);
+                        }
+                        
+                        // Update uniform scale when individual scales change
+                        if (scaleX == scaleY && scaleY == scaleZ) {
+                            uniformScale = scaleX;
+                        }
+                    } else if (selectedMesh != -1) {
+                        ImGui::Text("Plane selected - use gizmo for transformation");
+                    } else if (isLightSelected) {
+                        ImGui::Text("Light selected - use gizmo for transformation");
+                    } else if (isSunSelected) {
+                        ImGui::Text("Sun selected - use gizmo for transformation");
+                    } else {
+                        ImGui::Text("Select an object to edit its transformation values");
+                    }
                 }
                 
-                // Selection info
-                if (ImGui::CollapsingHeader("Selection Info")) {
+
+                
+                // Selection info and Object Management
+                if (ImGui::CollapsingHeader("Selection & Objects")) {
                     if (selectedCube != -1) {
                         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Cube %d", selectedCube);
                         ImGui::Text("Position: %.2f, %.2f, %.2f", cubes[selectedCube].position.x, cubes[selectedCube].position.y, cubes[selectedCube].position.z);
+                        ImGui::Text("Scale: %.2f, %.2f, %.2f", cubes[selectedCube].scale.x, cubes[selectedCube].scale.y, cubes[selectedCube].scale.z);
+                        
+                        // Duplicate cube button
+                        ImGui::Separator();
+                        if (ImGui::Button("Duplicate Cube", ImVec2(ImGui::GetWindowWidth() - 20, 0))) {
+                            if (selectedCube >= 0 && selectedCube < cubes.size()) {
+                                SceneObject newCube = cubes[selectedCube];
+                                newCube.position += glm::vec3(1.0f, 0.0f, 0.0f); // Offset slightly
+                                cubes.push_back(newCube);
+                                Logger::AddLog("Duplicated cube");
+                            }
+                        }
                     } else if (selectedMesh != -1) {
                         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Plane Mesh %d", selectedMesh);
+                        ImGui::Text("Note: Plane transformations are limited");
                     } else if (isLightSelected) {
                         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Light Source");
+                        ImGui::Text("Position: %.2f, %.2f, %.2f", lightPos.x, lightPos.y, lightPos.z);
                     } else if (isSunSelected) {
                         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Selected: Sun");
+                        ImGui::Text("Position: %.2f, %.2f, %.2f", sunPos.x, sunPos.y, sunPos.z);
                     } else {
                         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No object selected");
+                        ImGui::Text("Click on any object to select it");
                     }
+                    
+                    // Object count info
+                    ImGui::Separator();
+                    ImGui::Text("Scene Objects:");
+                    ImGui::BulletText("Cubes: %zu", cubes.size());
+                    ImGui::BulletText("Plane: %s", showPlane ? "Visible" : "Hidden");
+                    ImGui::BulletText("Light: %s", showLightSource ? "Visible" : "Hidden");
+                    ImGui::BulletText("Sun: %s", sun ? "Visible" : "Hidden");
                 }
                 
-                ImGui::Checkbox("Free Movement", &Editor::isFreeMovement);
-                ImGui::SliderFloat("Sensitivity", &camera.sensitivity, 0.0f, 200.0f);
+
+                
+                // Camera Settings
+                if (ImGui::CollapsingHeader("Camera")) {
+                    ImGui::Checkbox("Free Movement", &Editor::isFreeMovement);
+                    ImGui::SliderFloat("Mouse Sensitivity", &camera.sensitivity, 0.0f, 200.0f);
+                    ImGui::SliderFloat("Camera Speed", &camera.speed, 0.1f, 10.0f, "%.2f");
+                    
+                    // Camera info
+                    ImGui::Separator();
+                    ImGui::Text("Camera Info:");
+                    ImGui::Text("Position: %.2f, %.2f, %.2f", camera.Position.x, camera.Position.y, camera.Position.z);
+                    ImGui::Text("Speed: %.2f", camera.speed);
+                    ImGui::Text("Sensitivity: %.1f", camera.sensitivity);
+                }
             }
 
             Logger::Draw("Logger");
@@ -790,7 +990,7 @@ int main() {
         // Draw the sun
         if (sun)
         {
-            glm::vec3 sunScale = glm::vec3(2.0f); // Sun is scaled up for visibility
+            glm::vec3 sunScale = glm::vec3(2.0f);
             
             if (Editor::isEditMode && isSunSelected) {
                 // Draw selected sun with selection shader (bright red)
@@ -814,7 +1014,7 @@ int main() {
         // Draw the plane
         if (showPlane && plane)
         {
-            glm::vec3 planeScale = glm::vec3(1.0f); // Plane scale
+            glm::vec3 planeScale = glm::vec3(1.0f);
             for (int i = 0; i < plane->meshes.size(); ++i)
             {
                 if (Editor::isEditMode && i == selectedMesh) {
@@ -875,17 +1075,21 @@ int main() {
                     cubes[selectedCube].position = newPosition;
                 }
                 if (gizmo.GetMode() == Gizmo::ROTATE && (newRotation.x != 0.0f || newRotation.y != 0.0f || newRotation.z != 0.0f)) {
-                    // Coack to quaternionnvert euler angles b
                     glm::quat rotationDelta = glm::quat(glm::radians(newRotation));
                     cubes[selectedCube].rotation = rotationDelta * cubes[selectedCube].rotation;
                 }
-                if (gizmo.GetMode() == Gizmo::SCALE && newScale != cubes[selectedCube].scale) {
-                    cubes[selectedCube].scale = newScale;
+                if (gizmo.GetMode() == Gizmo::SCALE && (newScale.x != 0.0f || newScale.y != 0.0f || newScale.z != 0.0f)) {
+
+                    cubes[selectedCube].scale += newScale;
+
+                    cubes[selectedCube].scale.x = glm::clamp(cubes[selectedCube].scale.x, 0.1f, 10.0f);
+                    cubes[selectedCube].scale.y = glm::clamp(cubes[selectedCube].scale.y, 0.1f, 10.0f);
+                    cubes[selectedCube].scale.z = glm::clamp(cubes[selectedCube].scale.z, 0.1f, 10.0f);
                 }
             }
             if (isLightSelected && light) {
                 gizmo.Draw(gizmoProgram, camera, lightPos);
-                // Handle gizmo interaction for light
+
                 glm::vec3 newPosition = lightPos;
                 glm::vec3 newRotation(0.0f);
                 glm::vec3 newScale(1.0f);
@@ -894,7 +1098,6 @@ int main() {
                 if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != lightPos) {
                     lightPos = newPosition;
                 }
-                // Light doesn't support rotation/scale, so we only handle translation
             }
             if (isSunSelected && sun) {
                 gizmo.Draw(gizmoProgram, camera, sunPos);
@@ -903,7 +1106,6 @@ int main() {
                 glm::vec3 newScale(1.0f);
                 gizmo.HandleMouse(window, camera, sunPos, newPosition, newRotation, newScale);
                 
-                // Apply changes based on gizmo mode
                 if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != sunPos) {
                     sunPos = newPosition;
                     updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
@@ -1041,21 +1243,45 @@ int main() {
    	              Logger::AddLog("Cleared all selections (Ctrl+C)");
    	          }
    	      }
+  if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
+  {
+   WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
+   if (data) {
+       if (*data->selectedCube != -1) {
+           data->cubes->erase(data->cubes->begin() + *data->selectedCube);
+           *data->selectedCube = -1;
+           Logger::AddLog("Deleted selected object (Delete key)");
+       } else if (*data->selectedMesh != -1) {
+           *data->selectedMesh = -1;
+           Logger::AddLog("Cleared plane selection (Delete key)");
+       } else if (*data->isLightSelected) {
+           *data->isLightSelected = false;
+           Logger::AddLog("Cleared light selection (Delete key)");
+       } else if (*data->isSunSelected) {
+           *data->isSunSelected = false;
+           Logger::AddLog("Cleared sun selection (Delete key)");
+       }
+   }
+  }
    }
 
    void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
     {
+        // Check if ImGui is capturing the mouse input - if so, don't process object selection
+        if (ImGui::GetIO().WantCaptureMouse) {
+            return; // Exit early if ImGui is handling the mouse
+        }
+        
         if (Editor::isEditMode)
         {
             WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
             glm::vec3 ray = data->camera->GetRay(window);
             
             float closest_intersection = std::numeric_limits<float>::max();
-            *data->selectedMesh = -1;
-            *data->selectedCube = -1;
-            *data->isLightSelected = false;
+            bool hitSomething = false;
+            
 
             if (data->plane) {
                 for (int i = 0; i < data->plane->meshes.size(); ++i) {
@@ -1068,6 +1294,7 @@ int main() {
                             *data->selectedCube = -1;
                             *data->isLightSelected = false;
                             *data->isSunSelected = false;
+                            hitSomething = true;
                             Logger::AddLog("Selected plane mesh %d", i);
                         }
                     }
@@ -1086,6 +1313,7 @@ int main() {
                         *data->selectedMesh = -1;
                         *data->isLightSelected = false;
                         *data->isSunSelected = false;
+                        hitSomething = true;
                         Logger::AddLog("Selected cube %d", i);
                     }
                 }
@@ -1101,6 +1329,7 @@ int main() {
                         *data->selectedMesh = -1;
                         *data->isLightSelected = true;
                         *data->isSunSelected = false;
+                        hitSomething = true;
                         Logger::AddLog("Selected light source");
                     }
                 }
@@ -1119,9 +1348,18 @@ int main() {
                         *data->selectedMesh = -1;
                         *data->isLightSelected = false;
                         *data->isSunSelected = true;
+                        hitSomething = true;
                         Logger::AddLog("Selected sun");
                     }
                 }
+            }
+            
+            // Only clear selection if we didn't hit anything (including gizmo)
+            if (!hitSomething) {
+                *data->selectedMesh = -1;
+                *data->selectedCube = -1;
+                *data->isLightSelected = false;
+                *data->isSunSelected = false;
             }
         }
     }
