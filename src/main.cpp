@@ -607,6 +607,9 @@ float avgFrameTime = 0.0f;
                 if (ImGui::SliderFloat("Field of View", &camera.FOV, 30.0f, 120.0f, "%.1f")) {
                     // FOV is updated in the camera
                 }
+                if (ImGui::SliderFloat("Near Plane", &camera.nearPlane, 0.01f, 1.0f, "%.3f")) {
+                    // Near plane is updated in the camera
+                }
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
                 }
@@ -620,6 +623,7 @@ float avgFrameTime = 0.0f;
                 ImGui::Text("Scene Objects: %zu", cubes.size());
                 ImGui::Text("MSAA Samples: %d", data.msaaSamples);
                 ImGui::Text("Render Distance: %.1f", camera.farPlane);
+                ImGui::Text("Near Plane: %.3f", camera.nearPlane);
                 ImGui::Text("Field of View: %.1f°", camera.FOV);
             }
 
