@@ -4,14 +4,10 @@
 
 Texture::Texture(const char* image, const char* texType, GLuint slot)
 {
-	// Assigns the type of the texture ot the texture object
 	type = texType;
 
-	// Stores the width, height, and the number of color channels of the image
 	int widthImg, heightImg, numColCh;
-	// Flips the image so it appears right side up
 	stbi_set_flip_vertically_on_load(true);
-	// Reads the image from a file and stores it in bytes
 	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 0);
 	if (!bytes)
 	{

@@ -32,6 +32,7 @@ public:
 	
 	float speed = 0.5f;
 	float sensitivity = 100.0f;
+	float nearPlane = 0.1f;
 	float farPlane = 100.0f;
 	float FOV = 45.0f;
 
