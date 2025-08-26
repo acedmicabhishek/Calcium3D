@@ -12,7 +12,7 @@ void Logger::AddLog(const char* fmt, ...) {
     va_end(args);
     buffer.push_back(buf);
     
-    // Keep only last 100 log entries to prevent memory issues
+    
     if (buffer.size() > 100) {
         buffer.erase(buffer.begin());
     }

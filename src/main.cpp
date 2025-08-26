@@ -559,7 +559,6 @@ float avgFrameTime = 0.0f;
                 ImGui::Checkbox("Show Cubemap", &showCubemap);
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
-                        // Create light mesh with proper textures
                         std::vector<Texture> lightTex;
                         lightTex.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
                         lightTex.emplace_back("../Resource/default/texture/DefaultTex.png", "specular", 1);
@@ -579,7 +578,6 @@ float avgFrameTime = 0.0f;
                 if (ImGui::Checkbox("Show Plane", &showPlane)) {
                     if (showPlane && !plane) {
                         plane = new Model("../Resource/obj/14082_WWII_Plane_Japan_Kawasaki_Ki-61_v1_L2.obj", false);
-                        // Apply default texture to all meshes in the plane model
                         for (auto& mesh : plane->meshes) {
                             std::vector<Texture> defaultTextures;
                             defaultTextures.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
@@ -988,7 +986,7 @@ float avgFrameTime = 0.0f;
         // Draw the sun
         if (sun)
         {
-            glm::vec3 sunScale = glm::vec3(2.0f); // Sun is scaled up for visibility
+            glm::vec3 sunScale = glm::vec3(2.0f);
             
             if (Editor::isEditMode && isSunSelected) {
                 // Draw selected sun with selection shader (bright red)
@@ -1012,7 +1010,7 @@ float avgFrameTime = 0.0f;
         // Draw the plane
         if (showPlane && plane)
         {
-            glm::vec3 planeScale = glm::vec3(1.0f); // Plane scale
+            glm::vec3 planeScale = glm::vec3(1.0f);
             for (int i = 0; i < plane->meshes.size(); ++i)
             {
                 if (Editor::isEditMode && i == selectedMesh) {
@@ -1073,15 +1071,13 @@ float avgFrameTime = 0.0f;
                     cubes[selectedCube].position = newPosition;
                 }
                 if (gizmo.GetMode() == Gizmo::ROTATE && (newRotation.x != 0.0f || newRotation.y != 0.0f || newRotation.z != 0.0f)) {
-                    // Apply rotation incrementally for smoother control
                     glm::quat rotationDelta = glm::quat(glm::radians(newRotation));
                     cubes[selectedCube].rotation = rotationDelta * cubes[selectedCube].rotation;
                 }
                 if (gizmo.GetMode() == Gizmo::SCALE && (newScale.x != 0.0f || newScale.y != 0.0f || newScale.z != 0.0f)) {
-                    // Apply scale delta incrementally
+
                     cubes[selectedCube].scale += newScale;
-                    
-                    // Clamp scale to prevent objects from becoming too small or too large
+
                     cubes[selectedCube].scale.x = glm::clamp(cubes[selectedCube].scale.x, 0.1f, 10.0f);
                     cubes[selectedCube].scale.y = glm::clamp(cubes[selectedCube].scale.y, 0.1f, 10.0f);
                     cubes[selectedCube].scale.z = glm::clamp(cubes[selectedCube].scale.z, 0.1f, 10.0f);
@@ -1089,7 +1085,7 @@ float avgFrameTime = 0.0f;
             }
             if (isLightSelected && light) {
                 gizmo.Draw(gizmoProgram, camera, lightPos);
-                // Handle gizmo interaction for light
+
                 glm::vec3 newPosition = lightPos;
                 glm::vec3 newRotation(0.0f);
                 glm::vec3 newScale(1.0f);
@@ -1098,7 +1094,6 @@ float avgFrameTime = 0.0f;
                 if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != lightPos) {
                     lightPos = newPosition;
                 }
-                // Light doesn't support rotation/scale, so we only handle translation
             }
             if (isSunSelected && sun) {
                 gizmo.Draw(gizmoProgram, camera, sunPos);
@@ -1107,7 +1102,6 @@ float avgFrameTime = 0.0f;
                 glm::vec3 newScale(1.0f);
                 gizmo.HandleMouse(window, camera, sunPos, newPosition, newRotation, newScale);
                 
-                // Apply changes based on gizmo mode
                 if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != sunPos) {
                     sunPos = newPosition;
                     updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
@@ -1284,7 +1278,6 @@ float avgFrameTime = 0.0f;
             float closest_intersection = std::numeric_limits<float>::max();
             bool hitSomething = false;
             
-            // Don't clear selection immediately - only clear if we don't hit anything
 
             if (data->plane) {
                 for (int i = 0; i < data->plane->meshes.size(); ++i) {
