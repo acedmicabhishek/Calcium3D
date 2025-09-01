@@ -58,7 +58,7 @@ Calcium3D is a lightweight 3D game engine built with C++ and OpenGL. It features
 
 1.  **Clone the repository:**
     ```bash
-    git clone [repository_url_here]
+    git clone https://github.com/acedmicabhishek/Calcium3D
     cd Calcium3D
     ```
 2.  **Build the project:**
