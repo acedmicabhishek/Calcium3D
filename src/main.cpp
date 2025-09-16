@@ -180,6 +180,8 @@ int main() {
     Shader highlightProgram("../shaders/highlight.vert", "../shaders/highlight.frag");
     Shader selectionProgram("../shaders/selection.vert", "../shaders/selection.frag");
     Shader sunProgram("../shaders/sun.vert", "../shaders/sun.frag");
+    Shader horizonProgram("../shaders/horizon.vert", "../shaders/horizon.frag");
+    Shader gradientSkyProgram("../shaders/gradient_sky.vert", "../shaders/gradient_sky.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
    
@@ -408,10 +410,39 @@ int main() {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+ 
+    // Horizon line vertices
+    float horizonVertices[] = {
+        -1.0f, 0.0f, 0.0f,
+         1.0f, 0.0f, 0.0f
+    };
+
+    unsigned int horizonVAO, horizonVBO;
+    glGenVertexArrays(1, &horizonVAO);
+    glGenBuffers(1, &horizonVBO);
+    glBindVertexArray(horizonVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, horizonVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(horizonVertices), horizonVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+
+    // Use skybox vertices for the gradient sky
+    unsigned int skyVAO, skyVBO, skyEBO;
+    glGenVertexArrays(1, &skyVAO);
+    glGenBuffers(1, &skyVBO);
+    glGenBuffers(1, &skyEBO);
+    glBindVertexArray(skyVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, skyEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(skyboxIndices), &skyboxIndices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
     const char* msaaOptions[] = { "Off", "2x", "4x", "8x" };
     int msaaSamplesValues[] = { 0, 2, 4, 8 };
-
+ 
     auto createMsaaFramebuffer = [&](int samples) {
         WindowData* data = (WindowData*)glfwGetWindowUserPointer(window);
         if (data->msaaFBO != 0) {
@@ -484,6 +515,8 @@ int main() {
     	}
     
         bool showCubemap = true;
+        bool showGradientSky = false; // New: gradient/atmosphere sky toggle
+        int skyMode = 0; // 0 = Cubemap, 1 = Gradient/Atmosphere
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
@@ -556,7 +589,10 @@ float avgFrameTime = 0.0f;
             }
 
             if (ImGui::CollapsingHeader("Display Options")) {
-                ImGui::Checkbox("Show Cubemap", &showCubemap);
+                const char* skyModes[] = {"Cubemap", "Dynamic Sky"};
+                ImGui::Combo("Sky Mode", &skyMode, skyModes, IM_ARRAYSIZE(skyModes));
+                showCubemap = (skyMode == 0);
+                showGradientSky = (skyMode == 1);
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
                         std::vector<Texture> lightTex;
@@ -946,11 +982,21 @@ float avgFrameTime = 0.0f;
             } else {
     		    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
             }
-    	// Specify the color of the background
     	glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-    	// Clean the back buffer and depth buffer
     	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    	// Enable depth testing since it's disabled when drawing the framebuffer rectangle
+    	   if (showGradientSky)
+    	   {
+    	       glDisable(GL_DEPTH_TEST);
+    	       gradientSkyProgram.use();
+    	       glUniformMatrix4fv(glGetUniformLocation(gradientSkyProgram.ID, "view"), 1, GL_FALSE, glm::value_ptr(camera.GetViewMatrix()));
+    	       glUniformMatrix4fv(glGetUniformLocation(gradientSkyProgram.ID, "projection"), 1, GL_FALSE, glm::value_ptr(camera.GetProjectionMatrix()));
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "topColor"), 0.5f, 0.7f, 1.0f);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "bottomColor"), 1.0f, 1.0f, 1.0f);
+    	       glBindVertexArray(skyVAO);
+    	       glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    	       glEnable(GL_DEPTH_TEST);
+    	   }
+
     	glEnable(GL_DEPTH_TEST);
         glEnable(GL_STENCIL_TEST);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
@@ -1112,22 +1158,24 @@ float avgFrameTime = 0.0f;
                 }
             }
         }
-		   // Draw the skybox
+        // Sky rendering
         if (showCubemap)
         {
-    	    glDepthFunc(GL_LEQUAL);
-    	    skyboxShader.use();
-    	    glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
-    	    glm::mat4 projection = camera.GetProjectionMatrix();
-    	    glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    	    glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-   
-    	    glBindVertexArray(skyboxVAO);
-    	    glActiveTexture(GL_TEXTURE0);
-    	    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-    	    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    	    glBindVertexArray(0);
-    	    glDepthFunc(GL_LESS);
+            glDepthFunc(GL_LEQUAL);
+            skyboxShader.use();
+            glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
+            glm::mat4 projection = camera.GetProjectionMatrix();
+            glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "view"), 1, GL_FALSE, glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(skyboxShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+            glBindVertexArray(skyboxVAO);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+            glDepthFunc(GL_LESS);
+        }
+        else if (showGradientSky)
+        {
         }
    
         if (data.msaaSamples > 0) {
@@ -1136,37 +1184,32 @@ float avgFrameTime = 0.0f;
             glBlitFramebuffer(0, 0, camera.width, camera.height, 0, 0, camera.width, camera.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
         }
    
-    	// Bind the default framebuffer
     	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    	// Use the framebuffer shader
     	framebufferProgram.use();
     	glUniform1i(glGetUniformLocation(framebufferProgram.ID, "screenTexture"), 0);
-    	// Disable depth testing so the framebuffer rectangle is always drawn
     	glDisable(GL_DEPTH_TEST);
     	// Draw the framebuffer rectangle
     	glBindVertexArray(rectVAO);
     	glActiveTexture(GL_TEXTURE0);
     	glBindTexture(GL_TEXTURE_2D, framebufferTexture);
     	glDrawArrays(GL_TRIANGLES, 0, 6);
-   
-        // Rendering ImGui
+
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-   
-    	// Swap the back buffer with the front buffer
+
     	glfwSwapBuffers(window);
     	glfwPollEvents();
     }
 
 
-
-    // Delete all the objects we've created
     shaderProgram.Delete();
     lightShader.Delete();
     framebufferProgram.Delete();
     skyboxShader.Delete();
     selectionProgram.Delete();
     sunProgram.Delete();
+    horizonProgram.Delete();
+    gradientSkyProgram.Delete();
     if (plane) delete plane;
     if (light) delete light;
     if (sun) delete sun;
@@ -1183,7 +1226,6 @@ float avgFrameTime = 0.0f;
     glDeleteBuffers(1, &skyboxVBO);
     glDeleteBuffers(1, &skyboxEBO);
     //lightShader.Delete();
-    // Delete window before ending the program
    
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
@@ -1269,9 +1311,8 @@ float avgFrameTime = 0.0f;
 {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
     {
-        // Check if ImGui is capturing the mouse input - if so, don't process object selection
         if (ImGui::GetIO().WantCaptureMouse) {
-            return; // Exit early if ImGui is handling the mouse
+            return;
         }
         
         if (Editor::isEditMode)
