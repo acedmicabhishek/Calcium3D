@@ -1005,11 +1005,11 @@ float avgFrameTime = 0.0f;
     	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "topColor"), topColor.x, topColor.y, topColor.z);
     	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "bottomColor"), bottomColor.x, bottomColor.y, bottomColor.z);
 
-    	       glm::vec3 dynamicSunPos = glm::vec3(cos(time * 0.1) * 10.0f, sin(time * 0.1) * 10.0f, 0.0f);
-    	       glm::vec3 dynamicMoonPos = glm::vec3(cos(time * 0.1 + glm::pi<float>()) * 10.0f, sin(time * 0.1 + glm::pi<float>()) * 10.0f, 0.0f);
+    	       glm::vec3 DynamicSunPos = glm::vec3(cos(time * 0.1) * 10.0f, sin(time * 0.1) * 10.0f, 0.0f);
+    	       glm::vec3 DynamicMoonPos = glm::vec3(cos(time * 0.1 + glm::pi<float>()) * 10.0f, sin(time * 0.1 + glm::pi<float>()) * 10.0f, 0.0f);
 
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "sunPos"), dynamicSunPos.x, dynamicSunPos.y, dynamicSunPos.z);
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "moonPos"), dynamicMoonPos.x, dynamicMoonPos.y, dynamicMoonPos.z);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "DynamicSunPos"), DynamicSunPos.x, DynamicSunPos.y, DynamicSunPos.z);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "DynamicMoonPos"), DynamicMoonPos.x, DynamicMoonPos.y, DynamicMoonPos.z);
     	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "sunColor"), 1.0f, 1.0f, 0.0f);
     	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "moonColor"), 0.8f, 0.8f, 0.9f);
 

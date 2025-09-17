@@ -5,8 +5,8 @@ in vec3 FragPos;
 
 uniform vec3 topColor;
 uniform vec3 bottomColor;
-uniform vec3 sunPos;
-uniform vec3 moonPos;
+uniform vec3 DynamicSunPos;
+uniform vec3 DynamicMoonPos;
 uniform vec3 sunColor;
 uniform vec3 moonColor;
 
@@ -17,7 +17,7 @@ void main()
 
     // Sun
     float sunDiskSize = 0.02;
-    float sunDistance = distance(normalize(FragPos), normalize(sunPos));
+    float sunDistance = distance(normalize(FragPos), normalize(DynamicSunPos));
     if (sunDistance < sunDiskSize)
     {
         finalColor = sunColor;
@@ -25,7 +25,7 @@ void main()
 
     // Moon
     float moonDiskSize = 0.015;
-    float moonDistance = distance(normalize(FragPos), normalize(moonPos));
+    float moonDistance = distance(normalize(FragPos), normalize(DynamicMoonPos));
     if (moonDistance < moonDiskSize)
     {
         finalColor = moonColor;
