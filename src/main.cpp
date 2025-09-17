@@ -990,8 +990,29 @@ float avgFrameTime = 0.0f;
     	       gradientSkyProgram.use();
     	       glUniformMatrix4fv(glGetUniformLocation(gradientSkyProgram.ID, "view"), 1, GL_FALSE, glm::value_ptr(camera.GetViewMatrix()));
     	       glUniformMatrix4fv(glGetUniformLocation(gradientSkyProgram.ID, "projection"), 1, GL_FALSE, glm::value_ptr(camera.GetProjectionMatrix()));
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "topColor"), 0.5f, 0.7f, 1.0f);
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "bottomColor"), 1.0f, 1.0f, 1.0f);
+    	       
+    	       float time = glfwGetTime();
+    	       float dayNightCycle = sin(time * 0.1) * 0.5 + 0.5;
+
+    	       glm::vec3 dayTopColor = glm::vec3(0.5f, 0.7f, 1.0f);
+    	       glm::vec3 nightTopColor = glm::vec3(0.0f, 0.0f, 0.1f);
+    	       glm::vec3 dayBottomColor = glm::vec3(1.0f, 1.0f, 1.0f);
+    	       glm::vec3 nightBottomColor = glm::vec3(0.1f, 0.1f, 0.2f);
+
+    	       glm::vec3 topColor = mix(nightTopColor, dayTopColor, dayNightCycle);
+    	       glm::vec3 bottomColor = mix(nightBottomColor, dayBottomColor, dayNightCycle);
+
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "topColor"), topColor.x, topColor.y, topColor.z);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "bottomColor"), bottomColor.x, bottomColor.y, bottomColor.z);
+
+    	       glm::vec3 dynamicSunPos = glm::vec3(cos(time * 0.1) * 10.0f, sin(time * 0.1) * 10.0f, 0.0f);
+    	       glm::vec3 dynamicMoonPos = glm::vec3(cos(time * 0.1 + glm::pi<float>()) * 10.0f, sin(time * 0.1 + glm::pi<float>()) * 10.0f, 0.0f);
+
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "sunPos"), dynamicSunPos.x, dynamicSunPos.y, dynamicSunPos.z);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "moonPos"), dynamicMoonPos.x, dynamicMoonPos.y, dynamicMoonPos.z);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "sunColor"), 1.0f, 1.0f, 0.0f);
+    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "moonColor"), 0.8f, 0.8f, 0.9f);
+
     	       glBindVertexArray(skyVAO);
     	       glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     	       glEnable(GL_DEPTH_TEST);
@@ -1006,10 +1027,6 @@ float avgFrameTime = 0.0f;
     	if (Editor::isEditMode) {
     		camera.Inputs(window);
     	}
-    	// Updates and exports the camera matrix to the Vertex Shader
-    
-    
-    	// Tells OpenGL which Shader Program we want to use
     //	floor.Draw(shaderProgram, camera);
         glStencilFunc(GL_ALWAYS, 0, 0xFF);
         glStencilMask(0xFF);
@@ -1019,16 +1036,13 @@ float avgFrameTime = 0.0f;
             glm::vec3 lightScale = glm::vec3(1.0f); // Light scale
             
             if (Editor::isEditMode && isLightSelected) {
-                // Draw selected light with selection shader (bright red)
                 selectionProgram.use();
-                // Set sun uniforms for lighting
                 glUniform4f(glGetUniformLocation(selectionProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
                 glUniform3f(glGetUniformLocation(selectionProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
                 glUniform1f(glGetUniformLocation(selectionProgram.ID, "sunIntensity"), sunIntensity);
                 glUniform3f(glGetUniformLocation(selectionProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
                 light->Draw(selectionProgram, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), lightScale);
             } else {
-                // Draw normal light
                 light->Draw(lightShader, camera, lightPos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), lightScale);
             }
         }

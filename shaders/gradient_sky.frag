@@ -5,10 +5,31 @@ in vec3 FragPos;
 
 uniform vec3 topColor;
 uniform vec3 bottomColor;
+uniform vec3 sunPos;
+uniform vec3 moonPos;
+uniform vec3 sunColor;
+uniform vec3 moonColor;
 
 void main()
 {
     float t = normalize(FragPos).y * 0.5 + 0.5;
     vec3 finalColor = mix(bottomColor, topColor, t);
+
+    // Sun
+    float sunDiskSize = 0.02;
+    float sunDistance = distance(normalize(FragPos), normalize(sunPos));
+    if (sunDistance < sunDiskSize)
+    {
+        finalColor = sunColor;
+    }
+
+    // Moon
+    float moonDiskSize = 0.015;
+    float moonDistance = distance(normalize(FragPos), normalize(moonPos));
+    if (moonDistance < moonDiskSize)
+    {
+        finalColor = moonColor;
+    }
+
     FragColor = vec4(finalColor, 1.0);
 }
