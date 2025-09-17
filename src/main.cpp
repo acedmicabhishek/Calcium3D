@@ -62,16 +62,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
 // Function to update sun uniforms in all shaders
-void updateSunUniforms(Shader& shaderProgram, Shader& celShadingProgram, Shader& sunProgram, const glm::vec4& sunColor, const glm::vec3& sunPos, float sunIntensity) {
+void updateSunUniforms(Shader& shaderProgram, Shader& sunProgram, const glm::vec4& sunColor, const glm::vec3& sunPos, float sunIntensity) {
     shaderProgram.use();
     glUniform4f(glGetUniformLocation(shaderProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
     glUniform3f(glGetUniformLocation(shaderProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
     glUniform1f(glGetUniformLocation(shaderProgram.ID, "sunIntensity"), sunIntensity);
-    
-    celShadingProgram.use();
-    glUniform4f(glGetUniformLocation(celShadingProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
-    glUniform3f(glGetUniformLocation(celShadingProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
-    glUniform1f(glGetUniformLocation(celShadingProgram.ID, "sunIntensity"), sunIntensity);
     
     sunProgram.use();
     glUniform4f(glGetUniformLocation(sunProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
@@ -174,7 +169,6 @@ int main() {
     // Generates Shader object using shaders default.vert and default.frag
     Shader shaderProgram("../shaders/default.vert", "../shaders/default.frag");
     Shader framebufferProgram("../shaders/framebuffer.vert", "../shaders/framebuffer.frag");
-    Shader celShadingProgram("../shaders/cel_shading.vert", "../shaders/cel_shading.frag");
     Shader gizmoProgram("../shaders/gizmo.vert", "../shaders/gizmo.frag");
     Shader outlineProgram("../shaders/outline.vert", "../shaders/outline.frag");
     Shader highlightProgram("../shaders/highlight.vert", "../shaders/highlight.frag");
@@ -221,9 +215,6 @@ int main() {
     glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
 
 
-    celShadingProgram.use();
-    glUniform4f(glGetUniformLocation(celShadingProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
-    glUniform3f(glGetUniformLocation(celShadingProgram.ID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
     
     // Set sun uniforms for all shaders
     shaderProgram.use();
@@ -231,10 +222,6 @@ int main() {
     glUniform3f(glGetUniformLocation(shaderProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
     glUniform1f(glGetUniformLocation(shaderProgram.ID, "sunIntensity"), sunIntensity);
     
-    celShadingProgram.use();
-    glUniform4f(glGetUniformLocation(celShadingProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z, sunColor.w);
-    glUniform3f(glGetUniformLocation(celShadingProgram.ID, "sunPos"), sunPos.x, sunPos.y, sunPos.z);
-    glUniform1f(glGetUniformLocation(celShadingProgram.ID, "sunIntensity"), sunIntensity);
     
     shaderProgram.use();
 
@@ -695,12 +682,12 @@ float avgFrameTime = 0.0f;
                     float sunColorArray[4] = { sunColor.x, sunColor.y, sunColor.z, sunColor.w };
                     if (ImGui::ColorEdit4("Sun Color", sunColorArray)) {
                         sunColor = glm::vec4(sunColorArray[0], sunColorArray[1], sunColorArray[2], sunColorArray[3]);
-                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                        updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                     
                     // Sun intensity slider
                     if (ImGui::SliderFloat("Sun Intensity", &sunIntensity, 0.0f, 10.0f)) {
-                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                        updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                     
                     ImGui::Separator();
@@ -716,7 +703,7 @@ float avgFrameTime = 0.0f;
                     float sunPosArray[3] = { sunPos.x, sunPos.y, sunPos.z };
                     if (ImGui::DragFloat3("Position", sunPosArray, 0.1f)) {
                         sunPos = glm::vec3(sunPosArray[0], sunPosArray[1], sunPosArray[2]);
-                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                        updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                     
                     // Preset sun positions
@@ -724,21 +711,21 @@ float avgFrameTime = 0.0f;
                         sunPos = glm::vec3(-10.0f, 5.0f, 0.0f);
                         sunColor = glm::vec4(1.0f, 0.6f, 0.3f, 1.0f); // Orange-red
                         sunIntensity = 1.5f;
-                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                        updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("Noon")) {
                         sunPos = glm::vec3(0.0f, 20.0f, 0.0f);
                         sunColor = glm::vec4(1.0f, 1.0f, 0.9f, 1.0f); // Bright white
                         sunIntensity = 2.5f;
-                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                        updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                     ImGui::SameLine();
                     if (ImGui::Button("Dusk")) {
                         sunPos = glm::vec3(10.0f, 5.0f, 0.0f);
                         sunColor = glm::vec4(1.0f, 0.4f, 0.2f, 1.0f); // Deep orange
                         sunIntensity = 1.2f;
-                        updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                        updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                 }
             }
@@ -1168,7 +1155,7 @@ float avgFrameTime = 0.0f;
                 
                 if (gizmo.GetMode() == Gizmo::TRANSLATE && newPosition != sunPos) {
                     sunPos = newPosition;
-                    updateSunUniforms(shaderProgram, celShadingProgram, sunProgram, sunColor, sunPos, sunIntensity);
+                    updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                 }
             }
         }
