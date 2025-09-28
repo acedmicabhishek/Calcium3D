@@ -2,7 +2,7 @@
 #include <glad/glad.h>
 #include <vector>
 
-Cloud2D::Cloud2D(const char* noiseTexturePath) : noiseTex(noiseTexturePath, "noise", 0) {
+Cloud2D::Cloud2D() {
     // A fullscreen quad
     float quadVertices[] = {
         // positions        // texture Coords
@@ -26,6 +26,8 @@ Cloud2D::Cloud2D(const char* noiseTexturePath) : noiseTex(noiseTexturePath, "noi
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 }
 
+#include <GLFW/glfw3.h>
+
 void Cloud2D::Draw(Shader& shader, Camera& camera, const glm::mat4& model) {
     shader.use();
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -33,7 +35,15 @@ void Cloud2D::Draw(Shader& shader, Camera& camera, const glm::mat4& model) {
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(camera.GetProjectionMatrix()));
     glUniform3f(glGetUniformLocation(shader.ID, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 
-    noiseTex.Bind();
+    glUniform1f(glGetUniformLocation(shader.ID, "u_time"), (float)glfwGetTime());
+    glUniform2f(glGetUniformLocation(shader.ID, "u_resolution"), (float)camera.width, (float)camera.height);
+    glUniform3f(glGetUniformLocation(shader.ID, "u_cloudColor"), cloudColor.x, cloudColor.y, cloudColor.z);
+    glUniform1f(glGetUniformLocation(shader.ID, "u_cloudCover"), cloudCover);
+    glUniform1f(glGetUniformLocation(shader.ID, "u_cloudSpeed"), cloudSpeed);
+    glUniform1f(glGetUniformLocation(shader.ID, "u_tiling"), tiling);
+    glUniform1f(glGetUniformLocation(shader.ID, "u_density"), density);
+    glUniform1f(glGetUniformLocation(shader.ID, "u_cloudSize"), cloudSize);
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }

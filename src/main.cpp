@@ -195,7 +195,7 @@ int main() {
     Shader cloud2dProgram("../shaders/2dcloud.vert", "../shaders/2dcloud.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
-    Cloud2D cloud2d("../Resource/noise/cloudnoise.jpg");
+    Cloud2D cloud2d;
    
    
     // Shader for light cube
@@ -603,6 +603,12 @@ float avgFrameTime = 0.0f;
                 ImGui::Checkbox("Show 2D Clouds", &showClouds);
                 if (showClouds) {
                     ImGui::SliderFloat("2D Cloud Height", &cloud2dHeight, 5.0f, 50.0f);
+                    ImGui::ColorEdit3("Cloud Color", glm::value_ptr(cloud2d.cloudColor));
+                    ImGui::SliderFloat("Cloud Cover", &cloud2d.cloudCover, 0.0f, 1.0f);
+                    ImGui::SliderFloat("Cloud Speed", &cloud2d.cloudSpeed, 0.0f, 1.0f);
+                    ImGui::SliderFloat("Tiling", &cloud2d.tiling, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Density", &cloud2d.density, 0.0f, 5.0f);
+                    ImGui::SliderFloat("Cloud Size", &cloud2d.cloudSize, 0.1f, 5.0f);
                 }
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
