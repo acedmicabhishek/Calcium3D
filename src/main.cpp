@@ -1200,7 +1200,10 @@ float avgFrameTime = 0.0f;
         else if (showGradientSky)
         {
             if (showClouds) {
-                cloud.Draw(cloudProgram, camera);
+                glm::mat4 cloudModel = glm::mat4(1.0f);
+                cloudModel = glm::translate(cloudModel, glm::vec3(0.0f, 20.0f, 0.0f));
+                cloudModel = glm::scale(cloudModel, glm::vec3(100.0f, 100.0f, 100.0f));
+                cloud.Draw(cloudProgram, camera, cloudModel);
             }
         }
    

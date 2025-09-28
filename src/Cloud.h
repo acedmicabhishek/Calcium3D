@@ -9,7 +9,7 @@
 class Cloud {
 public:
     Cloud(const char* noiseTexturePath);
-    void Draw(Shader& shader, Camera& camera);
+    void Draw(Shader& shader, Camera& camera, const glm::mat4& model);
 
 private:
     unsigned int VAO, VBO;

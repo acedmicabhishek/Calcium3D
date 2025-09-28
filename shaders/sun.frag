@@ -12,7 +12,7 @@ uniform vec3 camPos;
 
 void main()
 {
-    // Create a glowing effect for the sun
+    // Need a rework
     vec3 normal = normalize(Normal);
     vec3 viewDir = normalize(camPos - crntPos);
     
