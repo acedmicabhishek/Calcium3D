@@ -4,6 +4,7 @@ out vec4 FragColor;
 in vec3 FragPos;
 
 in vec2 TexCoords;
+in vec3 WorldPos;
 
 // 2D simplex noise
 vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
@@ -52,7 +53,7 @@ float fbm(vec2 p) {
 
 void main()
 {
-    vec2 uv = TexCoords * u_tiling;
+    vec2 uv = WorldPos.xz * 0.01 * u_tiling; // Use world position for noise generation
     vec2 motion = vec2(u_time * u_cloudSpeed * 0.1, 0.0);
 
     // Base cloud shape

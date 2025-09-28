@@ -1211,9 +1211,11 @@ float avgFrameTime = 0.0f;
         {
             if (showClouds) {
                 glm::mat4 cloud2dModel = glm::mat4(1.0f);
+                // Render a large, static cloud plane
                 cloud2dModel = glm::translate(cloud2dModel, glm::vec3(0.0f, cloud2dHeight, 0.0f));
                 cloud2dModel = glm::rotate(cloud2dModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-                cloud2dModel = glm::scale(cloud2dModel, glm::vec3(100.0f, 100.0f, 100.0f));
+                // Scale the cloud plane to be larger than the render distance
+                cloud2dModel = glm::scale(cloud2dModel, glm::vec3(camera.farPlane * 2.0f));
                 cloud2d.Draw(cloud2dProgram, camera, cloud2dModel);
             }
         }
