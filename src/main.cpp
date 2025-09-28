@@ -523,6 +523,7 @@ int main() {
         bool showGradientSky = false; // New: gradient/atmosphere sky toggle
         int skyMode = 0; // 0 = Cubemap, 1 = Gradient/Atmosphere
         bool showClouds = false;
+        float cloudHeight = 50.0f;
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
@@ -600,6 +601,9 @@ float avgFrameTime = 0.0f;
                 showCubemap = (skyMode == 0);
                 showGradientSky = (skyMode == 1);
                 ImGui::Checkbox("Show Clouds", &showClouds);
+                if (showClouds) {
+                    ImGui::SliderFloat("Cloud Height", &cloudHeight, 5.0f, 50.0f);
+                }
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
                         std::vector<Texture> lightTex;
@@ -1201,7 +1205,8 @@ float avgFrameTime = 0.0f;
         {
             if (showClouds) {
                 glm::mat4 cloudModel = glm::mat4(1.0f);
-                cloudModel = glm::translate(cloudModel, glm::vec3(0.0f, 20.0f, 0.0f));
+                cloudModel = glm::translate(cloudModel, glm::vec3(0.0f, cloudHeight, 0.0f));
+                cloudModel = glm::rotate(cloudModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
                 cloudModel = glm::scale(cloudModel, glm::vec3(100.0f, 100.0f, 100.0f));
                 cloud.Draw(cloudProgram, camera, cloudModel);
             }
