@@ -16,6 +16,7 @@ public:
     float tiling = 1.0f;
     float density = 1.0f;
     float cloudSize = 2.0f;
+    float randomness = 0.5f;
 
 private:
     unsigned int VAO, VBO;

@@ -43,6 +43,7 @@ void Cloud2D::Draw(Shader& shader, Camera& camera, const glm::mat4& model) {
     glUniform1f(glGetUniformLocation(shader.ID, "u_tiling"), tiling);
     glUniform1f(glGetUniformLocation(shader.ID, "u_density"), density);
     glUniform1f(glGetUniformLocation(shader.ID, "u_cloudSize"), cloudSize);
+    glUniform1f(glGetUniformLocation(shader.ID, "u_randomness"), randomness);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

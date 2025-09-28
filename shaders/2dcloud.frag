@@ -41,6 +41,7 @@ uniform float u_cloudSpeed;
 uniform float u_tiling;
 uniform float u_density;
 uniform float u_cloudSize;
+uniform float u_randomness;
 
 float fbm(vec2 p) {
     float f = 0.0;
@@ -56,12 +57,16 @@ void main()
     vec2 uv = WorldPos.xz * 0.01 * u_tiling; // Use world position for noise generation
     vec2 motion = vec2(u_time * u_cloudSpeed * 0.1, 0.0);
 
+    // A low-frequency noise to control the overall cloud distribution (weather map)
+    float weather_map = fbm(uv * 0.5 + motion * 0.5);
+    float coverage = mix(u_cloudCover, 1.0, weather_map * u_randomness);
+
     // Base cloud shape
     float base_noise = fbm(uv * u_cloudSize + motion);
-    float cloud_shape = smoothstep(1.0 - u_cloudCover, 1.0, base_noise);
+    float cloud_shape = smoothstep(1.0 - coverage, 1.0, base_noise);
 
     // Detail noise to create more complex edges
-    float detail_noise = fbm(uv * 8.0 + motion * 2.0);
+    float detail_noise = fbm(uv * u_cloudSize * 4.0 + motion * 2.0);
     cloud_shape *= smoothstep(0.4, 0.6, detail_noise);
 
     // Final alpha, modulated by density

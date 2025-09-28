@@ -596,20 +596,6 @@ float avgFrameTime = 0.0f;
             }
 
             if (ImGui::CollapsingHeader("Display Options")) {
-                const char* skyModes[] = {"Cubemap", "Dynamic Sky"};
-                ImGui::Combo("Sky Mode", &skyMode, skyModes, IM_ARRAYSIZE(skyModes));
-                showCubemap = (skyMode == 0);
-                showGradientSky = (skyMode == 1);
-                ImGui::Checkbox("Show 2D Clouds", &showClouds);
-                if (showClouds) {
-                    ImGui::SliderFloat("2D Cloud Height", &cloud2dHeight, 5.0f, 50.0f);
-                    ImGui::ColorEdit3("Cloud Color", glm::value_ptr(cloud2d.cloudColor));
-                    ImGui::SliderFloat("Cloud Cover", &cloud2d.cloudCover, 0.0f, 1.0f);
-                    ImGui::SliderFloat("Cloud Speed", &cloud2d.cloudSpeed, 0.0f, 1.0f);
-                    ImGui::SliderFloat("Tiling", &cloud2d.tiling, 0.1f, 10.0f);
-                    ImGui::SliderFloat("Density", &cloud2d.density, 0.0f, 5.0f);
-                    ImGui::SliderFloat("Cloud Size", &cloud2d.cloudSize, 0.1f, 5.0f);
-                }
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
                         std::vector<Texture> lightTex;
@@ -665,6 +651,23 @@ float avgFrameTime = 0.0f;
                 }
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
+                }
+
+                ImGui::Separator();
+                const char* skyModes[] = {"Cubemap", "Dynamic Sky"};
+                ImGui::Combo("Sky Mode", &skyMode, skyModes, IM_ARRAYSIZE(skyModes));
+                showCubemap = (skyMode == 0);
+                showGradientSky = (skyMode == 1);
+                ImGui::Checkbox("Show 2D Clouds", &showClouds);
+                if (showClouds) {
+                    ImGui::SliderFloat("2D Cloud Height", &cloud2dHeight, 5.0f, 90.0f);
+                    ImGui::ColorEdit3("Cloud Color", glm::value_ptr(cloud2d.cloudColor));
+                    ImGui::SliderFloat("Cloud Cover", &cloud2d.cloudCover, 0.0f, 2.0f);
+                    ImGui::SliderFloat("Cloud Speed", &cloud2d.cloudSpeed, 0.0f, 5.0f);
+                    ImGui::SliderFloat("Tiling", &cloud2d.tiling, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Density", &cloud2d.density, 0.0f, 1.0f);
+                    ImGui::SliderFloat("Cloud Size", &cloud2d.cloudSize, 0.1f, 10.0f);
+                    ImGui::SliderFloat("Randomness", &cloud2d.randomness, 0.0f, 1.0f);
                 }
             }
 
