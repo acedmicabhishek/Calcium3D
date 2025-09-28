@@ -6,9 +6,9 @@
 #include "Camera.h"
 #include <glm/glm.hpp>
 
-class Cloud {
+class Cloud2D {
 public:
-    Cloud(const char* noiseTexturePath);
+    Cloud2D(const char* noiseTexturePath);
     void Draw(Shader& shader, Camera& camera, const glm::mat4& model);
 
 private:

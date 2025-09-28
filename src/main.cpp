@@ -23,7 +23,7 @@
 #include "Gizmo.h"
 #include "ObjectFactory.h"
 #include "Logger.h"
-#include "Cloud.h"
+#include "2dCloud.h"
 
 struct SceneObject {
     Mesh mesh;
@@ -192,10 +192,10 @@ int main() {
     Shader sunProgram("../shaders/sun.vert", "../shaders/sun.frag");
     Shader horizonProgram("../shaders/horizon.vert", "../shaders/horizon.frag");
     Shader gradientSkyProgram("../shaders/gradient_sky.vert", "../shaders/gradient_sky.frag");
-    Shader cloudProgram("../shaders/cloud.vert", "../shaders/cloud.frag");
+    Shader cloud2dProgram("../shaders/2dcloud.vert", "../shaders/2dcloud.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
-    Cloud cloud("../Resource/noise/cloudnoise.jpg");
+    Cloud2D cloud2d("../Resource/noise/cloudnoise.jpg");
    
    
     // Shader for light cube
@@ -523,7 +523,7 @@ int main() {
         bool showGradientSky = false; // New: gradient/atmosphere sky toggle
         int skyMode = 0; // 0 = Cubemap, 1 = Gradient/Atmosphere
         bool showClouds = false;
-        float cloudHeight = 50.0f;
+        float cloud2dHeight = 50.0f;
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
@@ -600,9 +600,9 @@ float avgFrameTime = 0.0f;
                 ImGui::Combo("Sky Mode", &skyMode, skyModes, IM_ARRAYSIZE(skyModes));
                 showCubemap = (skyMode == 0);
                 showGradientSky = (skyMode == 1);
-                ImGui::Checkbox("Show Clouds", &showClouds);
+                ImGui::Checkbox("Show 2D Clouds", &showClouds);
                 if (showClouds) {
-                    ImGui::SliderFloat("Cloud Height", &cloudHeight, 5.0f, 50.0f);
+                    ImGui::SliderFloat("2D Cloud Height", &cloud2dHeight, 5.0f, 50.0f);
                 }
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
@@ -1204,11 +1204,11 @@ float avgFrameTime = 0.0f;
         else if (showGradientSky)
         {
             if (showClouds) {
-                glm::mat4 cloudModel = glm::mat4(1.0f);
-                cloudModel = glm::translate(cloudModel, glm::vec3(0.0f, cloudHeight, 0.0f));
-                cloudModel = glm::rotate(cloudModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-                cloudModel = glm::scale(cloudModel, glm::vec3(100.0f, 100.0f, 100.0f));
-                cloud.Draw(cloudProgram, camera, cloudModel);
+                glm::mat4 cloud2dModel = glm::mat4(1.0f);
+                cloud2dModel = glm::translate(cloud2dModel, glm::vec3(0.0f, cloud2dHeight, 0.0f));
+                cloud2dModel = glm::rotate(cloud2dModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+                cloud2dModel = glm::scale(cloud2dModel, glm::vec3(100.0f, 100.0f, 100.0f));
+                cloud2d.Draw(cloud2dProgram, camera, cloud2dModel);
             }
         }
    

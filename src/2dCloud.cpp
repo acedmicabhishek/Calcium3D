@@ -1,8 +1,8 @@
-#include "Cloud.h"
+#include "2dCloud.h"
 #include <glad/glad.h>
 #include <vector>
 
-Cloud::Cloud(const char* noiseTexturePath) : noiseTex(noiseTexturePath, "noise", 0) {
+Cloud2D::Cloud2D(const char* noiseTexturePath) : noiseTex(noiseTexturePath, "noise", 0) {
     // A fullscreen quad
     float quadVertices[] = {
         // positions        // texture Coords
@@ -26,7 +26,7 @@ Cloud::Cloud(const char* noiseTexturePath) : noiseTex(noiseTexturePath, "noise",
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 }
 
-void Cloud::Draw(Shader& shader, Camera& camera, const glm::mat4& model) {
+void Cloud2D::Draw(Shader& shader, Camera& camera, const glm::mat4& model) {
     shader.use();
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "view"), 1, GL_FALSE, glm::value_ptr(camera.GetViewMatrix()));
