@@ -31,6 +31,7 @@ set(SOURCES
     src/Gizmo.cpp
     src/ObjectFactory.cpp
     src/Logger.cpp
+    src/Cloud.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp

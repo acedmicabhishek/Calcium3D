@@ -6,16 +6,16 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Go to project root
 cd "$PROJECT_ROOT" || exit
 
-echo "[🔧] Cleaning build directory..."
+echo "[>] Cleaning build directory..."
 rm -rf build
 
-echo "[📦] Creating new build directory..."
+echo "[>] Creating new build directory..."
 mkdir build && cd build || exit
 
-echo "[⚙️] Running cmake..."
+echo "[>] Running cmake..."
 cmake ..
 
-echo "[🔨] Building project..."
+echo "[>] Building project..."
 make
 
 echo "[100%] Running calcium3d..."

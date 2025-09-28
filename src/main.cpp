@@ -23,6 +23,7 @@
 #include "Gizmo.h"
 #include "ObjectFactory.h"
 #include "Logger.h"
+#include "Cloud.h"
 
 struct SceneObject {
     Mesh mesh;
@@ -75,7 +76,22 @@ void updateSunUniforms(Shader& shaderProgram, Shader& sunProgram, const glm::vec
     shaderProgram.use();
 }
 
+// Function to update gradient sky uniforms
+void updateGradientSkyUniforms(Shader& gradientSkyProgram, const glm::vec3& sunPos, const glm::vec3& moonPos, const glm::vec4& sunColor, const glm::vec4& moonColor, float sunBloom, float moonBloom) {
+    gradientSkyProgram.use();
+    glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "DynamicSunPos"), sunPos.x, sunPos.y, sunPos.z);
+    glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "DynamicMoonPos"), moonPos.x, moonPos.y, moonPos.z);
+    glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "sunColor"), sunColor.x, sunColor.y, sunColor.z);
+    glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "moonColor"), moonColor.x, moonColor.y, moonColor.z);
+    glUniform1f(glGetUniformLocation(gradientSkyProgram.ID, "sunBloom"), sunBloom);
+    glUniform1f(glGetUniformLocation(gradientSkyProgram.ID, "moonBloom"), moonBloom);
+}
+
 int main() {
+    // Bloom variables
+    float sunBloom = 0.03f;
+    float moonBloom = 0.02f;
+
 	// Initialize GLFW
 	if (!glfwInit()) {
 		std::cerr << "Failed to initialize GLFW\n";
@@ -176,8 +192,10 @@ int main() {
     Shader sunProgram("../shaders/sun.vert", "../shaders/sun.frag");
     Shader horizonProgram("../shaders/horizon.vert", "../shaders/horizon.frag");
     Shader gradientSkyProgram("../shaders/gradient_sky.vert", "../shaders/gradient_sky.frag");
+    Shader cloudProgram("../shaders/cloud.vert", "../shaders/cloud.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
+    Cloud cloud("../Resource/noise/cloudnoise.jpg");
    
    
     // Shader for light cube
@@ -504,6 +522,7 @@ int main() {
         bool showCubemap = true;
         bool showGradientSky = false; // New: gradient/atmosphere sky toggle
         int skyMode = 0; // 0 = Cubemap, 1 = Gradient/Atmosphere
+        bool showClouds = false;
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
@@ -580,6 +599,7 @@ float avgFrameTime = 0.0f;
                 ImGui::Combo("Sky Mode", &skyMode, skyModes, IM_ARRAYSIZE(skyModes));
                 showCubemap = (skyMode == 0);
                 showGradientSky = (skyMode == 1);
+                ImGui::Checkbox("Show Clouds", &showClouds);
                 if (ImGui::Checkbox("Show Local Light Source", &showLightSource)) {
                     if (showLightSource && !light) {
                         std::vector<Texture> lightTex;
@@ -728,6 +748,11 @@ float avgFrameTime = 0.0f;
                         updateSunUniforms(shaderProgram, sunProgram, sunColor, sunPos, sunIntensity);
                     }
                 }
+                
+                ImGui::Separator();
+                ImGui::Text("Bloom Settings");
+                ImGui::SliderFloat("Sun Bloom", &sunBloom, 0.0f, 0.1f);
+                ImGui::SliderFloat("Moon Bloom", &moonBloom, 0.0f, 0.1f);
             }
 
             if (ImGui::CollapsingHeader("Create")) {
@@ -995,10 +1020,7 @@ float avgFrameTime = 0.0f;
     	       glm::vec3 DynamicSunPos = glm::vec3(cos(time * 0.1) * 10.0f, sin(time * 0.1) * 10.0f, 0.0f);
     	       glm::vec3 DynamicMoonPos = glm::vec3(cos(time * 0.1 + glm::pi<float>()) * 10.0f, sin(time * 0.1 + glm::pi<float>()) * 10.0f, 0.0f);
 
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "DynamicSunPos"), DynamicSunPos.x, DynamicSunPos.y, DynamicSunPos.z);
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "DynamicMoonPos"), DynamicMoonPos.x, DynamicMoonPos.y, DynamicMoonPos.z);
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "sunColor"), 1.0f, 1.0f, 0.0f);
-    	       glUniform3f(glGetUniformLocation(gradientSkyProgram.ID, "moonColor"), 0.8f, 0.8f, 0.9f);
+    	       updateGradientSkyUniforms(gradientSkyProgram, DynamicSunPos, DynamicMoonPos, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f), glm::vec4(0.8f, 0.8f, 0.9f, 1.0f), sunBloom, moonBloom);
 
     	       glBindVertexArray(skyVAO);
     	       glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
@@ -1177,6 +1199,9 @@ float avgFrameTime = 0.0f;
         }
         else if (showGradientSky)
         {
+            if (showClouds) {
+                cloud.Draw(cloudProgram, camera);
+            }
         }
    
         if (data.msaaSamples > 0) {
