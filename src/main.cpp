@@ -1014,6 +1014,7 @@ float avgFrameTime = 0.0f;
     	       glUniformMatrix4fv(glGetUniformLocation(gradientSkyProgram.ID, "projection"), 1, GL_FALSE, glm::value_ptr(camera.GetProjectionMatrix()));
     	       
     	       float time = glfwGetTime();
+    	          glUniform1f(glGetUniformLocation(gradientSkyProgram.ID, "u_time"), time);
     	       float dayNightCycle = sin(time * 0.1) * 0.5 + 0.5;
 
     	       glm::vec3 dayTopColor = glm::vec3(0.5f, 0.7f, 1.0f);
