@@ -16,7 +16,7 @@ echo "[>] Running cmake..."
 cmake ..
 
 echo "[>] Building project..."
-make
+make -j8
 
 echo "[100%] Running calcium3d..."
 ./calcium3d
