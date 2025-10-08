@@ -3,18 +3,17 @@ project(calcium3d)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Include directories
 include_directories(include include/stb include/glm include/glad imgui imgui/backends)
 
 # Find required packages
-find_package(OpenGL REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GLFW REQUIRED glfw3)
-pkg_check_modules(GLEW REQUIRED glew)
-find_package(nlohmann_json 3 REQUIRED)
-find_package(tinyobjloader REQUIRED)
+find_package(OpenGL REQUIRED) #1 
+find_package(PkgConfig REQUIRED) #2
+pkg_check_modules(GLFW REQUIRED glfw3) #3
+pkg_check_modules(GLEW REQUIRED glew) #4
+find_package(nlohmann_json 3 REQUIRED) #5
+find_package(tinyobjloader REQUIRED) #6
 
 # Set sources
 set(SOURCES
@@ -70,4 +69,4 @@ target_link_directories(calcium3d PRIVATE
 # target_compile_options(calcium3d PRIVATE -Wall -Wextra -pedantic)
 
 # Set optimization level
-target_compile_options(calcium3d PRIVATE -O0)
+# target_compile_options(calcium3d PRIVATE -O0)
