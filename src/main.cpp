@@ -24,6 +24,7 @@
 #include "Logger.h"
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
+#include "Water.h"
 
 struct SceneObject {
     Mesh mesh;
@@ -194,6 +195,9 @@ int main() {
     Shader horizonProgram("../shaders/horizon.vert", "../shaders/horizon.frag");
     Shader gradientSkyProgram("../shaders/gradient_sky.vert", "../shaders/gradient_sky.frag");
     Shader cloud2dProgram("../shaders/2dcloud.vert", "../shaders/2dcloud.frag");
+    Shader waterProgram("../shaders/water.vert", "../shaders/water.frag");
+    Water water;
+    bool showWater = false;
     Shader volumetricCloudProgram("../shaders/volumetric_cloud.vert", "../shaders/volumetric_cloud.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
@@ -691,6 +695,18 @@ float avgFrameTime = 0.0f;
                         ImGui::Combo("Quality", &volumetricCloud.quality, qualityModes, IM_ARRAYSIZE(qualityModes));
                     }
                 }
+                ImGui::Checkbox("Show Water", &showWater);
+            }
+
+            if (ImGui::CollapsingHeader("Water Settings"))
+            {
+                ImGui::SliderFloat("Height", &water.position.y, -10.0f, 10.0f);
+                ImGui::SliderFloat("Wave Speed", &water.waveSpeed, 0.0f, 5.0f);
+                ImGui::SliderFloat("Wave Strength", &water.waveStrength, 0.0f, 1.0f);
+                ImGui::SliderFloat("Shininess", &water.shininess, 1.0f, 256.0f);
+                ImGui::ColorEdit3("Water Color", &water.waterColor[0]);
+                const char* waveSystems[] = { "Blinn-Wyvill", "Gerstner" };
+                ImGui::Combo("Wave System", &water.waveSystem, waveSystems, IM_ARRAYSIZE(waveSystems));
             }
 
             if (showPerformance && ImGui::CollapsingHeader("Performance")) {
@@ -1254,6 +1270,11 @@ float avgFrameTime = 0.0f;
                 }
             }
         }
+
+        if (showWater)
+        {
+            water.Draw(waterProgram, camera, camera.GetProjectionMatrix(), glfwGetTime(), camera.Position);
+        }
    
         if (data.msaaSamples > 0) {
             glBindFramebuffer(GL_READ_FRAMEBUFFER, data.msaaFBO);
@@ -1278,6 +1299,7 @@ float avgFrameTime = 0.0f;
     	glfwPollEvents();
     }
 
+    waterProgram.Delete();
 
     shaderProgram.Delete();
     lightShader.Delete();

@@ -34,6 +34,7 @@ set(SOURCES
     src/Logger.cpp
     src/2dCloud.cpp
     src/VolumetricCloud.cpp
+    src/Water.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
