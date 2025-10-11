@@ -1,3 +1,5 @@
+// this is a bad code btw
+
 #version 330 core
 out vec4 FragColor;
 
