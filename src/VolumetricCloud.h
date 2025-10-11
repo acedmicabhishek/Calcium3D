@@ -12,7 +12,7 @@ public:
     void Draw(Shader& shader, Camera& camera, float cloudHeight, float farPlane);
 
     float density = 0.5f;
-    float stepSize = 0.05f;
+    float stepSize = 0.5f;
     float cloudCover = 0.5f;
     float speed = 0.05f;
     int quality = 0; // 0 for Performance, 1 for Quality

@@ -120,17 +120,17 @@ void main()
 
     float totalDensity = 0.0;
     
-    int numSteps = (quality == 0) ? 32 : 64;
+    int numSteps = (quality == 0) ? 64 : 128;
 
     for (int i = 0; i < numSteps; i++) {
-        float t = float(i) * 0.5;
+        float t = float(i) * stepSize;
         if (t > farPlane) break;
 
         vec3 samplePos = rayOrigin + rayDir * t;
         
         float d = getCloudDensity(samplePos);
         if (d > 0.0) {
-            totalDensity += d * stepSize;
+            totalDensity += d * stepSize * 0.1; // Adjusted density contribution
             if (totalDensity > 1.0) break;
         }
     }

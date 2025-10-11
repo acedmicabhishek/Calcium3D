@@ -677,7 +677,7 @@ float avgFrameTime = 0.0f;
                         ImGui::SliderFloat("Randomness", &cloud2d.randomness, 0.0f, 1.0f);
                     } else { // Volumetric Clouds
                         ImGui::SliderFloat("Density", &volumetricCloud.density, 0.0f, 2.0f);
-                        ImGui::SliderFloat("Step Size", &volumetricCloud.stepSize, 0.01f, 0.2f);
+                        ImGui::SliderFloat("Step Size", &volumetricCloud.stepSize, 0.01f, 2.0f);
                         ImGui::SliderFloat("Cloud Cover", &volumetricCloud.cloudCover, 0.0f, 1.0f);
                         ImGui::SliderFloat("Speed", &volumetricCloud.speed, 0.0f, 0.2f);
                         ImGui::SliderFloat("Detail", &volumetricCloud.detail, 1.0f, 10.0f);
