@@ -16,7 +16,7 @@ echo "[>] Running cmake..."
 cmake ..
 
 echo "[>] Building project..."
-make -j8
+make -j16 # 16 logical cpu
 
 echo "[100%] Running calcium3d..."
 ./calcium3d

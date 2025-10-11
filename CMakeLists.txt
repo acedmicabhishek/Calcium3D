@@ -3,6 +3,7 @@ project(calcium3d)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Include directories
 include_directories(include include/stb include/glm include/glad imgui imgui/backends)
@@ -32,6 +33,7 @@ set(SOURCES
     src/ObjectFactory.cpp
     src/Logger.cpp
     src/2dCloud.cpp
+    src/VolumetricCloud.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp

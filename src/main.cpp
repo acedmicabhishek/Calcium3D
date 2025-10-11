@@ -2,7 +2,6 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <glad/glad.h>
-// test
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <cmath>
@@ -24,6 +23,7 @@
 #include "ObjectFactory.h"
 #include "Logger.h"
 #include "2dCloud.h"
+#include "VolumetricCloud.h"
 
 struct SceneObject {
     Mesh mesh;
@@ -193,9 +193,11 @@ int main() {
     Shader horizonProgram("../shaders/horizon.vert", "../shaders/horizon.frag");
     Shader gradientSkyProgram("../shaders/gradient_sky.vert", "../shaders/gradient_sky.frag");
     Shader cloud2dProgram("../shaders/2dcloud.vert", "../shaders/2dcloud.frag");
+    Shader volumetricCloudProgram("../shaders/volumetric_cloud.vert", "../shaders/volumetric_cloud.frag");
     std::vector <Vertex> verts(vertices, vertices + sizeof(vertices) / sizeof(Vertex));
     std::vector <GLuint> ind(indices, indices + sizeof(indices) / sizeof(GLuint));
     Cloud2D cloud2d;
+    VolumetricCloud volumetricCloud;
    
    
     // Shader for light cube
@@ -523,6 +525,7 @@ int main() {
         bool showGradientSky = false; // New: gradient/atmosphere sky toggle
         int skyMode = 0; // 0 = Cubemap, 1 = Gradient/Atmosphere
         bool showClouds = false;
+        int cloudMode = 0; // 0 = 2D, 1 = Volumetric
         float cloud2dHeight = 50.0f;
 bool showLightSource = false;
 bool showPlane = false;
@@ -658,16 +661,29 @@ float avgFrameTime = 0.0f;
                 ImGui::Combo("Sky Mode", &skyMode, skyModes, IM_ARRAYSIZE(skyModes));
                 showCubemap = (skyMode == 0);
                 showGradientSky = (skyMode == 1);
-                ImGui::Checkbox("Show 2D Clouds", &showClouds);
+                ImGui::Checkbox("Show Clouds", &showClouds);
                 if (showClouds) {
-                    ImGui::SliderFloat("2D Cloud Height", &cloud2dHeight, 5.0f, 90.0f);
-                    ImGui::ColorEdit3("Cloud Color", glm::value_ptr(cloud2d.cloudColor));
-                    ImGui::SliderFloat("Cloud Cover", &cloud2d.cloudCover, 0.0f, 2.0f);
-                    ImGui::SliderFloat("Cloud Speed", &cloud2d.cloudSpeed, 0.0f, 5.0f);
-                    ImGui::SliderFloat("Tiling", &cloud2d.tiling, 0.1f, 10.0f);
-                    ImGui::SliderFloat("Density", &cloud2d.density, 0.0f, 1.0f);
-                    ImGui::SliderFloat("Cloud Size", &cloud2d.cloudSize, 0.1f, 10.0f);
-                    ImGui::SliderFloat("Randomness", &cloud2d.randomness, 0.0f, 1.0f);
+                    const char* cloudModes[] = {"2D Clouds", "Volumetric Clouds"};
+                    ImGui::Combo("Cloud Mode", &cloudMode, cloudModes, IM_ARRAYSIZE(cloudModes));
+                    ImGui::SliderFloat("Cloud Height", &cloud2dHeight, 5.0f, 90.0f);
+
+                    if (cloudMode == 0) { // 2D Clouds
+                        ImGui::ColorEdit3("Cloud Color", glm::value_ptr(cloud2d.cloudColor));
+                        ImGui::SliderFloat("Cloud Cover", &cloud2d.cloudCover, 0.0f, 2.0f);
+                        ImGui::SliderFloat("Cloud Speed", &cloud2d.cloudSpeed, 0.0f, 5.0f);
+                        ImGui::SliderFloat("Tiling", &cloud2d.tiling, 0.1f, 10.0f);
+                        ImGui::SliderFloat("Density", &cloud2d.density, 0.0f, 1.0f);
+                        ImGui::SliderFloat("Cloud Size", &cloud2d.cloudSize, 0.1f, 10.0f);
+                        ImGui::SliderFloat("Randomness", &cloud2d.randomness, 0.0f, 1.0f);
+                    } else { // Volumetric Clouds
+                        ImGui::SliderFloat("Density", &volumetricCloud.density, 0.0f, 2.0f);
+                        ImGui::SliderFloat("Step Size", &volumetricCloud.stepSize, 0.01f, 0.2f);
+                        ImGui::SliderFloat("Cloud Cover", &volumetricCloud.cloudCover, 0.0f, 1.0f);
+                        ImGui::SliderFloat("Speed", &volumetricCloud.speed, 0.0f, 0.2f);
+                        ImGui::SliderFloat("Detail", &volumetricCloud.detail, 1.0f, 10.0f);
+                        const char* qualityModes[] = {"Performance", "Quality"};
+                        ImGui::Combo("Quality", &volumetricCloud.quality, qualityModes, IM_ARRAYSIZE(qualityModes));
+                    }
                 }
             }
 
@@ -1214,13 +1230,22 @@ float avgFrameTime = 0.0f;
         else if (showGradientSky)
         {
             if (showClouds) {
-                glm::mat4 cloud2dModel = glm::mat4(1.0f);
-                // Render a large, static cloud plane
-                cloud2dModel = glm::translate(cloud2dModel, glm::vec3(0.0f, cloud2dHeight, 0.0f));
-                cloud2dModel = glm::rotate(cloud2dModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-                // Scale the cloud plane to be larger than the render distance
-                cloud2dModel = glm::scale(cloud2dModel, glm::vec3(camera.farPlane * 2.0f));
-                cloud2d.Draw(cloud2dProgram, camera, cloud2dModel);
+                if (cloudMode == 0) { // 2D Clouds
+                    glm::mat4 cloud2dModel = glm::mat4(1.0f);
+                    // Render a large, static cloud plane
+                    cloud2dModel = glm::translate(cloud2dModel, glm::vec3(0.0f, cloud2dHeight, 0.0f));
+                    cloud2dModel = glm::rotate(cloud2dModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+                    // Scale the cloud plane to be larger than the render distance
+                    cloud2dModel = glm::scale(cloud2dModel, glm::vec3(camera.farPlane * 2.0f));
+                    cloud2d.Draw(cloud2dProgram, camera, cloud2dModel);
+                } else { // Volumetric Clouds
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    glDisable(GL_DEPTH_TEST);
+                    volumetricCloud.Draw(volumetricCloudProgram, camera, cloud2dHeight, camera.farPlane);
+                    glEnable(GL_DEPTH_TEST);
+                    glDisable(GL_BLEND);
+                }
             }
         }
    
