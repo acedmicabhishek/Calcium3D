@@ -1,5 +1,3 @@
-// this is a bad code btw
-
 #version 330 core
 out vec4 FragColor;
 
@@ -17,19 +15,20 @@ uniform float speed;
 uniform int quality; // 0 for Performance, 1 for Quality
 uniform float detail;
 
-// --- 3D Classic Perlin Noise ---
+// --- Optimized 3D Perlin Noise ---
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
 vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
 
 float pnoise(vec3 P) {
-    vec3 Pi0 = floor(P); // Integer part for indexing
-    vec3 Pf0 = fract(P); // Fractional part for interpolation
+    vec3 Pi0 = floor(P);
+    vec3 Pf0 = fract(P);
     vec3 Pi1 = Pi0 + vec3(1.0);
     Pi0 = mod289(Pi0);
     Pi1 = mod289(Pi1);
-    vec3 Pf1 = Pf0 - vec3(1.0); // Fractional part - 1.0
+    vec3 Pf1 = Pf0 - vec3(1.0);
+    
     vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
     vec4 iy = vec4(Pi0.yy, Pi1.yy);
     vec4 iz0 = Pi0.zzzz;
@@ -91,28 +90,57 @@ float pnoise(vec3 P) {
     return 2.2 * n_xyz;
 }
 
+// Optimized FBM with early exit
 float fbm(vec3 p, int octaves) {
     float f = 0.0;
     float amp = 0.5;
+    float totalAmp = 0.0;
+    
     for (int i = 0; i < octaves; i++) {
         f += amp * pnoise(p);
+        totalAmp += amp;
         p *= 2.0;
         amp *= 0.5;
     }
-    return f;
+    return f / totalAmp; // Normalize
 }
 
-float getCloudDensity(vec3 pos) {
+// Fast cloud density calculation with LOD
+float getCloudDensity(vec3 pos, float distanceFromCamera) {
     vec3 movingPos = pos + vec3(time * speed, 0.0, time * speed * 0.5);
     
-    float noise = fbm(movingPos * 0.1, int(detail));
-    noise = smoothstep(1.0 - cloudCover, 1.0, noise);
+    // LOD based on distance - fewer octaves for distant clouds
+    int octaves = (distanceFromCamera > farPlane * 0.5) ? max(1, int(detail) - 2) : int(detail);
+    
+    float noise = fbm(movingPos * 0.08, octaves);
+    
+    // Sharper cloud edges with adjusted coverage
+    float coverage = cloudCover * 0.5 + 0.3;
+    noise = smoothstep(coverage - 0.1, coverage + 0.1, noise);
 
-    // Vertical shaping
-    float height_factor = 1.0 - abs(pos.y - cloudHeight) / 10.0;
-    height_factor = smoothstep(0.0, 1.0, height_factor);
+    // Improved vertical shaping with softer falloff
+    float heightDist = abs(pos.y - cloudHeight);
+    float height_factor = exp(-heightDist * heightDist * 0.02);
 
     return noise * height_factor * density;
+}
+
+// Ray-sphere intersection for cloud layer bounds
+bool intersectCloudLayer(vec3 ro, vec3 rd, out float tMin, out float tMax) {
+    float cloudThickness = 15.0;
+    float bottomY = cloudHeight - cloudThickness * 0.5;
+    float topY = cloudHeight + cloudThickness * 0.5;
+    
+    float t1 = (bottomY - ro.y) / rd.y;
+    float t2 = (topY - ro.y) / rd.y;
+    
+    tMin = min(t1, t2);
+    tMax = max(t1, t2);
+    
+    tMin = max(tMin, 0.0);
+    tMax = min(tMax, farPlane);
+    
+    return tMax > tMin;
 }
 
 void main()
@@ -120,28 +148,53 @@ void main()
     vec3 rayDir = normalize(farPoint - nearPoint);
     vec3 rayOrigin = cameraPosition;
 
-    float totalDensity = 0.0;
-    
-    int numSteps = (quality == 0) ? 64 : 128;
-
-    for (int i = 0; i < numSteps; i++) {
-        float t = float(i) * stepSize;
-        if (t > farPlane) break;
-
-        vec3 samplePos = rayOrigin + rayDir * t;
-        
-        float d = getCloudDensity(samplePos);
-        if (d > 0.0) {
-            totalDensity += d * stepSize * 0.1; // Adjusted density contribution
-            if (totalDensity > 1.0) break;
-        }
+    // Early exit if not looking at cloud layer
+    float tMin, tMax;
+    if (!intersectCloudLayer(rayOrigin, rayDir, tMin, tMax)) {
+        FragColor = vec4(0.0);
+        return;
     }
 
-    vec3 sunDir = normalize(vec3(0.3, 0.6, 0.5));
-    float light = dot(sunDir, rayDir);
-    light = smoothstep(0.0, 1.0, light);
+    // Adaptive step count
+    int numSteps = (quality == 0) ? 32 : 64;
+    float rayLength = tMax - tMin;
+    float actualStepSize = rayLength / float(numSteps);
     
-    vec3 color = mix(vec3(0.7, 0.8, 0.9), vec3(1.0), light);
+    float totalDensity = 0.0;
+    float transmittance = 1.0;
+    vec3 accumulatedColor = vec3(0.0);
+    
+    // Sun direction for lighting
+    vec3 sunDir = normalize(vec3(0.3, 0.7, 0.5));
+    vec3 sunColor = vec3(1.0, 0.95, 0.8);
+    vec3 skyColor = vec3(0.6, 0.75, 0.95);
 
-    FragColor = vec4(color, totalDensity);
+    for (int i = 0; i < numSteps; i++) {
+        if (transmittance < 0.01) break; // Early exit when opaque
+        
+        float t = tMin + float(i) * actualStepSize;
+        vec3 samplePos = rayOrigin + rayDir * t;
+        
+        float distFromCamera = length(samplePos - rayOrigin);
+        float d = getCloudDensity(samplePos, distFromCamera);
+        
+        if (d > 0.01) {
+            // Simple lighting - blend between sun and ambient
+            float lightDir = dot(sunDir, -rayDir);
+            float powderEffect = 1.0 - exp(-d * 2.0);
+            float scattering = mix(0.5, 1.0, smoothstep(-0.5, 0.5, lightDir)) * powderEffect;
+            
+            vec3 cloudColor = mix(skyColor * 0.6, sunColor, scattering);
+            
+            float densityStep = d * actualStepSize;
+            float sampleTransmittance = exp(-densityStep * 3.0);
+            
+            accumulatedColor += cloudColor * transmittance * (1.0 - sampleTransmittance);
+            transmittance *= sampleTransmittance;
+        }
+    }
+    
+    totalDensity = 1.0 - transmittance;
+
+    FragColor = vec4(accumulatedColor, totalDensity);
 }
