@@ -68,7 +68,7 @@ float fbm4(vec2 p) {
     f += 0.0625 * snoise(p);
     return f / 0.9375;
 }
-iform float u_time;
+uniform float u_time;
 uniform vec2 u_resolution;
 uniform vec3 u_cloudColor;
 uniform float u_cloudCover;      // 0.0 - 1.0

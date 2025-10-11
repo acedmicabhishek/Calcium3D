@@ -112,6 +112,7 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSwapInterval(1); // Enable VSync by default
    
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -530,6 +531,7 @@ int main() {
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
+bool vsyncEnabled = true;
 
 // Performance tracking variables
 float deltaTime = 0.0f;
@@ -654,6 +656,10 @@ float avgFrameTime = 0.0f;
                 }
                 if (ImGui::Combo("MSAA", &data.currentMsaaIndex, msaaOptions, IM_ARRAYSIZE(msaaOptions))) {
                     createMsaaFramebuffer(msaaSamplesValues[data.currentMsaaIndex]);
+                }
+
+                if (ImGui::Checkbox("VSync", &vsyncEnabled)) {
+                    glfwSwapInterval(vsyncEnabled ? 1 : 0);
                 }
 
                 ImGui::Separator();
