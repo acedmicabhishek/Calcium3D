@@ -6,8 +6,8 @@
 namespace fs = std::filesystem;
 
 FileSystem::FileSystem() {
-    currentPath = ".";
-    selectedPath = ".";
+    currentPath = "../";
+    selectedPath = "../";
 }
 
 void FileSystem::render() {
@@ -17,7 +17,7 @@ void FileSystem::render() {
 
     // Left panel: Directory Tree
     ImGui::BeginChild("DirectoryTree");
-    renderDirectoryTree(".");
+    renderDirectoryTree(currentPath);
     ImGui::EndChild();
 
     ImGui::NextColumn();
@@ -60,6 +60,13 @@ void FileSystem::renderDirectoryTree(const std::string& path) {
 }
 
 void FileSystem::renderContentView() {
+    if (ImGui::Button("Back")) {
+        fs::path p = currentPath;
+        if (p.has_parent_path()) {
+            currentPath = p.parent_path().string();
+        }
+    }
+    ImGui::SameLine();
     ImGui::Text("Current Path: %s", currentPath.c_str());
     ImGui::Separator();
 
