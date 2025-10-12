@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Include directories
-include_directories(include include/stb include/glm include/glad imgui imgui/backends)
+include_directories(include include/stb include/glm include/glad imgui imgui/backends fs)
 
 # Find required packages
 find_package(OpenGL REQUIRED) #1 
@@ -35,6 +35,7 @@ set(SOURCES
     src/2dCloud.cpp
     src/VolumetricCloud.cpp
     src/Water.cpp
+    fs/filesystem.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp

@@ -25,6 +25,7 @@
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
 #include "Water.h"
+#include "../fs/filesystem.h"
 
 struct SceneObject {
     Mesh mesh;
@@ -63,6 +64,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
+static bool showImgui = true;
+
 // Function to update sun uniforms in all shaders
 void updateSunUniforms(Shader& shaderProgram, Shader& sunProgram, const glm::vec4& sunColor, const glm::vec3& sunPos, float sunIntensity) {
     shaderProgram.use();
@@ -89,6 +92,7 @@ void updateGradientSkyUniforms(Shader& gradientSkyProgram, const glm::vec3& sunP
 }
 
 int main() {
+    FileSystem fileSystem;
     // Bloom variables
     float sunBloom = 0.03f;
     float moonBloom = 0.02f;
@@ -127,6 +131,7 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
@@ -535,6 +540,7 @@ int main() {
 bool showLightSource = false;
 bool showPlane = false;
 bool showPerformance = true;
+bool showProjectWindow = true;
 bool vsyncEnabled = true;
 
 // Performance tracking variables
@@ -563,9 +569,18 @@ float avgFrameTime = 0.0f;
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            ImGui::SetNextWindowPos(ImVec2(0, 0));
-            ImGui::SetNextWindowSize(ImVec2(300, ImGui::GetIO().DisplaySize.y));
-            ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
+            if (showImgui)
+            {
+                // Create a dockspace
+                static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+                ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+                ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+                if (showProjectWindow) {
+                    fileSystem.render();
+                }
+
+                ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_MenuBar);
             
             // Menu bar
             if (ImGui::BeginMenuBar()) {
@@ -593,6 +608,7 @@ float avgFrameTime = 0.0f;
                 }
                             if (ImGui::BeginMenu("View")) {
                 ImGui::MenuItem("Performance Info", nullptr, &showPerformance);
+                ImGui::MenuItem("Project", nullptr, &showProjectWindow);
                 ImGui::EndMenu();
             }
                             if (ImGui::BeginMenu("Help")) {
@@ -1038,6 +1054,7 @@ float avgFrameTime = 0.0f;
             Logger::Draw("Logger");
 
             ImGui::End();
+            }
 
     		// Bind the custom framebuffer
             if (data.msaaSamples > 0) {
@@ -1368,6 +1385,10 @@ float avgFrameTime = 0.0f;
    	      {
    	          Editor::ToggleFreeMovement();
    	      }
+   	         if (key == GLFW_KEY_F7 && action == GLFW_PRESS)
+   	         {
+   	             showImgui = !showImgui;
+   	         }
    	      if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
    	      {
    	          Editor::isFreeMovement = false;
