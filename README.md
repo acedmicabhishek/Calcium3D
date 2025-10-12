@@ -145,6 +145,6 @@ The codebase is organized into several key directories:
 Contributions are welcome! Please fork the repository, create a dedicated feature branch, and open a pull request with a clear description of your changes.
 
 well i highly suggest to ditch this and start working on vulkan rather than ogl.
-## 📜 License
+## License ( do whatever you want)
 
 This project is licensed under the **WTFPL**. See the `LICENSE.txt` file for more details.
