@@ -18,7 +18,6 @@ float blinnWyvill(float x) {
     return (1.0 - x2) * (1.0 - x2) * (1.0 - x2);
 }
 
-// Enhanced wave height function (matches vertex shader)
 float getWaveHeight(vec2 pos, float time_param) {
     vec2 w1 = vec2(pos.x + pos.y * 2.5, pos.y - pos.x * 1.8) * 0.6;
     vec2 w2 = vec2(pos.x * 1.3 - pos.y * 3.2, pos.y * 1.5 + pos.x * 2.8) * 0.4;
@@ -38,7 +37,6 @@ float getWaveHeight(vec2 pos, float time_param) {
     return wave1 + wave2 + wave3 + wave4;
 }
 
-// Improved normal calculation with better sampling
 vec3 calculateNormal(vec3 pos, float delta, float time) {
     vec2 p_xz = pos.xz;
     
