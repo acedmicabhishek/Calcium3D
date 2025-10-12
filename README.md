@@ -60,7 +60,7 @@ The editor provides a comprehensive suite of tools for real-time scene creation 
   - **Edit Mode:** Full access to all editing tools and free-camera movement.
   - **Play Mode:** Disables editing features to simulate a runtime environment.
 
-### ⌨️ Hotkeys
+### Hotkeys
 
 - **`F3`**: Toggle between **Edit** and **Play** mode.
 - **`F4`**: Toggle free-camera movement.
