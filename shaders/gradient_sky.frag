@@ -14,11 +14,18 @@ uniform float sunBloom;
 uniform float moonBloom;
 uniform float u_time;
 
-// Improved hash function
+// 2D hash function (used for noise, moon craters etc.)
 float hash(vec2 p) {
     p = fract(p * vec2(5.3987, 5.4421));
     p += dot(p.yx, p.xy + vec2(21.5351, 14.3137));
     return fract(p.x * p.y * 95.4307);
+}
+
+// 3D hash function
+float hash3(vec3 p) {
+    p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+    p += dot(p, p.yzx + 19.19);
+    return fract(p.x * p.y * p.z);
 }
 
 // Better noise function
@@ -120,7 +127,8 @@ void main() {
         float nightFactor = 1.0 - smoothstep(0.0, 0.4, (topColor.r + topColor.g + topColor.b) / 3.0);
         nightFactor *= smoothstep(-0.1, 0.05, height);
         
-        vec2 starUV = FragPos.xy;
+
+        vec2 starUV = vec2(atan(dir.z, dir.x), asin(clamp(dir.y, -1.0, 1.0)));
         float stars = starField(starUV, u_time);
         
         // Fade stars near sun and moon

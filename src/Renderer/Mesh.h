@@ -21,7 +21,7 @@ public:
     glm::vec3 minAABB;
     glm::vec3 maxAABB;
 
-    Mesh(std::vector<Vertex>& vertices, std::vector<GLuint>& indices, std::vector<Texture>& textures);
+    Mesh(std::vector<Vertex>& vertices, std::vector<GLuint>& indices, std::vector<Texture> textures);
 
     void Draw(Shader& shader, Camera& camera, 
               glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), 

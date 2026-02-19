@@ -17,14 +17,14 @@ in vec3 crntPos;
 uniform sampler2D tex0;
 uniform sampler2D tex1;
 // Gets the color of the light from the main function
-uniform vec4 lightColor;
+// uniform vec4 lightColor; // Unused in main()
 // Gets the position of the light from the main function
-uniform vec3 lightPos;
+// uniform vec3 lightPos; // Unused in main()
 // Gets the position of the camera from the main function
 uniform vec3 camPos;
 // Sun/Environment uniforms (for ambient/sky)
-uniform vec4 sunColor;
-uniform bool sunEnabled;
+// uniform vec4 sunColor; // Unused
+// uniform bool sunEnabled; // Unused
 
 // Point Lights
 #define MAX_POINT_LIGHTS 16

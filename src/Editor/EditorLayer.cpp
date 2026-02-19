@@ -3,6 +3,9 @@
 #include "Logger.h"
 #include "ObjectFactory.h"
 #include "ResourceManager.h"
+#include "Renderer/Renderer.h"
+#include "Renderer/Passes/SkyPass.h"
+#include "Core/Application.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <imgui_internal.h> 
@@ -248,9 +251,12 @@ void EditorLayer::Init(GLFWwindow* window) {
     ImGui_ImplOpenGL3_Init("#version 330");
     
     m_FirstFrame = true;
+    m_Initialized = true;
 }
 
 void EditorLayer::Shutdown() {
+    if (!m_Initialized) return;
+    
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -361,7 +367,7 @@ void EditorLayer::RenderOverlay(Scene& scene, Camera& camera) {
         
         
         if (ResourceManager::GetShader("gizmo").ID == 0) {
-             ResourceManager::LoadShader("gizmo", "../shaders/gizmo.vert", "../shaders/gizmo.frag");
+             ResourceManager::LoadShader("gizmo", "shaders/gizmo.vert", "shaders/gizmo.frag");
         }
         gizmoProgram = &ResourceManager::GetShader("gizmo");
     }
@@ -432,27 +438,24 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             if (ImGui::BeginMenu("Primitives")) {
                 if (ImGui::MenuItem("Cube")) {
                     Mesh cubeMesh = ObjectFactory::createCube();
-                    cubeMesh.textures.push_back(ResourceManager::GetTexture("defaultDiffuse"));
-                    cubeMesh.textures.push_back(ResourceManager::GetTexture("defaultSpecular"));
-                    scene.AddObject(GameObject(cubeMesh, "Cube"));
+                    
+                    scene.AddObject(GameObject(std::move(cubeMesh), "Cube"));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Cube");
                 }
                 if (ImGui::MenuItem("Sphere")) {
                     Mesh sphereMesh = ObjectFactory::createSphere(32, 16);
-                    sphereMesh.textures.push_back(ResourceManager::GetTexture("defaultDiffuse"));
-                    sphereMesh.textures.push_back(ResourceManager::GetTexture("defaultSpecular"));
-                    scene.AddObject(GameObject(sphereMesh, "Sphere"));
+                    
+                    scene.AddObject(GameObject(std::move(sphereMesh), "Sphere"));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Sphere");
                 }
                 if (ImGui::MenuItem("Plane")) {
                     Mesh planeMesh = ObjectFactory::createPlane();
-                    planeMesh.textures.push_back(ResourceManager::GetTexture("defaultDiffuse"));
-                    planeMesh.textures.push_back(ResourceManager::GetTexture("defaultSpecular"));
-                    scene.AddObject(GameObject(planeMesh, "Plane"));
+                    
+                    scene.AddObject(GameObject(std::move(planeMesh), "Plane"));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Plane");
@@ -462,12 +465,13 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             
             if (ImGui::BeginMenu("Lights")) {
                 if (ImGui::MenuItem("Point Light")) {
-                    scene.CreatePointLight();
-                    
-                    int idx = (int)scene.GetPointLights().size() - 1;
-                    selectedPointLightIndex = idx;
-                    isLightSelected = false; selectedCube = -1; selectedMesh = -1;
-                    Logger::AddLog("Created Point Light %d", idx);
+                    Scene::PointLight* pl = scene.CreatePointLight();
+                    if (pl) {
+                        int idx = (int)scene.GetPointLights().size() - 1;
+                        selectedPointLightIndex = idx;
+                        isLightSelected = false; selectedCube = -1; selectedMesh = -1;
+                        Logger::AddLog("Created Point Light %d", idx);
+                    }
                 }
                 ImGui::EndMenu();
             }
@@ -481,7 +485,11 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
         }
         
         
-        ImGui::SameLine(ImGui::GetWindowWidth() - 150);
+        ImGui::SameLine(ImGui::GetWindowWidth() - 300);
+        float fps = ImGui::GetIO().Framerate;
+        ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f), "%.1f FPS (%.2f ms)", fps, 1000.0f / fps);
+        
+        ImGui::SameLine(ImGui::GetWindowWidth() - 120);
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Mode: %s", Editor::isEditMode ? "EDITOR" : "PLAY");
 
         ImGui::EndMainMenuBar();
@@ -660,15 +668,9 @@ void EditorLayer::DrawSettings(Camera& camera) {
         if (msaaSamples > 0) {
             ImGui::Indent();
             ImGui::Text("Apply MSAA To:");
-            ImGui::Checkbox("Whole Scene", &msaaWholeScene);
-            
-            if (msaaWholeScene) ImGui::BeginDisabled();
-            ImGui::Checkbox("Primitives", &msaaPrimitives);
-            ImGui::Checkbox("Sky", &msaaSky);
-            ImGui::Checkbox("Clouds##MSAA", &msaaClouds);
-            ImGui::Checkbox("Water##MSAA", &msaaWater);
-            if (msaaWholeScene) ImGui::EndDisabled();
-            
+            ImGui::Checkbox("Sky Pass", &msaaSkyPass);
+            ImGui::Checkbox("Geometry Pass", &msaaGeometryPass);
+            ImGui::Checkbox("Transparency Pass", &msaaTransparencyPass);
             ImGui::Unindent();
         }
 
@@ -682,6 +684,8 @@ void EditorLayer::DrawSettings(Camera& camera) {
             showSkybox = (skyMode == 0);
             showGradientSky = (skyMode == 1);
         }
+        
+        ImGui::Checkbox("Use Gradient Sky", &showGradientSky);
         
         ImGui::Checkbox("Water", &showWater);
         ImGui::Checkbox("Clouds", &showClouds);

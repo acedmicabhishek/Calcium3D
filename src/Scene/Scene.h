@@ -14,7 +14,8 @@ struct GameObject {
     std::string name;
     
     GameObject(Mesh m, const std::string& n = "Object") 
-        : mesh(m), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f), name(n) {}
+        : mesh(std::move(m)), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f), name(n) {}
+
 };
 
 class Scene {
@@ -24,7 +25,7 @@ public:
 
     void Update(float dt);
     
-    void AddObject(const GameObject& object);
+    void AddObject(GameObject object);
     void RemoveObject(int index);
     void Clear();
     
@@ -49,7 +50,7 @@ public:
     };
     
     
-    PointLight& CreatePointLight();
+    PointLight* CreatePointLight();
     void RemovePointLight(int index);
     std::vector<PointLight>& GetPointLights() { return m_PointLights; }
 

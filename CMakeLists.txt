@@ -18,33 +18,50 @@ find_package(nlohmann_json 3 REQUIRED) #5
 
 # Set sources
 set(SOURCES
-    src/main.cpp
-    src/Shader.cpp
-    src/Camera.cpp
+    # Core
+    src/Core/main.cpp
+    src/Core/Application.cpp
+    src/Core/InputManager.cpp
+    src/Core/Logger.cpp
+    src/Core/ResourceManager.cpp
+    src/Core/stb_impl.cpp
+    
+    # Renderer
+    src/Renderer/Renderer.cpp
+    src/Renderer/Shader.cpp
+    src/Renderer/Camera.cpp
+    src/Renderer/Texture.cpp
+    src/Renderer/Mesh.cpp
+    src/Renderer/Model.cpp
+    src/Renderer/VAO.cpp
+    src/Renderer/VBO.cpp
+    src/Renderer/EBO.cpp
+    src/Renderer/tinyobj_impl.cpp
+    
+    src/Renderer/Passes/GeometryPass.cpp
+    src/Renderer/Passes/ShadowPass.cpp
+    src/Renderer/Passes/SkyPass.cpp
+    src/Renderer/Passes/TransparencyPass.cpp
+    src/Renderer/Pipelines/EditorPipeline.cpp
+    src/Renderer/RenderPipeline.cpp
+
+    # Scene
+    src/Scene/Scene.cpp
+    src/Scene/ObjectFactory.cpp
+    
+    # Editor
+    src/Editor/Editor.cpp
+    src/Editor/EditorLayer.cpp
+    src/Editor/Gizmo.cpp
+    
+    # Environment
+    src/Environment/Water.cpp
+    src/Environment/2dCloud.cpp
+    src/Environment/VolumetricCloud.cpp
+    
+    # ImGui
     src/glad.c
-    src/VAO.cpp
-    src/VBO.cpp
-    src/EBO.cpp
-    src/Texture.cpp
-    src/Mesh.cpp
-    src/Model.cpp
-    src/Editor.cpp
-    src/Gizmo.cpp
-    src/ObjectFactory.cpp
-    src/Logger.cpp
-    src/2dCloud.cpp
-    src/VolumetricCloud.cpp
-    src/Water.cpp
     fs/filesystem.cpp
-    fs/filesystem.cpp
-    src/tinyobj_impl.cpp
-    src/InputManager.cpp
-    src/ResourceManager.cpp
-    src/Renderer.cpp
-    src/Scene.cpp
-    src/stb_impl.cpp
-    src/EditorLayer.cpp
-    src/Application.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
@@ -55,8 +72,19 @@ set(SOURCES
     imgui/ImGuizmo.cpp
 )
 
+# Add include directories so we don't need relative paths
 # Create executable
 add_executable(calcium3d ${SOURCES})
+
+# Add include directories so we don't need relative paths
+target_include_directories(calcium3d PUBLIC
+    src/Core
+    src/Renderer
+    src/Scene
+    src/Editor
+    src/Environment
+    src
+)
 
 # Link libraries
 target_link_libraries(calcium3d

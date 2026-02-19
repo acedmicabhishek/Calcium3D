@@ -2,12 +2,19 @@
 #include<iostream>
 #include<stdexcept>
 
+#include <filesystem>
+
 Texture::Texture(const char* image, const char* texType, GLuint slot)
 {
 	type = texType;
+    unit = slot; 
 
 	int widthImg, heightImg, numColCh;
 	stbi_set_flip_vertically_on_load(true);
+    
+	
+	
+	
 	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 0);
 	if (!bytes)
 	{
@@ -18,27 +25,28 @@ Texture::Texture(const char* image, const char* texType, GLuint slot)
 	{
 		std::cout << "Successfully loaded texture: " << image << " (" << widthImg << "x" << heightImg << ", " << numColCh << " channels)" << std::endl;
 	}
+    
 
-	// Generates an OpenGL texture object
+	
 	glGenTextures(1, &ID);
-	// Assigns the texture to a Texture Unit
+	
 	glActiveTexture(GL_TEXTURE0 + slot);
 	unit = slot;
 	glBindTexture(GL_TEXTURE_2D, ID);
 
-	// Configures the type of algorithm that is used to make the image smaller or bigger
+	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	// Configures the way the texture repeats (if it does at all)
+	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	// Extra lines in case you choose to use GL_CLAMP_TO_BORDER
-	// float flatColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-	// glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, flatColor);
+	
+	
+	
 
-	// Assigns the image to the OpenGL Texture object
+	
 	if (type == "specular")
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, widthImg, heightImg, 0, GL_RED, GL_UNSIGNED_BYTE, bytes);
@@ -59,23 +67,23 @@ Texture::Texture(const char* image, const char* texType, GLuint slot)
 	{
 		throw std::invalid_argument("Automatic texture type recognition failed");
 	}
-	// Generates MipMaps
+	
 	glGenerateMipmap(GL_TEXTURE_2D);
 
-	// Deletes the image data as it is already in the OpenGL Texture object
+	
 	stbi_image_free(bytes);
 
-	// Unbinds the OpenGL Texture object so that it can't accidentally be modified
+	
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Texture::texUnit(Shader& shader, const char* uniform, GLuint unit)
 {
-	// Gets the location of the uniform
+	
 	GLuint texUni = glGetUniformLocation(shader.ID, uniform);
-	// Shader needs to be activated before changing the value of a uniform
-	shader.use(); // Changed from Activate() to use()
-	// Sets the value of the uniform
+	
+	shader.use(); 
+	
 	glUniform1i(texUni, unit);
 }
 

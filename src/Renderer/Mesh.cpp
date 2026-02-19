@@ -1,11 +1,11 @@
 #include "Mesh.h"
 #include <limits>
 
-Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::vector <Texture>& textures)
+Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::vector <Texture> textures)
 {
 	Mesh::vertices = vertices;
 	Mesh::indices = indices;
-	Mesh::textures = textures;
+	Mesh::textures = std::move(textures);
 
 	minAABB = glm::vec3(std::numeric_limits<float>::max());
 	maxAABB = glm::vec3(std::numeric_limits<float>::lowest());
@@ -23,7 +23,7 @@ Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::v
 	vao.Bind();
 	VBO VBO(vertices);
 	EBO EBO(indices);
-	// Attribute locations expected by shaders: 0-pos, 1-color, 2-tex, 3-normal
+	
 	vao.LinkAttrib(VBO, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, position));
 	vao.LinkAttrib(VBO, 1, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, color));
 	vao.LinkAttrib(VBO, 2, 2, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, texUV));
@@ -40,7 +40,7 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 	vao.Bind();
 	unsigned int numDiffuse = 0;
 	unsigned int numSpecular = 0;
-
+    
 	for (unsigned int i = 0; i < textures.size(); i++)
 	{
 		std::string num;

@@ -128,11 +128,9 @@ public:
     float globalTilingFactor = 1.0f;
     
     
-    bool msaaWholeScene = true;
-    bool msaaPrimitives = false;
-    bool msaaSky = false;
-    bool msaaClouds = false;
-    bool msaaWater = false;
+    bool msaaSkyPass = true;
+    bool msaaGeometryPass = true;
+    bool msaaTransparencyPass = true;
     
     
     float timeOfDay = 0.0f;
@@ -146,6 +144,7 @@ public:
 private:
     GLFWwindow* m_Window = nullptr;
     bool m_FirstFrame = true;
+    bool m_Initialized = false;
     void DrawMenuBar(Scene& scene);
     void DrawSceneHierarchy(Scene& scene);
     void DrawInspector(Scene& scene);

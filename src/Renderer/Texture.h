@@ -15,7 +15,6 @@ public:
 
 	Texture(const char* image = "../Resource/default/texture/DefaultTex.png", const char* texType = "diffuse", GLuint slot = 0);
 
-	
 	void texUnit(Shader& shader, const char* uniform, GLuint unit);
 	
 	void Bind();
