@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Include directories
-include_directories(include include/stb include/glm include/glad imgui imgui/backends fs)
+include_directories(include include/stb include/glm include/glad imgui imgui/backends fs include/tinyobj)
 
 # Find required packages
 find_package(OpenGL REQUIRED) #1 
@@ -14,7 +14,7 @@ find_package(PkgConfig REQUIRED) #2
 pkg_check_modules(GLFW REQUIRED glfw3) #3
 pkg_check_modules(GLEW REQUIRED glew) #4
 find_package(nlohmann_json 3 REQUIRED) #5
-find_package(tinyobjloader REQUIRED) #6
+# find_package(tinyobjloader REQUIRED) #6
 
 # Set sources
 set(SOURCES
@@ -36,6 +36,15 @@ set(SOURCES
     src/VolumetricCloud.cpp
     src/Water.cpp
     fs/filesystem.cpp
+    fs/filesystem.cpp
+    src/tinyobj_impl.cpp
+    src/InputManager.cpp
+    src/ResourceManager.cpp
+    src/Renderer.cpp
+    src/Scene.cpp
+    src/stb_impl.cpp
+    src/EditorLayer.cpp
+    src/Application.cpp
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
@@ -43,6 +52,7 @@ set(SOURCES
     imgui/imgui_widgets.cpp
     imgui/backends/imgui_impl_glfw.cpp
     imgui/backends/imgui_impl_opengl3.cpp
+    imgui/ImGuizmo.cpp
 )
 
 # Create executable
@@ -54,14 +64,14 @@ target_link_libraries(calcium3d
     ${GLFW_LIBRARIES}
     ${GLEW_LIBRARIES}
     nlohmann_json::nlohmann_json
-    tinyobjloader
+    # tinyobjloader
 )
 
 # Include pkg-config flags (in case needed)
 target_include_directories(calcium3d PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
-    ${TINYOBJLOADER_INCLUDE_DIRS}
+    # ${TINYOBJLOADER_INCLUDE_DIRS}
 )
 
 target_link_directories(calcium3d PRIVATE

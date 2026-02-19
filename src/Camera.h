@@ -35,6 +35,8 @@ public:
 	float nearPlane = 0.1f;
 	float farPlane = 100.0f;
 	float FOV = 45.0f;
+	float yaw = -90.0f;   
+	float pitch = 0.0f;   
 
 	
 	Camera(int width, int height, glm::vec3 position);

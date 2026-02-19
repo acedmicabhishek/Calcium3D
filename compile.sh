@@ -6,11 +6,13 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Go to project root
 cd "$PROJECT_ROOT" || exit
 
-echo "[>] Cleaning build directory..."
-rm -rf build
+# Create build directory if it doesn't exist (incremental build)
+if [ ! -d "build" ]; then
+    echo "[>] Creating build directory..."
+    mkdir build
+fi
 
-echo "[>] Creating new build directory..."
-mkdir build && cd build || exit
+cd build || exit
 
 echo "[>] Running cmake..."
 cmake ..
@@ -18,5 +20,10 @@ cmake ..
 echo "[>] Building project..."
 make -j16 # 16 logical cpu
 
-echo "[100%] Running calcium3d..."
-./calcium3d
+if [ $? -eq 0 ]; then
+    echo "[100%] Running calcium3d..."
+    ./calcium3d
+else
+    echo "[ERROR] Build failed!"
+    exit 1
+fi

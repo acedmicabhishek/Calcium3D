@@ -1,6 +1,7 @@
-#include"Camera.h"
+#include "Camera.h"
 #include <glad/glad.h>
 #include "Editor.h"
+#include "InputManager.h"
 
 Camera::Camera(int width, int height, glm::vec3 position) : m_cameraEnabled(true)
 {
@@ -26,23 +27,30 @@ void Camera::Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shade
 
 void Camera::Inputs(GLFWwindow* window)
 {
+
+
 	if (Editor::isEditMode) {
-		if (Editor::isFreeMovement) {
+		
+		if (InputManager::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_2)) {
 			if (!m_cameraEnabled) {
-				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				InputManager::SetCursorMode(GLFW_CURSOR_DISABLED);
 				m_cameraEnabled = true;
 				firstClick = true;
 			}
 		}
 		else {
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-			m_cameraEnabled = false;
+			if (m_cameraEnabled) {
+				InputManager::SetCursorMode(GLFW_CURSOR_NORMAL);
+				m_cameraEnabled = false;
+			}
 		}
 	}
 	else {
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		m_cameraEnabled = true;
-		firstClick = true;
+		if (!m_cameraEnabled) {
+			InputManager::SetCursorMode(GLFW_CURSOR_DISABLED);
+			m_cameraEnabled = true;
+			firstClick = true;
+		}
 	}
 
 	if (!m_cameraEnabled) {
@@ -50,35 +58,35 @@ void Camera::Inputs(GLFWwindow* window)
 	}
 
 	
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_W))
 	{
 		Position += speed * Orientation;
 	}
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_A))
 	{
 		Position += speed * -glm::normalize(glm::cross(Orientation, Up));
 	}
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_S))
 	{
 		Position += speed * -Orientation;
 	}
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_D))
 	{
 		Position += speed * glm::normalize(glm::cross(Orientation, Up));
 	}
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_SPACE))
 	{
 		Position += speed * Up;
 	}
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
 	{
 		Position += speed * -Up;
 	}
-	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+	if (InputManager::IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
 	{
 		speed = 0.4f;
 	}
-	else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE)
+	else 
 	{
 		speed = 0.1f;
 	}
@@ -90,15 +98,19 @@ void Camera::Inputs(GLFWwindow* window)
 		
 		if (firstClick)
 		{
+			InputManager::SetCursorMode(GLFW_CURSOR_DISABLED); 
+            
+            
+            
+            
 			glfwSetCursorPos(window, (width / 2), (height / 2));
 			firstClick = false;
 		}
 
 		
-		double mouseX;
-		double mouseY;
+		double mouseX = InputManager::GetMouseX();
+		double mouseY = InputManager::GetMouseY();
 		
-		glfwGetCursorPos(window, &mouseX, &mouseY);
 
 		
 		
@@ -106,16 +118,19 @@ void Camera::Inputs(GLFWwindow* window)
 		float rotY = sensitivity * (float)(mouseX - (width / 2)) / width;
 
 		
-		glm::vec3 newOrientation = glm::rotate(Orientation, glm::radians(-rotX), glm::normalize(glm::cross(Orientation, Up)));
+		yaw   += rotY;
+		pitch += -rotX;
 
 		
-		if (abs(glm::angle(newOrientation, Up) - glm::radians(90.0f)) <= glm::radians(85.0f))
-		{
-			Orientation = newOrientation;
-		}
+		if (pitch > 89.0f)  pitch = 89.0f;
+		if (pitch < -89.0f) pitch = -89.0f;
 
 		
-		Orientation = glm::rotate(Orientation, glm::radians(-rotY), Up);
+		glm::vec3 direction;
+		direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+		direction.y = sin(glm::radians(pitch));
+		direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+		Orientation = glm::normalize(direction);
 
 		
 		glfwSetCursorPos(window, (width / 2), (height / 2));
