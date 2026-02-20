@@ -18,8 +18,14 @@ void main()
 	crntPos = vec3(model * vec4(aPos, 1.0f));
 	color = aColor;
 	Normal = aNormal;
-	// Apply texture tiling based on scale
-	texCoord = aTex * tilingFactor.xy;
+	// Tri-axis blending for correct scaling on all faces
+	vec3 n = abs(aNormal);
+	n = n / (n.x + n.y + n.z + 1e-6); 
+	vec2 uvScale = vec2(tilingFactor.z, tilingFactor.y) * n.x +
+	               vec2(tilingFactor.x, tilingFactor.z) * n.y +
+	               vec2(tilingFactor.x, tilingFactor.y) * n.z;
+	               
+	texCoord = aTex * uvScale;
 
 	gl_Position = camMatrix * vec4(crntPos, 1.0f);
 }

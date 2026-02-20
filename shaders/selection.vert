@@ -28,7 +28,12 @@ void main()
 	// Outputs
 	gl_Position = camMatrix * vec4(crntPos, 1.0);
 	color = aColor;
-	texCoord = aTex * tilingFactor.xy;
+	vec3 n = abs(aNormal);
+	n = n / (n.x + n.y + n.z + 1e-6);
+	vec2 uvScale = vec2(tilingFactor.z, tilingFactor.y) * n.x +
+	               vec2(tilingFactor.x, tilingFactor.z) * n.y +
+	               vec2(tilingFactor.x, tilingFactor.y) * n.z;	
+	texCoord = aTex * uvScale;
 	Normal = mat3(transpose(inverse(model))) * aNormal;
 }
 
