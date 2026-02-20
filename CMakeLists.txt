@@ -21,10 +21,18 @@ set(SOURCES
     # Core
     src/Core/main.cpp
     src/Core/Application.cpp
+    src/Core/RuntimeApplication.cpp
+    src/Core/EditorApplication.cpp
     src/Core/InputManager.cpp
     src/Core/Logger.cpp
     src/Core/ResourceManager.cpp
     src/Core/stb_impl.cpp
+    
+    # Home
+    src/Home/Home.cpp
+    
+    # Build Manager
+    src/BuildManager/BuildManager.cpp
     
     # Renderer
     src/Renderer/Renderer.cpp
@@ -42,12 +50,14 @@ set(SOURCES
     src/Renderer/Passes/ShadowPass.cpp
     src/Renderer/Passes/SkyPass.cpp
     src/Renderer/Passes/TransparencyPass.cpp
-    src/Renderer/Pipelines/EditorPipeline.cpp
+    src/Renderer/Pipelines/StandardPipeline.cpp
     src/Renderer/RenderPipeline.cpp
 
     # Scene
+    src/Physics/PhysicsEngine.cpp
     src/Scene/Scene.cpp
     src/Scene/ObjectFactory.cpp
+    src/Scene/SceneIO.cpp
     
     # Editor
     src/Editor/Editor.cpp
@@ -83,6 +93,8 @@ target_include_directories(calcium3d PUBLIC
     src/Scene
     src/Editor
     src/Environment
+    src/Home
+    src/BuildManager
     src
 )
 
@@ -103,6 +115,81 @@ target_include_directories(calcium3d PRIVATE
 )
 
 target_link_directories(calcium3d PRIVATE
+    ${GLFW_LIBRARY_DIRS}
+    ${GLEW_LIBRARY_DIRS}
+)
+
+# Test Build Target for Standalone Runtime (No Editor/ImGui) 
+
+set(TESTBUILD_SOURCES
+    # Core
+    src/Core/main.cpp
+    src/Core/Application.cpp
+    src/Core/RuntimeApplication.cpp
+    src/Core/InputManager.cpp
+    src/Core/Logger.cpp
+    src/Core/ResourceManager.cpp
+    src/Core/stb_impl.cpp
+    
+    # Renderer
+    src/Renderer/Renderer.cpp
+    src/Renderer/Shader.cpp
+    src/Renderer/Camera.cpp
+    src/Renderer/Texture.cpp
+    src/Renderer/Mesh.cpp
+    src/Renderer/Model.cpp
+    src/Renderer/VAO.cpp
+    src/Renderer/VBO.cpp
+    src/Renderer/EBO.cpp
+    src/Renderer/tinyobj_impl.cpp
+    
+    src/Renderer/Passes/GeometryPass.cpp
+    src/Renderer/Passes/ShadowPass.cpp
+    src/Renderer/Passes/SkyPass.cpp
+    src/Renderer/Passes/TransparencyPass.cpp
+    src/Renderer/Pipelines/StandardPipeline.cpp
+    src/Renderer/RenderPipeline.cpp
+
+    # Scene
+    src/Physics/PhysicsEngine.cpp
+    src/Scene/Scene.cpp
+    src/Scene/ObjectFactory.cpp
+    src/Scene/SceneIO.cpp
+    
+    # Environment
+    src/Environment/Water.cpp
+    src/Environment/2dCloud.cpp
+    src/Environment/VolumetricCloud.cpp
+    
+    # Glad
+    src/glad.c
+)
+
+add_executable(calcium3d_testbuild ${TESTBUILD_SOURCES})
+
+target_compile_definitions(calcium3d_testbuild PUBLIC C3D_RUNTIME)
+
+target_include_directories(calcium3d_testbuild PUBLIC
+    src/Core
+    src/Renderer
+    src/Scene
+    src/Environment
+    src
+)
+
+target_link_libraries(calcium3d_testbuild
+    ${OPENGL_LIBRARIES}
+    ${GLFW_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    nlohmann_json::nlohmann_json
+)
+
+target_include_directories(calcium3d_testbuild PRIVATE
+    ${GLFW_INCLUDE_DIRS}
+    ${GLEW_INCLUDE_DIRS}
+)
+
+target_link_directories(calcium3d_testbuild PRIVATE
     ${GLFW_LIBRARY_DIRS}
     ${GLEW_LIBRARY_DIRS}
 )

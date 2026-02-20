@@ -1,6 +1,8 @@
 #include "Camera.h"
 #include <glad/glad.h>
+#ifndef C3D_RUNTIME
 #include "Editor.h"
+#endif
 #include "InputManager.h"
 
 Camera::Camera(int width, int height, glm::vec3 position) : m_cameraEnabled(true)
@@ -28,7 +30,7 @@ void Camera::Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shade
 void Camera::Inputs(GLFWwindow* window)
 {
 
-
+#ifndef C3D_RUNTIME
 	if (Editor::isEditMode) {
 		
 		if (InputManager::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_2)) {
@@ -52,6 +54,13 @@ void Camera::Inputs(GLFWwindow* window)
 			firstClick = true;
 		}
 	}
+#else
+    if (!m_cameraEnabled) {
+        InputManager::SetCursorMode(GLFW_CURSOR_DISABLED);
+        m_cameraEnabled = true;
+        firstClick = true;
+    }
+#endif
 
 	if (!m_cameraEnabled) {
 		return;

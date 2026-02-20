@@ -7,6 +7,9 @@
 #include <ImGuizmo.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <string>
+#include <vector>
+#include <filesystem>
 
 #include "Scene.h"
 #include "Camera.h"
@@ -15,9 +18,6 @@
 #include "Mesh.h"    
 #include "Model.h"   
 #include "Shader.h"  
-
-
-struct ImGuiIO;
 
 class EditorLayer {
 public:
@@ -49,16 +49,13 @@ public:
     
     int gizmoOp = 0; 
     bool gizmoLocal = false; 
-    
+    Gizmo gizmo;
+
     
     int selectedCube = -1;
     int selectedMesh = -1;
     bool isLightSelected = false; 
     int selectedPointLightIndex = -1;
-    
-    
-    Gizmo gizmo;
-    
     
     
     Model* plane = nullptr;
@@ -70,12 +67,10 @@ public:
     float sunIntensity = 1.0f;
     bool sunEnabled = true;
     
-    
     glm::vec3 moonPos = glm::vec3(0.0f); 
     glm::vec4 moonColor = glm::vec4(0.8f, 0.8f, 0.9f, 1.0f);
     float moonIntensity = 0.5f;
     bool moonEnabled = true;
-    
     
     bool showPlane = true;
     bool showLightSource = true;
@@ -83,27 +78,35 @@ public:
     bool showGradientSky = false;
     bool showClouds = false;
     bool showWater = false;
+    
+    
     bool wireframe = false;
     bool vsync = true;
     int msaaSamples = 4;
-    
-    
-    Shader* gizmoProgram = nullptr;
+    bool msaaSkyPass = true;
+    bool msaaGeometryPass = true;
+    bool msaaTransparencyPass = true;
+    float globalTilingFactor = 1.0f;
 
+    
+    float timeOfDay = 0.0f;
+    float timeSpeed = 1.0f;
+    bool isTimePaused = false;
     
     
     float waterHeight = 0.0f;
     float waveSpeed = 1.0f;
     float waveStrength = 0.1f;
     float waterShininess = 32.0f;
+    int waveSystem = 0;
     glm::vec3 waterColor = glm::vec3(0.0f, 0.3f, 0.5f); 
-    int waveSystem = 0; 
-
+    
+    
+    Shader* gizmoProgram = nullptr;
+    
     
     int cloudMode = 0; 
     float cloud2dHeight = 50.0f;
-    
-    
     glm::vec3 cloudColor = glm::vec3(1.0f);
     float cloudCover = 0.5f;
     float cloudSpeed = 0.1f;
@@ -112,7 +115,6 @@ public:
     float cloudSize = 1.0f;
     float cloudRandomness = 0.5f;
 
-    
     float volCloudDensity = 0.5f;
     float volCloudStepSize = 0.5f;
     float volCloudCover = 0.5f;
@@ -120,37 +122,36 @@ public:
     float volCloudDetail = 2.0f;
     int volCloudQuality = 0;
 
-    
     float sunBloom = 0.03f;
     float moonBloom = 0.02f;
 
     
-    float globalTilingFactor = 1.0f;
-    
-    
-    bool msaaSkyPass = true;
-    bool msaaGeometryPass = true;
-    bool msaaTransparencyPass = true;
-    
-    
-    float timeOfDay = 0.0f;
-    float timeSpeed = 1.0f;
-    bool isTimePaused = false;
-    
-    
     bool darkTheme = true; 
     bool fixedLayout = false; 
+
+    
+    void SetContentPath(const std::string& path) { 
+        m_ProjectRoot = path;
+        m_CurrentContentPath = path; 
+    }
 
 private:
     GLFWwindow* m_Window = nullptr;
     bool m_FirstFrame = true;
     bool m_Initialized = false;
+
+    std::string m_ProjectRoot = "";
+    std::string m_CurrentContentPath = "";
+    std::string m_SelectedFolderPath = "";
+
     void DrawMenuBar(Scene& scene);
     void DrawSceneHierarchy(Scene& scene);
     void DrawInspector(Scene& scene);
     void DrawSettings(Camera& camera);
     void DrawViewport(Scene& scene, Camera& camera);
     void DrawContentBrowser();
+    void DrawContentBrowserTree(const std::string& path);
+    void DrawContentBrowserGrid();
     void SetupDockLayout();
 };
 

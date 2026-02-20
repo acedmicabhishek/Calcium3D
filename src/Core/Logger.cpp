@@ -1,5 +1,11 @@
 #include "Logger.h"
 #include <cstdarg>
+#include <iostream>
+#include <string.h>
+
+#ifndef C3D_RUNTIME
+#include <imgui.h>
+#endif
 
 std::vector<std::string> Logger::buffer;
 
@@ -7,10 +13,14 @@ void Logger::AddLog(const char* fmt, ...) {
     char buf[1024];
     va_list args;
     va_start(args, fmt);
-    vsnprintf(buf, IM_ARRAYSIZE(buf), fmt, args);
-    buf[IM_ARRAYSIZE(buf)-1] = 0;
+    vsnprintf(buf, sizeof(buf) / sizeof(buf[0]), fmt, args);
+    buf[(sizeof(buf) / sizeof(buf[0])) - 1] = 0;
     va_end(args);
     buffer.push_back(buf);
+    
+#ifdef C3D_RUNTIME
+    std::cout << "[LOG] " << buf << std::endl;
+#endif
     
     
     if (buffer.size() > 100) {
@@ -19,6 +29,7 @@ void Logger::AddLog(const char* fmt, ...) {
 }
 
 void Logger::Draw(const char* title, bool* p_open) {
+#ifndef C3D_RUNTIME
     ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(title, p_open)) {
         ImGui::End();
@@ -45,4 +56,5 @@ void Logger::Draw(const char* title, bool* p_open) {
 
     ImGui::EndChild();
     ImGui::End();
+#endif
 }

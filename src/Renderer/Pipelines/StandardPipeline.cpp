@@ -1,14 +1,14 @@
-#include "EditorPipeline.h"
+#include "StandardPipeline.h"
 #include "Passes/ShadowPass.h"
 #include "Passes/SkyPass.h"
 #include "Passes/GeometryPass.h"
 #include "Passes/TransparencyPass.h"
 
-EditorPipeline::EditorPipeline()
+StandardPipeline::StandardPipeline()
 {
 }
 
-void EditorPipeline::Init()
+void StandardPipeline::Init()
 {
     // Pass 1: ShadowPass — depth map from sun (stub, restores FBO)
     auto shadowPass = std::make_unique<ShadowPass>();

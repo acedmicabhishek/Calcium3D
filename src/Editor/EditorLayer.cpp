@@ -8,6 +8,8 @@
 #include "Core/Application.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+#include "Shader.h"  
+#include "BuildManager/BuildManager.h"
 #include <imgui_internal.h> 
 #include <filesystem>
 
@@ -299,6 +301,7 @@ void EditorLayer::SetupDockLayout() {
 }
 
 void EditorLayer::Begin() {
+#ifndef C3D_RUNTIME
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -337,14 +340,18 @@ void EditorLayer::Begin() {
     }
 
     ImGui::End(); 
+#endif
 }
 
 void EditorLayer::End() {
+#ifndef C3D_RUNTIME
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#endif
 }
 
 void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
+#ifndef C3D_RUNTIME
     if (showDemoWindow) ImGui::ShowDemoWindow(&showDemoWindow);
 
     DrawMenuBar(scene);
@@ -360,6 +367,7 @@ void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
     if (showContentBrowser) DrawContentBrowser();
     
     DrawSettings(camera);
+#endif
 }
 
 void EditorLayer::RenderOverlay(Scene& scene, Camera& camera) {
@@ -418,8 +426,50 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             }
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("Build")) {
+            if (ImGui::MenuItem("Build Settings...")) {
+                ImGui::OpenPopup("Build Settings");
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Build (Linux)")) {
+                BuildManager::BuildSettings settings;
+                settings.ProjectRoot = Application::Get().GetProjectRoot();
+                settings.OutputPath = (std::filesystem::path(settings.ProjectRoot) / "Build" / "Linux").string();
+                BuildManager::Build(settings);
+            }
+            ImGui::EndMenu();
+        }
+
         
-        if (ImGui::BeginMenu("Edit")) {
+        if (ImGui::BeginPopupModal("Build Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            static char outputPath[256] = "Build/Linux";
+            static char startScene[128] = "main.scene";
+            
+            ImGui::InputText("Output Path", outputPath, IM_ARRAYSIZE(outputPath));
+            ImGui::InputText("Start Scene", startScene, IM_ARRAYSIZE(startScene));
+            
+            if (ImGui::Button("Build Now", ImVec2(120, 40))) {
+                BuildManager::BuildSettings settings;
+                settings.ProjectRoot = Application::Get().GetProjectRoot();
+                settings.StartScene = startScene;
+                
+                std::filesystem::path p(outputPath);
+                if (p.is_relative()) {
+                    settings.OutputPath = (std::filesystem::path(settings.ProjectRoot) / p).string();
+                } else {
+                    settings.OutputPath = p.string();
+                }
+
+                BuildManager::Build(settings);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 40))) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::BeginMenu("Help")) {
              if (ImGui::MenuItem("Undo", "Ctrl+Z")) {}
              if (ImGui::MenuItem("Redo", "Ctrl+Y")) {}
              ImGui::EndMenu();
@@ -579,6 +629,16 @@ void EditorLayer::DrawInspector(Scene& scene) {
             }
             
             ImGui::Separator();
+            ImGui::Text("Physics");
+            ImGui::Checkbox("Enable Gravity", &obj.useGravity);
+            ImGui::Checkbox("Is Static", &obj.isStatic);
+            
+            float vel[3] = { obj.velocity.x, obj.velocity.y, obj.velocity.z };
+            ImGui::BeginDisabled();
+            ImGui::DragFloat3("Velocity", vel, 0.0f);
+            ImGui::EndDisabled();
+            
+            ImGui::Separator();
             if (ImGui::Button("Delete Object")) {
                 scene.RemoveObject(selectedCube);
                 selectedCube = -1;
@@ -634,6 +694,13 @@ void EditorLayer::DrawSettings(Camera& camera) {
         ImGui::DragFloat("Speed", &camera.speed, 0.1f, 0.1f, 10.0f);
         ImGui::DragFloat("Sensitivity", &camera.sensitivity, 1.0f, 10.f, 200.0f);
         ImGui::DragFloat("FOV", &camera.FOV, 1.0f, 30.0f, 120.0f);
+    }
+    if (ImGui::CollapsingHeader("Physics")) {
+        ImGui::Checkbox("Global Gravity Enabled", &PhysicsEngine::GlobalGravityEnabled);
+        float grav[3] = { PhysicsEngine::Gravity.x, PhysicsEngine::Gravity.y, PhysicsEngine::Gravity.z };
+        if (ImGui::DragFloat3("Gravity Vector", grav, 0.1f)) {
+            PhysicsEngine::Gravity = glm::vec3(grav[0], grav[1], grav[2]);
+        }
     }
     
     if (ImGui::CollapsingHeader("Rendering")) {
@@ -1057,59 +1124,94 @@ void EditorLayer::DrawContentBrowser() {
     
     ImGui::Begin("Content Browser", nullptr, lockFlags);
     
-    static std::string currentPath = "../Resource";
+    if (m_ProjectRoot.empty()) {
+        ImGui::Text("No project loaded.");
+        ImGui::End();
+        return;
+    }
+
     
+    if (ImGui::Button("Home")) {
+        m_CurrentContentPath = m_ProjectRoot;
+    }
+    ImGui::SameLine();
+    ImGui::Text("> %s", m_CurrentContentPath.c_str());
+    ImGui::Separator();
+
+    static float leftWidth = 200.0f;
+    ImGui::BeginChild("TreeChild", ImVec2(leftWidth, 0), true);
+    DrawContentBrowserTree(m_ProjectRoot);
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+    ImGui::BeginChild("GridChild", ImVec2(0, 0), true);
+    DrawContentBrowserGrid();
+    ImGui::EndChild();
     
-    if (currentPath != "../Resource") {
-        if (ImGui::Button("<- Back")) {
+    ImGui::End();
+}
+
+void EditorLayer::DrawContentBrowserTree(const std::string& path) {
+    namespace fs = std::filesystem;
+    try {
+        for (auto& entry : fs::directory_iterator(path)) {
+            if (!entry.is_directory()) continue;
             
-            size_t pos = currentPath.find_last_of('/');
-            if (pos != std::string::npos) {
-                currentPath = currentPath.substr(0, pos);
+            std::string name = entry.path().filename().string();
+            ImGuiTreeNodeFlags flags = ((m_CurrentContentPath == entry.path().string()) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+            
+            bool opened = ImGui::TreeNodeEx(name.c_str(), flags);
+            if (ImGui::IsItemClicked()) {
+                m_CurrentContentPath = entry.path().string();
+            }
+            
+            if (opened) {
+                DrawContentBrowserTree(entry.path().string());
+                ImGui::TreePop();
             }
         }
-        ImGui::SameLine();
-    }
+    } catch (...) {}
+}
+
+void EditorLayer::DrawContentBrowserGrid() {
+    namespace fs = std::filesystem;
     
-    ImGui::Text("Path: %s", currentPath.c_str());
-    ImGui::Separator();
-    
-    
-    float padding = 4.0f;
-    float cellSize = 80.0f;
+    float padding = 16.0f;
+    float cellSize = 96.0f;
     float panelWidth = ImGui::GetContentRegionAvail().x;
     int columns = (int)(panelWidth / (cellSize + padding));
     if (columns < 1) columns = 1;
     
     ImGui::Columns(columns, nullptr, false);
     
-    
     try {
-        namespace fs = std::filesystem;
-        
-        
-        for (auto& entry : fs::directory_iterator(currentPath)) {
+        for (auto& entry : fs::directory_iterator(m_CurrentContentPath)) {
             std::string filename = entry.path().filename().string();
             
-            if (entry.is_directory()) {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.3f, 1.0f));
-                if (ImGui::Button(filename.c_str(), ImVec2(cellSize, 30))) {
-                    currentPath = entry.path().string();
-                }
-                ImGui::PopStyleColor();
-                ImGui::TextWrapped("%s", filename.c_str());
-            } else {
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-                ImGui::Button(filename.c_str(), ImVec2(cellSize, 30));
-                ImGui::PopStyleColor();
-                ImGui::TextWrapped("%s", filename.c_str());
+            ImGui::PushID(filename.c_str());
+            
+            
+            ImVec4 iconColor = entry.is_directory() ? ImVec4(1.0f, 0.9f, 0.5f, 1.0f) : ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button, iconColor);
+            
+            if (ImGui::Button("##Item", ImVec2(cellSize, cellSize))) {
+                
             }
+            
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                if (entry.is_directory()) {
+                    m_CurrentContentPath = entry.path().string();
+                }
+            }
+
+            ImGui::PopStyleColor();
+            
+            ImGui::TextWrapped("%s", filename.c_str());
+            
             ImGui::NextColumn();
+            ImGui::PopID();
         }
-    } catch (...) {
-        ImGui::Text("Could not read directory.");
-    }
+    } catch (...) {}
     
     ImGui::Columns(1);
-    ImGui::End();
 }

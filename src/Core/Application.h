@@ -9,11 +9,10 @@
 
 #include "Scene.h"
 #include "Renderer.h"
-#include "EditorLayer.h"
 #include "Camera.h"
 #include "InputManager.h"
 #include "RenderContext.h"
-#include "Pipelines/EditorPipeline.h"
+#include "RenderPipeline.h"
 
 struct ApplicationSpecification {
     std::string Name = "Calcium3D Application";
@@ -24,10 +23,11 @@ struct ApplicationSpecification {
 class Application {
 public:
     Application(const ApplicationSpecification& spec);
-    ~Application();
+    virtual ~Application();
 
-    void Run();
+    virtual void Run();
     void Close();
+    virtual bool Init();
 
     static Application& Get() { return *s_Instance; }
     static Application* GetInstance() { return s_Instance; }
@@ -35,30 +35,33 @@ public:
 
     bool& GetShowSkybox() { return m_ShowSkybox; }
 
-private:
-    void Init();
-    void Shutdown();
+    virtual void OpenProject(const std::string& path);
+    virtual void CreateProject(const std::string& path);
+    const std::string& GetProjectRoot() const { return m_ProjectRoot; }
+
+protected:
+    virtual void Shutdown();
+
+    
+    virtual void OnUpdate(float deltaTime) = 0;
+    virtual void OnRender() = 0;
 
     ApplicationSpecification m_Specification;
     GLFWwindow* m_Window;
     bool m_Running = true;
     bool m_Initialized = false;
-    
+    std::string m_ProjectRoot = "";
     
     std::unique_ptr<Scene> m_Scene;
-    std::unique_ptr<EditorLayer> m_EditorLayer;
-    
-    
-    std::unique_ptr<EditorPipeline> m_RenderPipeline;
+
+    std::unique_ptr<RenderPipeline> m_RenderPipeline;
     RenderContext m_RenderContext;
-    
     
     std::unique_ptr<Camera> m_Camera;
 
     std::unique_ptr<class Water> m_Water;
     std::unique_ptr<class Cloud2D> m_Cloud2D;
     std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
-    std::unique_ptr<class Gizmo> m_Gizmo;
     
     bool m_ShowSkybox = true;
     bool m_ShowGradientSky = false;

@@ -12,6 +12,8 @@ public:
     static Shader& LoadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile);
     static Shader& GetShader(const std::string& name);
     
+    static std::string ResolvePath(const std::string& path);
+    
     static Texture& LoadTexture(const std::string& name, const char* file, const char* texType, GLuint slot);
     static Texture& GetTexture(const std::string& name);
     

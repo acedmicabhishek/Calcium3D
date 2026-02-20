@@ -9,6 +9,7 @@ Scene::~Scene() {
 }
 
 void Scene::Update(float dt) {
+    physicsEngine.Update(dt, m_Objects);
 }
 
 void Scene::AddObject(GameObject object) {

@@ -2,7 +2,10 @@
 
 #include <vector>
 #include <string>
+
+#ifndef C3D_RUNTIME
 #include "imgui.h"
+#endif
 
 class Logger {
 public:

@@ -3,6 +3,7 @@
 #include<stdexcept>
 
 #include <filesystem>
+#include "Core/ResourceManager.h"
 
 Texture::Texture(const char* image, const char* texType, GLuint slot)
 {
@@ -15,10 +16,11 @@ Texture::Texture(const char* image, const char* texType, GLuint slot)
 	
 	
 	
-	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 0);
+	std::string resolved = ResourceManager::ResolvePath(image);
+	unsigned char* bytes = stbi_load(resolved.c_str(), &widthImg, &heightImg, &numColCh, 0);
 	if (!bytes)
 	{
-		std::cout << "Failed to load texture: " << image << std::endl;
+		std::cout << "Failed to load texture: " << resolved << std::endl;
 		return;
 	}
 	else
