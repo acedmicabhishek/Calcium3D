@@ -95,13 +95,13 @@ bool Application::Init()
     glEnable(GL_STENCIL_TEST);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
-    ResourceManager::LoadShader("default", "../shaders/core/default.vert", "../shaders/core/default.frag");
-    ResourceManager::LoadShader("light", "../shaders/core/light.vert", "../shaders/core/light.frag");
-    ResourceManager::LoadShader("skybox", "../shaders/environment/skybox.vert", "../shaders/environment/skybox.frag");
-    ResourceManager::LoadShader("gradientSky", "../shaders/environment/gradient_sky.vert", "../shaders/environment/gradient_sky.frag");
-    ResourceManager::LoadShader("water", "../shaders/environment/water.vert", "../shaders/environment/water.frag");
-    ResourceManager::LoadShader("cloud2d", "../shaders/environment/2dcloud.vert", "../shaders/environment/2dcloud.frag");
-    ResourceManager::LoadShader("volumetric_cloud", "../shaders/environment/volumetric_cloud.vert", "../shaders/environment/volumetric_cloud.frag");
+    ResourceManager::LoadShader("default", "../shaders/passes/geometry/default.vert", "../shaders/passes/geometry/default.frag");
+    ResourceManager::LoadShader("light", "../shaders/passes/geometry/light.vert", "../shaders/passes/geometry/light.frag");
+    ResourceManager::LoadShader("skybox", "../shaders/passes/sky/skybox.vert", "../shaders/passes/sky/skybox.frag");
+    ResourceManager::LoadShader("gradientSky", "../shaders/passes/sky/gradient_sky.vert", "../shaders/passes/sky/gradient_sky.frag");
+    ResourceManager::LoadShader("water", "../shaders/passes/transparency/water.vert", "../shaders/passes/transparency/water.frag");
+    ResourceManager::LoadShader("cloud2d", "../shaders/passes/transparency/2dcloud.vert", "../shaders/passes/transparency/2dcloud.frag");
+    ResourceManager::LoadShader("volumetric_cloud", "../shaders/passes/transparency/volumetric_cloud.vert", "../shaders/passes/transparency/volumetric_cloud.frag");
     ResourceManager::LoadShader("hitbox", "../shaders/editor/hitbox.vert", "../shaders/editor/hitbox.frag");
     
     HitboxGraphics::Init();

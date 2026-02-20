@@ -3,8 +3,9 @@ gravity + force + velocity + acceleration  // ig done?? maybe laterforenhancemen
 texture titling when resize.  // done
 
 
-seperate shader code in shader folder
-more moduler ig???
+seperate shader code in shader folder  // done
+more moduler ig???  // done
+
 
 dedictated code.cpp for build so anyone can write there code 
 cretae game start entry point 
