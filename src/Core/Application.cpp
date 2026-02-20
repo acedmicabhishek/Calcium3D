@@ -95,14 +95,14 @@ bool Application::Init()
     glEnable(GL_STENCIL_TEST);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
-    ResourceManager::LoadShader("default", "../shaders/default.vert", "../shaders/default.frag");
-    ResourceManager::LoadShader("light", "../shaders/light.vert", "../shaders/light.frag");
-    ResourceManager::LoadShader("skybox", "../shaders/skybox.vert", "../shaders/skybox.frag");
-    ResourceManager::LoadShader("gradientSky", "../shaders/gradient_sky.vert", "../shaders/gradient_sky.frag");
-    ResourceManager::LoadShader("water", "../shaders/water.vert", "../shaders/water.frag");
-    ResourceManager::LoadShader("cloud2d", "../shaders/2dcloud.vert", "../shaders/2dcloud.frag");
-    ResourceManager::LoadShader("volumetric_cloud", "../shaders/volumetric_cloud.vert", "../shaders/volumetric_cloud.frag");
-    ResourceManager::LoadShader("hitbox", "../shaders/hitbox.vert", "../shaders/hitbox.frag");
+    ResourceManager::LoadShader("default", "../shaders/core/default.vert", "../shaders/core/default.frag");
+    ResourceManager::LoadShader("light", "../shaders/core/light.vert", "../shaders/core/light.frag");
+    ResourceManager::LoadShader("skybox", "../shaders/environment/skybox.vert", "../shaders/environment/skybox.frag");
+    ResourceManager::LoadShader("gradientSky", "../shaders/environment/gradient_sky.vert", "../shaders/environment/gradient_sky.frag");
+    ResourceManager::LoadShader("water", "../shaders/environment/water.vert", "../shaders/environment/water.frag");
+    ResourceManager::LoadShader("cloud2d", "../shaders/environment/2dcloud.vert", "../shaders/environment/2dcloud.frag");
+    ResourceManager::LoadShader("volumetric_cloud", "../shaders/environment/volumetric_cloud.vert", "../shaders/environment/volumetric_cloud.frag");
+    ResourceManager::LoadShader("hitbox", "../shaders/editor/hitbox.vert", "../shaders/editor/hitbox.frag");
     
     HitboxGraphics::Init();
     

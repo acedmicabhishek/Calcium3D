@@ -377,7 +377,7 @@ void EditorLayer::RenderOverlay(Scene& scene, Camera& camera) {
         
         
         if (ResourceManager::GetShader("gizmo").ID == 0) {
-             ResourceManager::LoadShader("gizmo", "shaders/gizmo.vert", "shaders/gizmo.frag");
+             ResourceManager::LoadShader("gizmo", "shaders/editor/gizmo.vert", "shaders/editor/gizmo.frag");
         }
         gizmoProgram = &ResourceManager::GetShader("gizmo");
     }

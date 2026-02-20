@@ -45,7 +45,7 @@ bool EditorApplication::Init()
     windowData.app = this;
     glfwSetWindowUserPointer(m_Window, &windowData);
     
-    ResourceManager::LoadShader("gizmo", "../shaders/gizmo.vert", "../shaders/gizmo.frag");
+    ResourceManager::LoadShader("gizmo", "../shaders/editor/gizmo.vert", "../shaders/editor/gizmo.frag");
 
     CreateViewportFramebuffer(m_Specification.Width, m_Specification.Height);
     
