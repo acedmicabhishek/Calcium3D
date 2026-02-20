@@ -58,6 +58,7 @@ set(SOURCES
     src/Scene/Scene.cpp
     src/Scene/ObjectFactory.cpp
     src/Scene/SceneIO.cpp
+    src/Physics/HitboxGraphics.cpp
     
     # Editor
     src/Editor/Editor.cpp
@@ -160,6 +161,7 @@ set(TESTBUILD_SOURCES
     src/Environment/Water.cpp
     src/Environment/2dCloud.cpp
     src/Environment/VolumetricCloud.cpp
+    src/Physics/HitboxGraphics.cpp
     
     # Glad
     src/glad.c

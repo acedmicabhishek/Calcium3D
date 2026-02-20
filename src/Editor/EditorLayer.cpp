@@ -5,6 +5,8 @@
 #include "ResourceManager.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Passes/SkyPass.h"
+#include "../Physics/PhysicsEngine.h"
+#include "../Physics/HitboxGraphics.h"
 #include "Core/Application.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
@@ -497,7 +499,9 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 if (ImGui::MenuItem("Sphere")) {
                     Mesh sphereMesh = ObjectFactory::createSphere(32, 16);
                     
-                    scene.AddObject(GameObject(std::move(sphereMesh), "Sphere"));
+                    GameObject obj(std::move(sphereMesh), "Sphere");
+                    obj.shape = ColliderShape::Sphere;
+                    scene.AddObject(std::move(obj));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Sphere");
@@ -632,11 +636,32 @@ void EditorLayer::DrawInspector(Scene& scene) {
             ImGui::Text("Physics");
             ImGui::Checkbox("Enable Gravity", &obj.useGravity);
             ImGui::Checkbox("Is Static", &obj.isStatic);
+            ImGui::Checkbox("Enable Collision", &obj.enableCollision);
+            
+            float com[3] = { obj.centerOfMassOffset.x, obj.centerOfMassOffset.y, obj.centerOfMassOffset.z };
+            if (ImGui::DragFloat3("COM Offset", com, 0.01f)) {
+                obj.centerOfMassOffset = glm::vec3(com[0], com[1], com[2]);
+            }
             
             float vel[3] = { obj.velocity.x, obj.velocity.y, obj.velocity.z };
             ImGui::BeginDisabled();
             ImGui::DragFloat3("Velocity", vel, 0.0f);
+            float aVel[3] = { obj.angularVelocity.x, obj.angularVelocity.y, obj.angularVelocity.z };
+            ImGui::DragFloat3("Angular Vel", aVel, 0.0f);
             ImGui::EndDisabled();
+
+            ImGui::DragFloat("Mass", &obj.mass, 0.1f, 0.01f, 100.0f);
+            ImGui::DragFloat("Friction", &obj.friction, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Bounciness", &obj.restitution, 0.01f, 0.0f, 1.0f);
+
+            ImGui::Separator();
+            ImGui::Text("Actions");
+            static glm::vec3 impulseForce(0.0f, 10.0f, 0.0f);
+            ImGui::DragFloat3("Impulse Vector", &impulseForce[0], 0.1f);
+            if (ImGui::Button("Apply Impulse (Kick)")) {
+                obj.ApplyImpulse(impulseForce);
+                Logger::AddLog("Applied impulse to %s", obj.name.c_str());
+            }
             
             ImGui::Separator();
             if (ImGui::Button("Delete Object")) {
@@ -696,10 +721,24 @@ void EditorLayer::DrawSettings(Camera& camera) {
         ImGui::DragFloat("FOV", &camera.FOV, 1.0f, 30.0f, 120.0f);
     }
     if (ImGui::CollapsingHeader("Physics")) {
+        ImGui::Checkbox("Global Physics Enabled", &PhysicsEngine::GlobalPhysicsEnabled);
         ImGui::Checkbox("Global Gravity Enabled", &PhysicsEngine::GlobalGravityEnabled);
+        ImGui::Checkbox("Use Impulses", &PhysicsEngine::ImpulseEnabled);
+        ImGui::Checkbox("Use Center of Mass", &PhysicsEngine::GlobalCOMEnabled);
+        ImGui::DragFloat("Air Resistance", &PhysicsEngine::GlobalAirResistance, 0.01f, 0.0f, 10.0f);
+        ImGui::SliderInt("Sub-Steps (High Speed Precision)", &PhysicsEngine::SubSteps, 1, 10);
+        ImGui::DragFloat("Linear Damping", &PhysicsEngine::LinearDamping, 0.001f, 0.0f, 1.0f);
+        ImGui::DragFloat("Angular Damping", &PhysicsEngine::AngularDamping, 0.001f, 0.0f, 1.0f);
+        ImGui::Checkbox("Show Hitboxes", &HitboxGraphics::ShowHitboxes);
+        
         float grav[3] = { PhysicsEngine::Gravity.x, PhysicsEngine::Gravity.y, PhysicsEngine::Gravity.z };
         if (ImGui::DragFloat3("Gravity Vector", grav, 0.1f)) {
             PhysicsEngine::Gravity = glm::vec3(grav[0], grav[1], grav[2]);
+        }
+        
+        float gAcc[3] = { PhysicsEngine::GlobalAcceleration.x, PhysicsEngine::GlobalAcceleration.y, PhysicsEngine::GlobalAcceleration.z };
+        if (ImGui::DragFloat3("Global Acceleration", gAcc, 0.1f)) {
+            PhysicsEngine::GlobalAcceleration = glm::vec3(gAcc[0], gAcc[1], gAcc[2]);
         }
     }
     

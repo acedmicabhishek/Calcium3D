@@ -55,6 +55,7 @@ sources = files(
   'src/Renderer/Pipelines/StandardPipeline.cpp',
   'src/Renderer/RenderPipeline.cpp',
   'src/Physics/PhysicsEngine.cpp',
+  'src/Physics/HitboxGraphics.cpp',
   'src/Renderer/Renderer.cpp',
   'src/Renderer/Shader.cpp',
   'src/Renderer/Texture.cpp',

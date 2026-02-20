@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "../Physics/HitboxGraphics.h"
 
 struct WindowData {
     Camera* camera;
@@ -213,6 +214,7 @@ void EditorApplication::RenderEditor(float deltaTime) {
     m_RenderContext.msaaTransparencyPass = m_EditorLayer->msaaTransparencyPass;
 
     m_RenderPipeline->Execute(m_RenderContext);
+    HitboxGraphics::Render(*m_Scene, *m_Camera);
 
     if (m_EditorLayer->msaaSamples > 0 && m_MSAAFBO != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, m_MSAAFBO);

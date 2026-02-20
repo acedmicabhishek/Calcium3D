@@ -18,6 +18,15 @@ class PhysicsEngine {
 public:
     static bool GlobalGravityEnabled;
     static glm::vec3 Gravity;
+    static glm::vec3 GlobalAcceleration;
+    
+    static bool GlobalPhysicsEnabled;
+    static bool ImpulseEnabled;
+    static int SubSteps;
+    static float LinearDamping;
+    static float AngularDamping;
+    static float GlobalAirResistance;
+    static bool GlobalCOMEnabled;
 
     
     static void Update(float deltaTime, std::vector<GameObject>& objects);
@@ -26,7 +35,7 @@ public:
     static bool CheckCollision(const AABB& a, const AABB& b);
 
     
-    static AABB GetTransformedAABB(const AABB& localAABB, const glm::vec3& position, const glm::vec3& scale);
+    static AABB GetTransformedAABB(const AABB& localAABB, const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale);
 };
 
 #endif

@@ -7,6 +7,8 @@
 #include "Mesh.h"
 #include "../Physics/PhysicsEngine.h"
 
+enum class ColliderShape { Box, Sphere };
+
 struct GameObject {
     Mesh mesh; 
     glm::vec3 position;
@@ -14,16 +16,35 @@ struct GameObject {
     glm::vec3 scale;
     std::string name;
     
+    ColliderShape shape = ColliderShape::Box;
+    float collisionRadius = 0.5f;
+    
     
     bool useGravity = false;
     bool isStatic = false;
+    float mass = 1.0f;
+    float friction = 0.5f;
+    float restitution = 0.5f;
+    bool enableCollision = true;
+    glm::vec3 centerOfMassOffset = glm::vec3(0.0f);
+
     glm::vec3 velocity;
     glm::vec3 acceleration;
+    glm::vec3 angularVelocity;
+    glm::vec3 torque;
     AABB collider;
+    
+    void ApplyImpulse(const glm::vec3& impulse) {
+        if (!isStatic && mass > 0.0f) {
+            velocity += impulse / mass;
+        }
+    }
     
     GameObject(Mesh m, const std::string& n = "Object") 
         : mesh(std::move(m)), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f), name(n),
-          useGravity(false), isStatic(false), velocity(0.0f), acceleration(0.0f) {
+          shape(ColliderShape::Box), collisionRadius(0.5f),
+          useGravity(false), isStatic(false), mass(1.0f), friction(0.5f), restitution(0.5f), enableCollision(true),
+          centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f), angularVelocity(0.0f), torque(0.0f) {
               
         if (!mesh.vertices.empty()) {
             glm::vec3 minExtent = mesh.vertices[0].position;

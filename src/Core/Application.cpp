@@ -9,6 +9,7 @@
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
 #include <iostream>
+#include "../Physics/HitboxGraphics.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -101,6 +102,9 @@ bool Application::Init()
     ResourceManager::LoadShader("water", "../shaders/water.vert", "../shaders/water.frag");
     ResourceManager::LoadShader("cloud2d", "../shaders/2dcloud.vert", "../shaders/2dcloud.frag");
     ResourceManager::LoadShader("volumetric_cloud", "../shaders/volumetric_cloud.vert", "../shaders/volumetric_cloud.frag");
+    ResourceManager::LoadShader("hitbox", "../shaders/hitbox.vert", "../shaders/hitbox.frag");
+    
+    HitboxGraphics::Init();
     
     m_Water = std::make_unique<Water>();
     m_Cloud2D = std::make_unique<Cloud2D>();
