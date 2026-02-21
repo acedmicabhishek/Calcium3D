@@ -20,7 +20,7 @@ so on
 so the build will follow this hiarchy to initalise the game 
 
 
-robust game state system
+robust game state system // done 
 
 dedictated code.cpp for build so anyone can write there code 
 cretae game start entry point 

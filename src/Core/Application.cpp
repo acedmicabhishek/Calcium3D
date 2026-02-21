@@ -58,6 +58,15 @@ Application::~Application()
     s_Instance = nullptr;
 }
 
+void Application::ChangeState(int newState) {
+    GameStateManager::SetState(newState);
+}
+
+void Application::AddScreen(int stateId, std::unique_ptr<Screen> screen) {
+    m_Screens[stateId] = std::move(screen);
+    if (m_Screens[stateId]) m_Screens[stateId]->Init();
+}
+
 bool Application::Init()
 {
     
@@ -119,17 +128,21 @@ bool Application::Init()
     standardPipeline->Init();
     m_RenderPipeline = std::move(standardPipeline);
 
-    
+    GameStateManager::Init();
+
     UICreationEngine::LoadLayout("ui_layout.json");
     
-    m_Screens[(int)GameState::START_SCREEN] = std::make_unique<StartScreen>();
-    m_Screens[(int)GameState::GAMEPLAY] = std::make_unique<GameScreen>();
+    m_Screens[0] = std::make_unique<StartScreen>();
+    m_Screens[1] = std::make_unique<GameScreen>();
+    m_Screens[2] = std::make_unique<StartScreen>(); 
+    m_Screens[3] = std::make_unique<StartScreen>(); 
+    m_Screens[4] = std::make_unique<StartScreen>(); 
     
     for (auto& pair : m_Screens) {
-        if (pair) pair->Init();
+        if (pair.second) pair.second->Init();
     }
 
-    GameStateManager::SetState(m_StartGameState);
+    GameStateManager::SetState((int)m_StartGameState);
     m_ActiveScreen = m_Screens[(int)m_StartGameState].get();
 
     
@@ -192,14 +205,14 @@ void Application::Run()
         lastFrame = currentFrame;
 
         
-        if (GameStateManager::GetState() == GameState::EXIT) {
+        if (GameStateManager::GetState() == (int)GameState::EXIT) {
             Close();
             break;
         }
 
         
-        GameState currentState = GameStateManager::GetState();
-        m_ActiveScreen = m_Screens[(int)currentState].get();
+        int currentState = GameStateManager::GetState();
+        m_ActiveScreen = m_Screens[currentState].get();
 
         m_RenderContext.time = currentFrame;
         m_RenderContext.deltaTime = deltaTime;

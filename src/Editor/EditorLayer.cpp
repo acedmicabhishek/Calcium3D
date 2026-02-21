@@ -17,6 +17,7 @@
 #include <imgui.h>
 #include "UI/UIManager.h"
 #include "UI/UICreationEngine.h"
+#include "UI/Screens/StartScreen.h"
 #include "Core/GameState.h"
 
 EditorLayer::EditorLayer() {
@@ -914,12 +915,50 @@ void EditorLayer::DrawSettings(Camera& camera) {
         }
 
         ImGui::Separator();
+        ImGui::Separator();
         ImGui::Text("Load Hierarchy (Start State)");
-        const char* stateNames[] = { "0: Start Screen", "1: Gameplay", "2: Exit", "3: Pause", "4: Settings" };
-        int currentStart = (int)Application::Get().m_StartGameState;
-        if (ImGui::Combo("Start State", &currentStart, stateNames, IM_ARRAYSIZE(stateNames))) {
-            Application::Get().m_StartGameState = (GameState)currentStart;
+        auto& allStates = GameStateManager::GetAllStates();
+        std::vector<const char*> stateNames;
+        std::vector<int> stateIds;
+        for (auto const& [id, name] : allStates) {
+            stateNames.push_back(name.c_str());
+            stateIds.push_back(id);
         }
+
+        int currentStart = (int)Application::Get().m_StartGameState;
+        int startIndex = 0;
+        for(int i=0; i < stateIds.size(); i++) if(stateIds[i] == currentStart) startIndex = i;
+
+        if (ImGui::Combo("Start State", &startIndex, stateNames.data(), (int)stateNames.size())) {
+            Application::Get().m_StartGameState = (GameState)stateIds[startIndex];
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Editor Preview State (Live Filter)");
+        
+        int previewIndex = 0;
+        for(int i=0; i < stateIds.size(); i++) if(stateIds[i] == m_PreviewState) previewIndex = i;
+
+        if (ImGui::Combo("Preview State", &previewIndex, stateNames.data(), (int)stateNames.size())) {
+            m_PreviewState = stateIds[previewIndex];
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Filters the viewport UI to only show elements for this state.");
+        
+        ImGui::Separator();
+        ImGui::Text("Create New State");
+        static char newStateName[128] = "";
+        ImGui::InputText("##NewStateName", newStateName, 128);
+        ImGui::SameLine();
+        if (ImGui::Button("Add State") && strlen(newStateName) > 0) {
+            int nextId = 0;
+            for(auto const& [id, name] : allStates) if(id >= nextId) nextId = id + 1;
+            GameStateManager::RegisterState(nextId, newStateName);
+            
+            Application::Get().AddScreen(nextId, std::make_unique<StartScreen>());
+            memset(newStateName, 0, 128);
+        }
+
+        std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
         
         ImGui::Separator();
         ImGui::Text("Info");
@@ -970,10 +1009,14 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         
         
         if (uiEditMode) {
+            std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
+
             auto& elements = UICreationEngine::GetElements();
             for (int i = 0; i < (int)elements.size(); i++) {
                 auto& el = elements[i];
                 
+                
+                if (el.screenName != activeScreenName) continue;
                 
                 float centerX = viewportWidth * el.anchorMin.x;
                 float centerY = viewportHeight * el.anchorMin.y;
@@ -1059,7 +1102,15 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         
         
         
-        UIManager::Render(UICreationEngine::GetElements(), glm::vec2(viewportWidth, viewportHeight), glm::vec2(cursorPos.x, cursorPos.y));
+        
+        std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
+
+        std::vector<UIElement> filteredElements;
+        auto& allElements = UICreationEngine::GetElements();
+        for(const auto& el : allElements) {
+            if (el.screenName == activeScreenName) filteredElements.push_back(el);
+        }
+        UIManager::Render(filteredElements, glm::vec2(viewportWidth, viewportHeight), glm::vec2(cursorPos.x, cursorPos.y));
         
         bool gizmoUsing = ImGuizmo::IsUsing();
         bool gizmoOver = ImGuizmo::IsOver();
@@ -1367,12 +1418,14 @@ void EditorLayer::DrawUIEditor() {
     ImGui::Checkbox("UI Edit Mode", &uiEditMode);
     ImGui::Separator();
 
+    std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
+
     if (ImGui::Button("Add Button")) {
         UIElement btn;
         btn.name = "Button_" + std::to_string(UICreationEngine::GetElements().size());
         btn.type = UIElementType::BUTTON;
         btn.text = "Click Me";
-        btn.screenName = (strlen(filter) > 0) ? filter : "StartScreen";
+        btn.screenName = activeScreenName;
         UICreationEngine::AddElement(btn);
     }
     ImGui::SameLine();
@@ -1381,7 +1434,7 @@ void EditorLayer::DrawUIEditor() {
         txt.name = "Text_" + std::to_string(UICreationEngine::GetElements().size());
         txt.type = UIElementType::TEXT;
         txt.text = "Hello UI";
-        txt.screenName = (strlen(filter) > 0) ? filter : "StartScreen";
+        txt.screenName = activeScreenName;
         UICreationEngine::AddElement(txt);
     }
 

@@ -46,9 +46,12 @@ public:
     virtual void CreateProject(const std::string& path);
     const std::string& GetProjectRoot() const { return m_ProjectRoot; }
 
+public:
+    void AddScreen(int stateId, std::unique_ptr<Screen> screen);
+
 protected:
     virtual void Shutdown();
-    void ChangeState(GameState newState);
+    void ChangeState(int newState);
     
     virtual void OnUpdate(float deltaTime) = 0;
     virtual void OnRender() = 0;
@@ -72,7 +75,7 @@ protected:
     std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
     
     
-    std::unique_ptr<Screen> m_Screens[5]; 
+    std::map<int, std::unique_ptr<Screen>> m_Screens; 
     Screen* m_ActiveScreen = nullptr;
     
     bool m_ShowSkybox = true;

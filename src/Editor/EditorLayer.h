@@ -146,6 +146,7 @@ private:
     
     bool uiEditMode = false;
     int selectedUIElement = -1;
+    int m_PreviewState = 0;
 
     void DrawMenuBar(Scene& scene);
     void DrawSceneHierarchy(Scene& scene);
