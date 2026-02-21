@@ -13,6 +13,7 @@ public:
 protected:
     void OnUpdate(float deltaTime) override;
     void OnRender() override;
+    void PostRender() override;
     
 private:
     void LoadProjectConfig();

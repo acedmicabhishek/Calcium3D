@@ -14,6 +14,10 @@
 #include "BuildManager/BuildManager.h"
 #include <imgui_internal.h> 
 #include <filesystem>
+#include <imgui.h>
+#include "UI/UIManager.h"
+#include "UI/UICreationEngine.h"
+#include "Core/GameState.h"
 
 EditorLayer::EditorLayer() {
 }
@@ -908,12 +912,24 @@ void EditorLayer::DrawSettings(Camera& camera) {
         } else {
             ImGui::TextDisabled("Drag panels to rearrange.");
         }
+
+        ImGui::Separator();
+        ImGui::Text("Load Hierarchy (Start State)");
+        const char* stateNames[] = { "0: Start Screen", "1: Gameplay", "2: Exit", "3: Pause", "4: Settings" };
+        int currentStart = (int)Application::Get().m_StartGameState;
+        if (ImGui::Combo("Start State", &currentStart, stateNames, IM_ARRAYSIZE(stateNames))) {
+            Application::Get().m_StartGameState = (GameState)currentStart;
+        }
         
         ImGui::Separator();
         ImGui::Text("Info");
         ImGui::Text("Calcium3D Engine v0.1");
         ImGui::Text("OpenGL %s", glGetString(GL_VERSION));
         ImGui::Text("GPU: %s", glGetString(GL_RENDERER));
+    }
+    
+    if (ImGui::CollapsingHeader("UI Editor")) {
+        DrawUIEditor();
     }
     
     ImGui::Separator();
@@ -952,6 +968,98 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             if (ImGui::IsKeyPressed(ImGuiKey_R)) gizmoOp = 2; 
         }
         
+        
+        if (uiEditMode) {
+            auto& elements = UICreationEngine::GetElements();
+            for (int i = 0; i < (int)elements.size(); i++) {
+                auto& el = elements[i];
+                
+                
+                float centerX = viewportWidth * el.anchorMin.x;
+                float centerY = viewportHeight * el.anchorMin.y;
+                float finalX = centerX + el.position.x - (el.size.x * el.pivot.x);
+                float finalY = centerY + el.position.y - (el.size.y * el.pivot.y);
+
+                
+                ImGui::SetCursorScreenPos(ImVec2(cursorPos.x + finalX, cursorPos.y + finalY));
+                std::string id = "##UIEl" + std::to_string(i);
+                ImGui::PushID(i);
+                
+                ImVec2 size = ImVec2(el.size.x, el.size.y);
+                if (size.x < 10) size.x = 10;
+                if (size.y < 10) size.y = 10;
+
+                ImGui::InvisibleButton(id.c_str(), size);
+                
+                if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                    ImVec2 delta = ImGui::GetIO().MouseDelta;
+                    el.position.x += delta.x;
+                    el.position.y += delta.y;
+                    selectedUIElement = i;
+                }
+                
+                if (ImGui::IsItemClicked()) {
+                    selectedUIElement = i;
+                }
+
+                
+                if (selectedUIElement == i) {
+                    float edgeWidth = 6.0f;
+                    ImVec2 tl = ImVec2(cursorPos.x + finalX, cursorPos.y + finalY);
+                    ImVec2 br = ImVec2(cursorPos.x + finalX + el.size.x, cursorPos.y + finalY + el.size.y);
+                    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+                    
+                    auto handleEdge = [&](const char* id, ImVec2 hpos, ImVec2 hsize, int axis, int side) {
+                        ImGui::SetCursorScreenPos(hpos);
+                        ImGui::InvisibleButton(id, hsize);
+                        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                            float delta = (axis == 0) ? ImGui::GetIO().MouseDelta.x : ImGui::GetIO().MouseDelta.y;
+                            if (side == 1) { 
+                                if (axis == 0) { el.size.x += delta; el.position.x += delta * el.pivot.x; }
+                                else { el.size.y += delta; el.position.y += delta * el.pivot.y; }
+                            } else { 
+                                if (axis == 0) { el.size.x -= delta; el.position.x += delta * (1.0f - el.pivot.x); }
+                                else { el.size.y -= delta; el.position.y += delta * (1.0f - el.pivot.y); }
+                            }
+                            if (el.size.x < 5) el.size.x = 5;
+                            if (el.size.y < 5) el.size.y = 5;
+                        }
+                        if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
+                             drawList->AddRectFilled(hpos, ImVec2(hpos.x + hsize.x, hpos.y + hsize.y), ImColor(1.0f, 1.0f, 0.0f, 0.4f));
+                        }
+                    };
+
+                    
+                    handleEdge("##RE", ImVec2(br.x - edgeWidth / 2, tl.y), ImVec2(edgeWidth, el.size.y), 0, 1);
+                    
+                    handleEdge("##BE", ImVec2(tl.x, br.y - edgeWidth / 2), ImVec2(el.size.x, edgeWidth), 1, 1);
+                    
+                    handleEdge("##LE", ImVec2(tl.x - edgeWidth / 2, tl.y), ImVec2(edgeWidth, el.size.y), 0, -1);
+                    
+                    handleEdge("##TE", ImVec2(tl.x, tl.y - edgeWidth / 2), ImVec2(el.size.x, edgeWidth), 1, -1);
+                }
+
+                
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                ImVec4 color = (selectedUIElement == i) ? ImVec4(1, 1, 0, 1) : ImVec4(1, 1, 1, 0.5f);
+                drawList->AddRect(
+                    ImVec2(cursorPos.x + finalX, cursorPos.y + finalY),
+                    ImVec2(cursorPos.x + finalX + el.size.x, cursorPos.y + finalY + el.size.y),
+                    ImColor(color)
+                );
+                
+                ImGui::PopID();
+            }
+        }
+
+        
+        
+        
+        
+        
+        
+        UIManager::Render(UICreationEngine::GetElements(), glm::vec2(viewportWidth, viewportHeight), glm::vec2(cursorPos.x, cursorPos.y));
         
         bool gizmoUsing = ImGuizmo::IsUsing();
         bool gizmoOver = ImGuizmo::IsOver();
@@ -1253,4 +1361,90 @@ void EditorLayer::DrawContentBrowserGrid() {
     } catch (...) {}
     
     ImGui::Columns(1);
+}
+void EditorLayer::DrawUIEditor() {
+    static char filter[128] = "";
+    ImGui::Checkbox("UI Edit Mode", &uiEditMode);
+    ImGui::Separator();
+
+    if (ImGui::Button("Add Button")) {
+        UIElement btn;
+        btn.name = "Button_" + std::to_string(UICreationEngine::GetElements().size());
+        btn.type = UIElementType::BUTTON;
+        btn.text = "Click Me";
+        btn.screenName = (strlen(filter) > 0) ? filter : "StartScreen";
+        UICreationEngine::AddElement(btn);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Add Text")) {
+        UIElement txt;
+        txt.name = "Text_" + std::to_string(UICreationEngine::GetElements().size());
+        txt.type = UIElementType::TEXT;
+        txt.text = "Hello UI";
+        txt.screenName = (strlen(filter) > 0) ? filter : "StartScreen";
+        UICreationEngine::AddElement(txt);
+    }
+
+    ImGui::Separator();
+    
+    ImGui::InputText("Screen Filter", filter, 128);
+    
+    auto& elements = UICreationEngine::GetElements();
+    for (int i = 0; i < (int)elements.size(); i++) {
+        if (strlen(filter) > 0 && elements[i].screenName.find(filter) == std::string::npos) continue;
+        
+        std::string label = (elements[i].screenName + "/" + elements[i].name) + "##" + std::to_string(i);
+        if (ImGui::Selectable(label.c_str(), selectedUIElement == i)) {
+            selectedUIElement = i;
+        }
+    }
+
+    if (selectedUIElement != -1 && selectedUIElement < (int)elements.size()) {
+        ImGui::Separator();
+        auto& el = elements[selectedUIElement];
+        
+        char nameBuf[256]; 
+        memset(nameBuf, 0, 256);
+        strncpy(nameBuf, el.name.c_str(), 255);
+        if (ImGui::InputText("Name", nameBuf, 256)) el.name = nameBuf;
+        
+        char textBuf[256]; 
+        memset(textBuf, 0, 256);
+        strncpy(textBuf, el.text.c_str(), 255);
+        if (ImGui::InputText("Text", textBuf, 256)) el.text = textBuf;
+
+        const char* screenOptions[] = { "StartScreen", "GameScreen", "HUD", "PauseMenu" };
+        int currentScreenIdx = 0;
+        for (int i = 0; i < 4; i++) {
+            if (el.screenName == screenOptions[i]) currentScreenIdx = i;
+        }
+        if (ImGui::Combo("Screen", &currentScreenIdx, screenOptions, 4)) {
+            el.screenName = screenOptions[currentScreenIdx];
+        }
+
+        ImGui::DragFloat2("Pos Offset", &el.position.x);
+        ImGui::DragFloat2("Size", &el.size.x);
+        
+        ImGui::Separator();
+        ImGui::DragFloat2("Anchor Min", &el.anchorMin.x, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat2("Anchor Max", &el.anchorMax.x, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat2("Pivot", &el.pivot.x, 0.01f, 0.0f, 1.0f);
+        ImGui::Separator();
+
+        ImGui::ColorEdit4("Color", &el.color.r);
+        
+        if (ImGui::Button("Delete Element")) {
+            elements.erase(elements.begin() + selectedUIElement);
+            selectedUIElement = -1;
+        }
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("Save UI Layout")) {
+        UICreationEngine::SaveLayout("ui_layout.json");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load UI Layout")) {
+        UICreationEngine::LoadLayout("ui_layout.json");
+    }
 }

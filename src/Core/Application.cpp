@@ -9,6 +9,7 @@
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
 #include <iostream>
+#include <imgui.h>
 #include "../Physics/HitboxGraphics.h"
 
 #include <glm/glm.hpp>
@@ -16,6 +17,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "stb/stb_image.h"
 #include "Pipelines/StandardPipeline.h"
+#include "../UI/Screens/StartScreen.h"
+#include "../UI/Screens/GameScreen.h"
+#include "../UI/UIManager.h"
+#include "../UI/UICreationEngine.h"
 
 Application* Application::s_Instance = nullptr;
 
@@ -115,6 +120,19 @@ bool Application::Init()
     m_RenderPipeline = std::move(standardPipeline);
 
     
+    UICreationEngine::LoadLayout("ui_layout.json");
+    
+    m_Screens[(int)GameState::START_SCREEN] = std::make_unique<StartScreen>();
+    m_Screens[(int)GameState::GAMEPLAY] = std::make_unique<GameScreen>();
+    
+    for (auto& pair : m_Screens) {
+        if (pair) pair->Init();
+    }
+
+    GameStateManager::SetState(m_StartGameState);
+    m_ActiveScreen = m_Screens[(int)m_StartGameState].get();
+
+    
     Texture defaultDiffuse = ResourceManager::LoadTexture("defaultDiffuse", "../Resource/default/texture/DefaultTex.png", "diffuse", 0);
     Texture defaultSpecular = ResourceManager::LoadTexture("defaultSpecular", "../Resource/default/texture/DefaultTex.png", "specular", 1);
 
@@ -173,17 +191,43 @@ void Application::Run()
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        
+        if (GameStateManager::GetState() == GameState::EXIT) {
+            Close();
+            break;
+        }
+
+        
+        GameState currentState = GameStateManager::GetState();
+        m_ActiveScreen = m_Screens[(int)currentState].get();
+
         m_RenderContext.time = currentFrame;
         m_RenderContext.deltaTime = deltaTime;
 
         glfwPollEvents();
         InputManager::Update();
 
+        if (m_ActiveScreen) m_ActiveScreen->Update(deltaTime);
+        
         OnUpdate(deltaTime);
         
-        m_Scene->Update(deltaTime);
+        if (GameStateManager::IsState(GameState::GAMEPLAY)) {
+            m_Scene->Update(deltaTime);
+        }
 
         OnRender();
+
+        
+        #ifdef C3D_RUNTIME
+        if (m_ActiveScreen) {
+            int w, h;
+            glfwGetFramebufferSize(m_Window, &w, &h);
+            ImVec2 mainPos = ImGui::GetMainViewport()->Pos;
+            m_ActiveScreen->Render(glm::vec2(w, h), glm::vec2(mainPos.x, mainPos.y));
+        }
+        #endif
+
+        PostRender();
 
         glfwSwapBuffers(m_Window);
     }

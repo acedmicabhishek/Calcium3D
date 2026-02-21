@@ -1,7 +1,14 @@
 #include "RuntimeApplication.h"
 #include "Logger.h"
+#include "Water.h"
+#include "2dCloud.h"
+#include "VolumetricCloud.h"
 #include <fstream>
 #include <iostream>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include <glm/glm.hpp>
 
 RuntimeApplication::RuntimeApplication(const ApplicationSpecification& spec)
     : Application(spec)
@@ -16,6 +23,14 @@ bool RuntimeApplication::Init()
 {
     if (!Application::Init()) return false;
     
+    
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
     LoadProjectConfig();
     return true;
 }
@@ -49,6 +64,17 @@ void RuntimeApplication::OnUpdate(float deltaTime)
 
 void RuntimeApplication::OnRender()
 {
+    
+    if (GameStateManager::IsState(GameState::START_SCREEN)) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        return;
+    }
+
     int winW, winH;
     glfwGetFramebufferSize(m_Window, &winW, &winH);
     glViewport(0, 0, winW, winH);
@@ -64,7 +90,6 @@ void RuntimeApplication::OnRender()
     m_RenderContext.volCloud = m_VolumetricCloud.get();
     
     m_RenderContext.mainFBO = 0; 
-    
     
     m_RenderContext.time = glfwGetTime();
     m_RenderContext.deltaTime = m_LastDeltaTime;
@@ -88,4 +113,14 @@ void RuntimeApplication::OnRender()
     m_RenderContext.moonEnabled = false;
 
     m_RenderPipeline->Execute(m_RenderContext);
+
+    
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void RuntimeApplication::PostRender() {
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

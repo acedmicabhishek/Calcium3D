@@ -150,7 +150,6 @@ void EditorApplication::RenderHome() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_Home->Render();
-    m_EditorLayer->End();
 }
 
 void EditorApplication::RenderEditor(float deltaTime) {
@@ -235,6 +234,9 @@ void EditorApplication::RenderEditor(float deltaTime) {
     m_EditorLayer->viewportTextureID = m_ViewportTexture;
 
     m_EditorLayer->Render(*m_Scene, *m_Camera, deltaTime);
+}
+
+void EditorApplication::PostRender() {
     m_EditorLayer->End();
 }
 

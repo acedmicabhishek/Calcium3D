@@ -27,6 +27,14 @@ set(SOURCES
     src/Core/Logger.cpp
     src/Core/ResourceManager.cpp
     src/Core/stb_impl.cpp
+    src/Core/GameState.h
+    
+    # UI
+    src/UI/UIManager.cpp
+    src/UI/UICreationEngine.cpp
+    src/UI/Screens/Screen.cpp
+    src/UI/Screens/StartScreen.cpp
+    src/UI/Screens/GameScreen.cpp
     
     # Home
     src/Home/Home.cpp
@@ -132,6 +140,13 @@ set(TESTBUILD_SOURCES
     src/Core/ResourceManager.cpp
     src/Core/stb_impl.cpp
     
+    # UI
+    src/UI/UIManager.cpp
+    src/UI/UICreationEngine.cpp
+    src/UI/Screens/Screen.cpp
+    src/UI/Screens/StartScreen.cpp
+    src/UI/Screens/GameScreen.cpp
+    
     # Renderer
     src/Renderer/Renderer.cpp
     src/Renderer/Shader.cpp
@@ -165,6 +180,14 @@ set(TESTBUILD_SOURCES
     
     # Glad
     src/glad.c
+    
+    # ImGui (Needed for Runtime UI)
+    imgui/imgui.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_widgets.cpp
+    imgui/imgui_tables.cpp
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
 )
 
 add_executable(calcium3d_testbuild ${TESTBUILD_SOURCES})

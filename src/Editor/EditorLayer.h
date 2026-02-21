@@ -143,6 +143,9 @@ private:
     std::string m_ProjectRoot = "";
     std::string m_CurrentContentPath = "";
     std::string m_SelectedFolderPath = "";
+    
+    bool uiEditMode = false;
+    int selectedUIElement = -1;
 
     void DrawMenuBar(Scene& scene);
     void DrawSceneHierarchy(Scene& scene);
@@ -150,6 +153,7 @@ private:
     void DrawSettings(Camera& camera);
     void DrawViewport(Scene& scene, Camera& camera);
     void DrawContentBrowser();
+    void DrawUIEditor();
     void DrawContentBrowserTree(const std::string& path);
     void DrawContentBrowserGrid();
     void SetupDockLayout();

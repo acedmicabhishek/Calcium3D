@@ -13,6 +13,9 @@
 #include "InputManager.h"
 #include "RenderContext.h"
 #include "RenderPipeline.h"
+#include "GameState.h"
+#include "../UI/Screens/Screen.h"
+#include <map>
 
 struct ApplicationSpecification {
     std::string Name = "Calcium3D Application";
@@ -29,9 +32,13 @@ public:
     void Close();
     virtual bool Init();
 
+    Screen* GetActiveScreen() const { return m_ActiveScreen; }
+    
     static Application& Get() { return *s_Instance; }
     static Application* GetInstance() { return s_Instance; }
     GLFWwindow* GetWindow() const { return m_Window; }
+    
+    GameState m_StartGameState = GameState::START_SCREEN;
 
     bool& GetShowSkybox() { return m_ShowSkybox; }
 
@@ -41,10 +48,11 @@ public:
 
 protected:
     virtual void Shutdown();
-
+    void ChangeState(GameState newState);
     
     virtual void OnUpdate(float deltaTime) = 0;
     virtual void OnRender() = 0;
+    virtual void PostRender() {}
 
     ApplicationSpecification m_Specification;
     GLFWwindow* m_Window;
@@ -62,6 +70,10 @@ protected:
     std::unique_ptr<class Water> m_Water;
     std::unique_ptr<class Cloud2D> m_Cloud2D;
     std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
+    
+    
+    std::unique_ptr<Screen> m_Screens[5]; 
+    Screen* m_ActiveScreen = nullptr;
     
     bool m_ShowSkybox = true;
     bool m_ShowGradientSky = false;

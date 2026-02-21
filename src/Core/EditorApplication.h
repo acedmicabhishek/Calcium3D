@@ -22,6 +22,7 @@ public:
 protected:
     void OnUpdate(float deltaTime) override;
     void OnRender() override;
+    void PostRender() override;
     void Shutdown() override;
 
 private:
