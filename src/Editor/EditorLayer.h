@@ -9,6 +9,7 @@
 #include <imgui_impl_opengl3.h>
 #include <string>
 #include <vector>
+#include <set>
 #include <filesystem>
 
 #include "Scene.h"
@@ -53,6 +54,9 @@ public:
 
     
     int selectedCube = -1;
+    std::set<int> selectedObjects;
+    int lastSelectedObject = -1;
+    std::vector<GameObject> m_ClipboardNodes;
     int selectedMesh = -1;
     bool isLightSelected = false; 
     int selectedPointLightIndex = -1;

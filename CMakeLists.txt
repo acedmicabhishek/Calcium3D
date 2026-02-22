@@ -75,6 +75,10 @@ set(SOURCES
     src/Editor/EditorLayer.cpp
     src/Editor/Gizmo.cpp
     
+    # Model Import
+    src/ModelImport/ModelImporter.cpp
+    include/ufbx/ufbx_impl.c
+    
     # Environment
     src/Environment/Water.cpp
     src/Environment/2dCloud.cpp
@@ -109,7 +113,9 @@ target_include_directories(calcium3d PUBLIC
     src/Environment
     src/Home
     src/BuildManager
+    src/ModelImport
     src
+    include/ufbx
 )
 
 # Link libraries
@@ -184,6 +190,10 @@ set(TESTBUILD_SOURCES
     src/Environment/2dCloud.cpp
     src/Environment/VolumetricCloud.cpp
     src/Physics/HitboxGraphics.cpp
+    
+    # Model Import
+    src/ModelImport/ModelImporter.cpp
+    include/ufbx/ufbx_impl.c
     
     # Glad
     src/glad.c

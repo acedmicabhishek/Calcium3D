@@ -28,6 +28,8 @@ public:
               glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f), 
               glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f));
               
+    void Draw(Shader& shader, Camera& camera, const glm::mat4& matrix);
+              
     bool Intersect(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::mat4& modelMatrix, float& intersectionDistance);
 };
 

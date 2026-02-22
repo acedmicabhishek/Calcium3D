@@ -12,6 +12,7 @@ public:
 	GLuint ID;
 	const char* type;
 	GLuint unit;
+	std::string path;
 
 	Texture(const char* image = "../Resource/default/texture/DefaultTex.png", const char* texType = "diffuse", GLuint slot = 0);
 

@@ -1,4 +1,6 @@
 #include "Scene.h"
+#include <algorithm>
+#include <unordered_map>
 
 Scene::Scene() {
     
@@ -34,6 +36,87 @@ void Scene::AddObject(GameObject object) {
 void Scene::RemoveObject(int index) {
     if (index >= 0 && index < (int)m_Objects.size()) {
         m_Objects.erase(m_Objects.begin() + index);
+        
+        for (auto& obj : m_Objects) {
+            if (obj.parentIndex == index) {
+                obj.parentIndex = -1;
+            } else if (obj.parentIndex > index) {
+                obj.parentIndex--;
+            }
+        }
+    }
+}
+
+void Scene::RemoveObjectTree(int index) {
+    if (index < 0 || index >= m_Objects.size()) return;
+    
+    std::vector<int> toDelete;
+    toDelete.push_back(index);
+    
+    for (size_t i = 0; i < toDelete.size(); ++i) {
+        int curr = toDelete[i];
+        for (int j = 0; j < m_Objects.size(); ++j) {
+            if (m_Objects[j].parentIndex == curr) {
+                toDelete.push_back(j);
+            }
+        }
+    }
+    
+    std::sort(toDelete.begin(), toDelete.end(), std::greater<int>());
+    
+    for (int idx : toDelete) {
+        RemoveObject(idx);
+    }
+}
+
+void Scene::DuplicateObjectTree(int index, int newParentIndex) {
+    if (index < 0 || index >= m_Objects.size()) return;
+    
+    std::unordered_map<int, int> indexMap;
+    std::vector<int> toCopy;
+    toCopy.push_back(index);
+    
+    for (size_t i = 0; i < toCopy.size(); ++i) {
+        int curr = toCopy[i];
+        for (int j = 0; j < m_Objects.size(); ++j) {
+            if (m_Objects[j].parentIndex == curr) {
+                toCopy.push_back(j);
+            }
+        }
+    }
+    
+    for (int oldIdx : toCopy) {
+        GameObject& src = m_Objects[oldIdx];
+        
+        Mesh newMesh(const_cast<std::vector<Vertex>&>(src.mesh.vertices), 
+                     const_cast<std::vector<GLuint>&>(src.mesh.indices), 
+                     src.mesh.textures);
+                     
+        GameObject newObj(std::move(newMesh), src.name + (oldIdx == index ? " (Copy)" : ""));
+        newObj.position = src.position;
+        newObj.rotation = src.rotation;
+        newObj.scale = src.scale;
+        newObj.material = src.material;
+        newObj.shape = src.shape;
+        newObj.collisionRadius = src.collisionRadius;
+        newObj.useGravity = src.useGravity;
+        newObj.isStatic = src.isStatic;
+        newObj.mass = src.mass;
+        newObj.friction = src.friction;
+        newObj.restitution = src.restitution;
+        newObj.enableCollision = src.enableCollision;
+        newObj.centerOfMassOffset = src.centerOfMassOffset;
+        newObj.isFolded = src.isFolded;
+        
+        if (oldIdx == index) {
+            newObj.parentIndex = newParentIndex;
+        } else {
+            newObj.parentIndex = indexMap[src.parentIndex];
+        }
+        
+        m_Objects.push_back(std::move(newObj));
+        int newIdx = m_Objects.size() - 1;
+        indexMap[oldIdx] = newIdx;
     }
 }
 
@@ -61,4 +144,26 @@ void Scene::RemovePointLight(int index) {
     if (index >= 0 && index < (int)m_PointLights.size()) {
         m_PointLights.erase(m_PointLights.begin() + index);
     }
+}
+
+glm::mat4 Scene::GetGlobalTransform(int objectIndex) {
+    if (objectIndex < 0 || objectIndex >= m_Objects.size()) {
+        return glm::mat4(1.0f);
+    }
+    
+    GameObject& obj = m_Objects[objectIndex];
+    glm::mat4 local = glm::translate(glm::mat4(1.0f), obj.position) * 
+                      glm::mat4_cast(obj.rotation) * 
+                      glm::scale(glm::mat4(1.0f), obj.scale);
+                      
+    if (obj.parentIndex != -1 && obj.parentIndex != objectIndex && obj.parentIndex < m_Objects.size()) {
+        static int depthCount = 0;
+        if (depthCount > 200) { depthCount = 0; return local; } 
+        depthCount++;
+        glm::mat4 result = GetGlobalTransform(obj.parentIndex) * local;
+        depthCount--;
+        return result;
+    }
+    
+    return local;
 }

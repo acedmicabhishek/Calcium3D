@@ -9,6 +9,7 @@ Texture::Texture(const char* image, const char* texType, GLuint slot)
 {
 	type = texType;
     unit = slot; 
+	path = image;
 
 	int widthImg, heightImg, numColCh;
 	stbi_set_flip_vertically_on_load(true);
@@ -55,19 +56,33 @@ Texture::Texture(const char* image, const char* texType, GLuint slot)
 	}
 	else if (numColCh == 4)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB_ALPHA, widthImg, heightImg, 0, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, widthImg, heightImg, 0, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
 	}
 	else if (numColCh == 3)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, widthImg, heightImg, 0, GL_RGB, GL_UNSIGNED_BYTE, bytes);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widthImg, heightImg, 0, GL_RGB, GL_UNSIGNED_BYTE, bytes);
 	}
 	else if (numColCh == 1)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, widthImg, heightImg, 0, GL_RED, GL_UNSIGNED_BYTE, bytes);
+		if (std::string(type) != "specular") {
+			GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
+			glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+		}
+	}
+	else if (numColCh == 2)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, widthImg, heightImg, 0, GL_RG, GL_UNSIGNED_BYTE, bytes);
+		if (std::string(type) != "specular") {
+			GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_GREEN};
+			glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+		}
 	}
 	else
 	{
-		throw std::invalid_argument("Automatic texture type recognition failed");
+		std::cout << "Warning: Unsupported channel count (" << numColCh << ") for texture: " << image << ". Using fallback." << std::endl;
+		unsigned char white[] = { 255, 255, 255, 255 };
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
 	}
 	
 	glGenerateMipmap(GL_TEXTURE_2D);

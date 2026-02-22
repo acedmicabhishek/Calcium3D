@@ -14,6 +14,7 @@
 #include "BuildManager/BuildManager.h"
 #include "Core/EditorApplication.h"
 #include "Scene/ScriptCompiler.h"
+#include "ModelImport/ModelImporter.h"
 #include <imgui_internal.h> 
 #include <filesystem>
 #include <fstream>
@@ -24,6 +25,9 @@
 #include "Core/GameState.h"
 #include "Scene/BehaviorRegistry.h"
 #include "Scene/Behavior.h"
+#include <functional>
+#include <unordered_map>
+#include <algorithm>
 
 EditorLayer::EditorLayer() {
 }
@@ -577,6 +581,15 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Sphere");
                 }
+                if (ImGui::MenuItem("Empty Object")) {
+                    std::vector<Vertex> rawVerts;
+                    std::vector<GLuint> rawIndices;
+                    Mesh emptyMesh(rawVerts, rawIndices, {});
+                    scene.AddObject(GameObject(std::move(emptyMesh), "Empty Object"));
+                    selectedCube = (int)scene.GetObjects().size() - 1;
+                    isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
+                    Logger::AddLog("Created Empty Object");
+                }
                 if (ImGui::MenuItem("Plane")) {
                     Mesh planeMesh = ObjectFactory::createPlane();
                     scene.AddObject(GameObject(std::move(planeMesh), "Plane"));
@@ -664,23 +677,254 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
     
     if (ImGui::CollapsingHeader("Scene Objects", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& objects = scene.GetObjects();
-        for (int i = 0; i < objects.size(); ++i) {
-            std::string name = objects[i].name ;
-            if (name.empty()) name = "GameObject " + std::to_string(i);
+        
+        auto executeCopy = [&]() {
+            m_ClipboardNodes.clear();
+            std::unordered_map<int, int> oldToClip;
+            std::set<int> treesToCopy;
+            for (int rootIdx : selectedObjects) {
+                if (rootIdx >= objects.size()) continue;
+                bool parentSelected = false;
+                int curr = objects[rootIdx].parentIndex;
+                while(curr != -1) {
+                    if (selectedObjects.count(curr)) { parentSelected = true; break; }
+                    curr = (curr < objects.size()) ? objects[curr].parentIndex : -1;
+                }
+                if (!parentSelected) {
+                    std::vector<int> q = { rootIdx };
+                    for (size_t k = 0; k < q.size(); ++k) {
+                        int c = q[k];
+                        treesToCopy.insert(c);
+                        for (int j = 0; j < objects.size(); ++j) {
+                            if (objects[j].parentIndex == c) q.push_back(j);
+                        }
+                    }
+                }
+            }
             
+            for (int idx : treesToCopy) {
+                m_ClipboardNodes.push_back(objects[idx]);
+                oldToClip[idx] = m_ClipboardNodes.size() - 1;
+            }
+            for (auto& obj : m_ClipboardNodes) {
+                if (oldToClip.count(obj.parentIndex)) obj.parentIndex = oldToClip[obj.parentIndex];
+                else obj.parentIndex = -1;
+            }
+            Logger::AddLog("Copied %zu objects", m_ClipboardNodes.size());
+        };
+        
+        auto executePaste = [&](int targetParentIndex) {
+            if (!m_ClipboardNodes.empty()) {
+                std::unordered_map<int, int> clipToNew;
+                selectedObjects.clear();
+                
+                for(int i = 0; i < m_ClipboardNodes.size(); ++i) {
+                    auto& src = m_ClipboardNodes[i];
+                    Mesh newMesh(const_cast<std::vector<Vertex>&>(src.mesh.vertices), 
+                                 const_cast<std::vector<GLuint>&>(src.mesh.indices), 
+                                 src.mesh.textures);
+                                 
+                    GameObject newObj(std::move(newMesh), src.name);
+                    newObj.position = src.position;
+                    newObj.rotation = src.rotation;
+                    newObj.scale = src.scale;
+                    newObj.material = src.material;
+                    newObj.shape = src.shape;
+                    newObj.collisionRadius = src.collisionRadius;
+                    newObj.useGravity = src.useGravity;
+                    newObj.isStatic = src.isStatic;
+                    newObj.mass = src.mass;
+                    newObj.friction = src.friction;
+                    newObj.restitution = src.restitution;
+                    newObj.enableCollision = src.enableCollision;
+                    newObj.centerOfMassOffset = src.centerOfMassOffset;
+                    newObj.isFolded = src.isFolded;
+                    
+                    if (clipToNew.count(src.parentIndex)) newObj.parentIndex = clipToNew[src.parentIndex];
+                    else newObj.parentIndex = targetParentIndex;
+                    
+                    scene.AddObject(std::move(newObj));
+                    int newIdx = scene.GetObjects().size() - 1;
+                    clipToNew[i] = newIdx;
+                    selectedObjects.insert(newIdx);
+                    selectedCube = newIdx;
+                    lastSelectedObject = newIdx;
+                }
+                Logger::AddLog("Pasted %zu objects", m_ClipboardNodes.size());
+            }
+        };
+        
+        std::function<void(int)> drawNode = [&](int index) {
+            std::string name = objects[index].name;
+            if (name.empty()) name = "GameObject " + std::to_string(index);
+            std::string label = name + "##" + std::to_string(index);
             
-            name += "##" + std::to_string(i);
+            bool hasChildren = false;
+            for (size_t i = 0; i < objects.size(); ++i) {
+                if (objects[i].parentIndex == index) { hasChildren = true; break; }
+            }
             
-            bool isSelected = (selectedCube == i);
-            if (ImGui::Selectable(name.c_str(), isSelected)) {
-                selectedCube = i;
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+            if (selectedObjects.count(index)) flags |= ImGuiTreeNodeFlags_Selected;
+            if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+            if (objects[index].isFolded) flags |= ImGuiTreeNodeFlags_DefaultOpen; 
+            
+            bool nodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)index, flags, "%s", name.c_str());
+            
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
+                if (ImGui::GetIO().KeyCtrl) {
+                    if (selectedObjects.count(index)) selectedObjects.erase(index);
+                    else selectedObjects.insert(index);
+                } else if (ImGui::GetIO().KeyShift && lastSelectedObject != -1) {
+                    int minIdx = std::min(index, lastSelectedObject);
+                    int maxIdx = std::max(index, lastSelectedObject);
+                    for (int i = minIdx; i <= maxIdx; ++i) {
+                        if (i < objects.size() && objects[i].parentIndex == objects[index].parentIndex) {
+                            selectedObjects.insert(i);
+                        }
+                    }
+                } else {
+                    selectedObjects.clear();
+                    selectedObjects.insert(index);
+                }
+
+                selectedCube = index; 
+                lastSelectedObject = index;
                 selectedMesh = -1;
                 isLightSelected = false;
                 selectedPointLightIndex = -1;
-                Logger::AddLog("Selected %s", objects[i].name.c_str());
+                Logger::AddLog("Selected %s", objects[index].name.c_str());
+            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                if (!selectedObjects.count(index)) {
+                     selectedObjects.clear();
+                     selectedObjects.insert(index);
+                     selectedCube = index;
+                     lastSelectedObject = index;
+                }
+            }
+            
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Copy")) {
+                    executeCopy();
+                    ImGui::EndPopup();
+                    if (nodeOpen && hasChildren) ImGui::TreePop();
+                    return;
+                }
+                if (ImGui::MenuItem("Paste")) {
+                    executePaste(index);
+                    ImGui::EndPopup();
+                    if (nodeOpen && hasChildren) ImGui::TreePop();
+                    return;
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Duplicate object tree")) {
+                    scene.DuplicateObjectTree(index, objects[index].parentIndex);
+                    ImGui::EndPopup();
+                    if (nodeOpen && hasChildren) ImGui::TreePop();
+                    return; 
+                }
+                if (ImGui::MenuItem("Delete object tree")) {
+                    scene.RemoveObjectTree(index);
+                    selectedObjects.clear();
+                    selectedCube = -1;
+                    lastSelectedObject = -1;
+                    ImGui::EndPopup();
+                    if (nodeOpen && hasChildren) ImGui::TreePop();
+                    return; 
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Create Empty Child")) {
+                    std::vector<Vertex> rawVerts;
+                    std::vector<GLuint> rawIndices;
+                    Mesh groupMesh(rawVerts, rawIndices, {});
+                    GameObject child(std::move(groupMesh), "Empty Child");
+                    child.parentIndex = index;
+                    scene.AddObject(std::move(child));
+                }
+                ImGui::EndPopup();
+            }
+            
+            if (ImGui::BeginDragDropSource()) {
+                ImGui::SetDragDropPayload("SCENE_OBJ", &index, sizeof(int));
+                ImGui::Text("Move %s", objects[index].name.c_str());
+                ImGui::EndDragDropSource();
+            }
+            
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_OBJ")) {
+                    int payloadIndex = *(const int*)payload->Data;
+                    if (payloadIndex != index) {
+                        bool isCycle = false;
+                        int curr = index;
+                        while(curr != -1) {
+                            if (curr == payloadIndex) { isCycle = true; break; }
+                            curr = objects[curr].parentIndex;
+                        }
+                        if (!isCycle) objects[payloadIndex].parentIndex = index;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+            
+            if (nodeOpen) {
+                if (hasChildren) {
+                    for (int i = 0; i < objects.size(); ++i) {
+                        
+                        if (i < objects.size() && objects[i].parentIndex == index) drawNode(i);
+                    }
+                    ImGui::TreePop();
+                }
+            }
+        };
+
+        if (ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_A)) {
+            selectedObjects.clear();
+            for (int i = 0; i < objects.size(); ++i) {
+                selectedObjects.insert(i);
             }
         }
         
+        if (ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) {
+            executeCopy();
+        }
+        
+        if (ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V)) {
+            executePaste((lastSelectedObject != -1 && lastSelectedObject < objects.size()) ? lastSelectedObject : -1);
+        }
+        
+        if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+            std::vector<int> toDelete;
+            for (int idx : selectedObjects) {
+                bool parentSelected = false;
+                int curr = (idx < objects.size()) ? objects[idx].parentIndex : -1;
+                while(curr != -1) {
+                    if (selectedObjects.count(curr)) { parentSelected = true; break; }
+                    curr = (curr < objects.size()) ? objects[curr].parentIndex : -1;
+                }
+                if (!parentSelected && idx < objects.size()) toDelete.push_back(idx);
+            }
+            std::sort(toDelete.begin(), toDelete.end(), std::greater<int>());
+            for (int idx : toDelete) scene.RemoveObjectTree(idx);
+            selectedObjects.clear();
+            selectedCube = -1;
+            lastSelectedObject = -1;
+            Logger::AddLog("Deleted %zu objects", toDelete.size());
+        }
+
+        for (int i = 0; i < objects.size(); ++i) {
+            if (objects[i].parentIndex == -1) {
+                drawNode(i);
+            }
+        }
+        
+        ImGui::InvisibleButton("DropRoot", ImVec2(ImGui::GetContentRegionAvail().x, 30));
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_OBJ")) {
+                int payloadIndex = *(const int*)payload->Data;
+                objects[payloadIndex].parentIndex = -1;
+            }
+            ImGui::EndDragDropTarget();
+        }
     }
     
     if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -746,6 +990,63 @@ void EditorLayer::DrawInspector(Scene& scene) {
             ImGui::SliderFloat("AO", &obj.material.ao, 0.0f, 1.0f);
             ImGui::DragFloat("Shininess", &obj.material.shininess, 1.0f, 1.0f, 256.0f);
             ImGui::Checkbox("Use Texture", &obj.material.useTexture);
+
+            
+            ImGui::Text("Diffuse Texture:");
+            std::string diffLabel = obj.material.diffuseTexture.empty() 
+                ? "[ Drop texture here ]##diffusedrop" 
+                : std::filesystem::path(obj.material.diffuseTexture).filename().string() + "##diffusedrop";
+            ImGui::Button(diffLabel.c_str(), ImVec2(-40, 0));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE")) {
+                    std::string texPath((const char*)payload->Data, payload->DataSize - 1);
+                    obj.material.diffuseTexture = texPath;
+                    obj.material.useTexture = true;
+                    
+                    obj.material.albedo = glm::vec3(1.0f);
+                    
+                    obj.mesh.textures.clear();
+                    obj.mesh.textures.push_back(Texture(texPath.c_str(), "diffuse"));
+                    Logger::AddLog("Set diffuse texture: %s", texPath.c_str());
+                }
+                ImGui::EndDragDropTarget();
+            }
+            if (!obj.material.diffuseTexture.empty()) {
+                ImGui::SameLine();
+                if (ImGui::Button("X##ClearDiff")) {
+                    obj.material.diffuseTexture = "";
+                    obj.mesh.textures.clear();
+                    Logger::AddLog("Cleared diffuse texture");
+                }
+            }
+
+            
+            ImGui::Text("Specular Texture:");
+            std::string specLabel = obj.material.specularTexture.empty() 
+                ? "[ Drop texture here ]##speculardrop" 
+                : std::filesystem::path(obj.material.specularTexture).filename().string() + "##speculardrop";
+            ImGui::Button(specLabel.c_str(), ImVec2(-40, 0));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE")) {
+                    std::string texPath((const char*)payload->Data, payload->DataSize - 1);
+                    obj.material.specularTexture = texPath;
+                    obj.mesh.textures.push_back(Texture(texPath.c_str(), "specular"));
+                    Logger::AddLog("Set specular texture: %s", texPath.c_str());
+                }
+                ImGui::EndDragDropTarget();
+            }
+            if (!obj.material.specularTexture.empty()) {
+                ImGui::SameLine();
+                if (ImGui::Button("X##ClearSpec")) {
+                    obj.material.specularTexture = "";
+                    
+                    obj.mesh.textures.erase(
+                        std::remove_if(obj.mesh.textures.begin(), obj.mesh.textures.end(),
+                            [](const Texture& t) { return std::string(t.type) == "specular"; }),
+                        obj.mesh.textures.end());
+                    Logger::AddLog("Cleared specular texture");
+                }
+            }
             
             ImGui::Separator();
             ImGui::Text("Physics");
@@ -1323,6 +1624,45 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             ImVec2(0, 1),  
             ImVec2(1, 0)   
         );
+
+        
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MODEL_FILE")) {
+                std::string modelPath((const char*)payload->Data, payload->DataSize - 1);
+                Logger::AddLog("Importing model into scene: %s", modelPath.c_str());
+                auto result = ModelImporter::Import(modelPath);
+                if (result.success) {
+                    auto& app = Application::Get();
+                    
+                    std::vector<Vertex> rawVerts;
+                    std::vector<GLuint> rawIndices;
+                    Mesh groupMesh(rawVerts, rawIndices, {});
+                    std::string groupName = std::filesystem::path(modelPath).stem().string();
+                    
+                    int parentId = (int)app.GetScene()->GetObjects().size();
+                    GameObject groupObj(std::move(groupMesh), groupName);
+                    app.GetScene()->AddObject(std::move(groupObj));
+                    
+                    for (auto& meshData : result.meshes) {
+                        Mesh mesh(meshData.vertices, meshData.indices, meshData.textures);
+                        GameObject obj(std::move(mesh), meshData.name);
+                        obj.material.albedo = meshData.albedo;
+                        
+                        if (!meshData.textures.empty()) {
+                            obj.material.useTexture = true;
+                            obj.material.diffuseTexture = meshData.textures[0].path;
+                        }
+
+                        obj.parentIndex = parentId;
+                        app.GetScene()->AddObject(std::move(obj));
+                    }
+                    Logger::AddLog("Added model group: %s (%zu meshes)", groupName.c_str(), result.meshes.size());
+                } else {
+                    Logger::AddLog("[ERROR] Import failed: %s", result.error.c_str());
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
         
         
         if ((ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) && 
@@ -1657,9 +1997,25 @@ void EditorLayer::DrawContentBrowser() {
     if (ImGui::Button("Home")) {
         m_CurrentContentPath = m_ProjectRoot;
     }
+    
+    
+    if (m_CurrentContentPath != m_ProjectRoot) {
+        ImGui::SameLine();
+        if (ImGui::Button("^ Up")) {
+            m_CurrentContentPath = std::filesystem::path(m_CurrentContentPath).parent_path().string();
+        }
+    }
+    
     ImGui::SameLine();
     ImGui::Text("> %s", m_CurrentContentPath.c_str());
     ImGui::Separator();
+    
+    
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && m_CurrentContentPath != m_ProjectRoot) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
+            m_CurrentContentPath = std::filesystem::path(m_CurrentContentPath).parent_path().string();
+        }
+    }
 
     static float leftWidth = 200.0f;
     ImGui::BeginChild("TreeChild", ImVec2(leftWidth, 0), true);
@@ -1727,9 +2083,6 @@ void EditorLayer::DrawContentBrowserGrid() {
             std::ofstream file(scriptPath);
             if (file.is_open()) {
                 file << "
-                file << "
-                file << "
-                file << "
                 file << "#include \"Scene/Behavior.h\"\n";
                 file << "#include \"Scene/BehaviorRegistry.h\"\n";
                 file << "#include \"Scene/Scene.h\"\n";
@@ -1738,36 +2091,14 @@ void EditorLayer::DrawContentBrowserGrid() {
                 file << "#include <glm/glm.hpp>\n";
                 file << "#include <glm/gtc/quaternion.hpp>\n";
                 file << "#include <iostream>\n\n";
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
-                file << "
                 file << "class " << newScriptName << " : public Behavior {\n";
                 file << "public:\n";
                 file << "    float speed = 5.0f;\n\n";
                 file << "    void OnStart() override {\n";
-                file << "        
                 file << "        std::cout << \"" << newScriptName << " started on: \" << gameObject->name << std::endl;\n";
                 file << "    }\n\n";
                 file << "    void OnUpdate(float dt) override {\n";
                 file << "        if (!gameObject) return;\n\n";
-                file << "        
                 file << "        glm::vec3 move(0.0f);\n";
                 file << "        if (InputManager::IsKeyPressed(GLFW_KEY_W)) move.z -= 1.0f;\n";
                 file << "        if (InputManager::IsKeyPressed(GLFW_KEY_S)) move.z += 1.0f;\n";
@@ -1813,6 +2144,41 @@ void EditorLayer::DrawContentBrowserGrid() {
     ImGui::Columns(columns, nullptr, false);
     
     static std::string pendingDeletePath;
+    static std::string clipboardContentPath;
+    
+    
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) {
+            if (!m_SelectedContentFile.empty() && std::filesystem::exists(m_SelectedContentFile)) {
+                clipboardContentPath = m_SelectedContentFile;
+                Logger::AddLog("Copied file path: %s", clipboardContentPath.c_str());
+            }
+        }
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V)) {
+            if (!clipboardContentPath.empty() && std::filesystem::exists(clipboardContentPath)) {
+                try {
+                    auto target = std::filesystem::path(m_CurrentContentPath) / std::filesystem::path(clipboardContentPath).filename();
+                    if (std::filesystem::exists(target)) {
+                        std::string stem = target.stem().string();
+                        std::string ext = target.extension().string();
+                        int counter = 1;
+                        while(std::filesystem::exists(target)) {
+                            target = std::filesystem::path(m_CurrentContentPath) / (stem + "_" + std::to_string(counter) + ext);
+                            counter++;
+                        }
+                    }
+                    std::filesystem::copy(clipboardContentPath, target, std::filesystem::copy_options::recursive);
+                    Logger::AddLog("Pasted file/folder layout to: %s", target.string().c_str());
+                } catch(const std::exception& e) {
+                    Logger::AddLog("[ERROR] Paste File Failed: %s", e.what());
+                }
+            }
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !m_SelectedContentFile.empty()) {
+            pendingDeletePath = m_SelectedContentFile;
+            ImGui::OpenPopup("ConfirmDelete");
+        }
+    }
     
     try {
         for (auto& entry : fs::directory_iterator(m_CurrentContentPath)) {
@@ -1821,7 +2187,19 @@ void EditorLayer::DrawContentBrowserGrid() {
             
             ImGui::PushID(filename.c_str());
             
+            bool isImage = (ext == ".png" || ext == ".jpg" || ext == ".jpeg");
+            GLuint thumbID = 0;
             
+            if (isImage) {
+                std::string thumbKey = "thumb_" + entry.path().string();
+                if (!ResourceManager::HasTexture(thumbKey)) {
+                    ResourceManager::LoadTexture(thumbKey, entry.path().string().c_str(), "diffuse", 0);
+                }
+                if (ResourceManager::HasTexture(thumbKey)) {
+                    thumbID = ResourceManager::GetTexture(thumbKey).ID;
+                }
+            }
+
             ImVec4 iconColor;
             if (entry.is_directory()) {
                 iconColor = ImVec4(1.0f, 0.85f, 0.4f, 1.0f);  
@@ -1831,17 +2209,54 @@ void EditorLayer::DrawContentBrowserGrid() {
                 iconColor = ImVec4(0.3f, 0.8f, 0.4f, 1.0f);   
             } else if (ext == ".json") {
                 iconColor = ImVec4(0.9f, 0.6f, 0.2f, 1.0f);   
-            } else if (ext == ".png" || ext == ".jpg") {
+            } else if (isImage && thumbID == 0) {
                 iconColor = ImVec4(0.8f, 0.3f, 0.8f, 1.0f);   
+            } else if (ModelImporter::IsModelFile(ext)) {
+                iconColor = ImVec4(0.95f, 0.4f, 0.7f, 1.0f);  
             } else {
                 iconColor = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);   
             }
             
-            ImGui::PushStyleColor(ImGuiCol_Button, iconColor);
-            
-            if (ImGui::Button("##Item", ImVec2(cellSize, cellSize))) {
+            if (thumbID != 0) {
                 
-                m_SelectedContentFile = entry.path().string();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+#if IMGUI_VERSION_NUM >= 18900
+                if (ImGui::ImageButton(filename.c_str(), (void*)(intptr_t)thumbID, ImVec2(cellSize, cellSize))) {
+                    m_SelectedContentFile = entry.path().string();
+                }
+#else
+                if (ImGui::ImageButton((void*)(intptr_t)thumbID, ImVec2(cellSize, cellSize))) {
+                    m_SelectedContentFile = entry.path().string();
+                }
+#endif
+                ImGui::PopStyleColor();
+            } else {
+                
+                ImGui::PushStyleColor(ImGuiCol_Button, iconColor);
+                if (ImGui::Button(filename.c_str(), ImVec2(cellSize, cellSize))) {
+                    m_SelectedContentFile = entry.path().string();
+                }
+                ImGui::PopStyleColor();
+            }
+
+            
+            if (!entry.is_directory() && ModelImporter::IsModelFile(ext)) {
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                    std::string path = entry.path().string();
+                    ImGui::SetDragDropPayload("MODEL_FILE", path.c_str(), path.size() + 1);
+                    ImGui::Text("Import: %s", filename.c_str());
+                    ImGui::EndDragDropSource();
+                }
+            }
+
+            
+            if (!entry.is_directory() && (ext == ".png" || ext == ".jpg" || ext == ".jpeg")) {
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                    std::string path = entry.path().string();
+                    ImGui::SetDragDropPayload("TEXTURE_FILE", path.c_str(), path.size() + 1);
+                    ImGui::Text("Texture: %s", filename.c_str());
+                    ImGui::EndDragDropSource();
+                }
             }
             
             
@@ -1852,13 +2267,47 @@ void EditorLayer::DrawContentBrowserGrid() {
                     auto& app = Application::Get();
                     app.GetScene()->Load(entry.path().string());
                     Logger::AddLog("Loaded scene: %s", filename.c_str());
+                } else if (ModelImporter::IsModelFile(ext)) {
+                    auto result = ModelImporter::Import(entry.path().string());
+                    if (result.success) {
+                        auto& app = Application::Get();
+                        
+                        std::vector<Vertex> rawVerts;
+                        std::vector<GLuint> rawIndices;
+                        Mesh groupMesh(rawVerts, rawIndices, {});
+                        std::string groupName = std::filesystem::path(entry.path().string()).stem().string();
+                        
+                        int parentId = (int)app.GetScene()->GetObjects().size();
+                        GameObject groupObj(std::move(groupMesh), groupName);
+                        app.GetScene()->AddObject(std::move(groupObj));
+
+                        for (auto& meshData : result.meshes) {
+                            Mesh mesh(meshData.vertices, meshData.indices, meshData.textures);
+                            GameObject obj(std::move(mesh), meshData.name);
+                            obj.material.albedo = meshData.albedo;
+                            
+                            
+                            if (!meshData.textures.empty()) {
+                                obj.material.useTexture = true;
+                                obj.material.diffuseTexture = meshData.textures[0].path;
+                            } else {
+                                obj.material.useTexture = false;
+                            }
+                            
+                            obj.parentIndex = parentId;
+                            app.GetScene()->AddObject(std::move(obj));
+                        }
+                        Logger::AddLog("Imported model group from %s (%zu meshes)", filename.c_str(), result.meshes.size());
+                    } else {
+                        Logger::AddLog("[ERROR] Import failed: %s", result.error.c_str());
+                    }
                 }
             }
             
             
             if (ImGui::BeginPopupContextItem()) {
                 if (entry.is_directory()) {
-                    if (ImGui::MenuItem("Open")) {
+                    if (ImGui::MenuItem("Open Folder")) {
                         m_CurrentContentPath = entry.path().string();
                     }
                 }
@@ -1867,15 +2316,40 @@ void EditorLayer::DrawContentBrowserGrid() {
                     app.GetScene()->Load(entry.path().string());
                     Logger::AddLog("Loaded scene: %s", filename.c_str());
                 }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Copy")) {
+                    clipboardContentPath = entry.path().string();
+                    Logger::AddLog("Copied: %s", clipboardContentPath.c_str());
+                }
+                if (ImGui::MenuItem("Paste Here")) {
+                    if (!clipboardContentPath.empty() && std::filesystem::exists(clipboardContentPath)) {
+                        try {
+                            
+                            std::filesystem::path pasteDest = entry.is_directory() ? entry.path() : std::filesystem::path(m_CurrentContentPath);
+                            auto target = pasteDest / std::filesystem::path(clipboardContentPath).filename();
+                            if (std::filesystem::exists(target)) {
+                                std::string stem = target.stem().string();
+                                std::string ext = target.extension().string();
+                                int counter = 1;
+                                while(std::filesystem::exists(target)) {
+                                    target = pasteDest / (stem + "_" + std::to_string(counter) + ext);
+                                    counter++;
+                                }
+                            }
+                            std::filesystem::copy(clipboardContentPath, target, std::filesystem::copy_options::recursive);
+                            Logger::AddLog("Pasted file/folder to: %s", target.string().c_str());
+                        } catch(const std::exception& e) {
+                            Logger::AddLog("[ERROR] Paste File Failed: %s", e.what());
+                        }
+                    }
+                }
+                ImGui::Separator();
                 if (ImGui::MenuItem("Delete")) {
                     pendingDeletePath = entry.path().string();
                     ImGui::OpenPopup("ConfirmDelete");
                 }
                 ImGui::EndPopup();
             }
-
-            ImGui::PopStyleColor();
-            
             
             ImGui::TextWrapped("%s", filename.c_str());
             

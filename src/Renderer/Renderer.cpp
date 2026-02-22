@@ -31,7 +31,8 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
     shader.setMat4("view", camera.GetViewMatrix());
     shader.setMat4("projection", camera.GetProjectionMatrix());
 
-    for (auto& object : objects) {
+    for (size_t i = 0; i < objects.size(); ++i) {
+        auto& object = objects[i];
         
         shader.setVec3("material.albedo", object.material.albedo);
         shader.setFloat("material.metallic", object.material.metallic);
@@ -40,7 +41,10 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
         shader.setFloat("material.shininess", object.material.shininess);
         shader.setBool("material.useTexture", object.material.useTexture);
         
-        glm::vec3 finalScale = object.scale * tilingFactor;
-        object.mesh.Draw(shader, camera, object.position, object.rotation, finalScale);
+        glm::mat4 globalTransform = scene.GetGlobalTransform(i);
+        
+        
+        glm::mat4 finalMatrix = glm::scale(globalTransform, glm::vec3(tilingFactor));
+        object.mesh.Draw(shader, camera, finalMatrix);
     }
 }

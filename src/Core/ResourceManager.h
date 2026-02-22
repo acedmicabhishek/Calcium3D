@@ -16,6 +16,7 @@ public:
     
     static Texture& LoadTexture(const std::string& name, const char* file, const char* texType, GLuint slot);
     static Texture& GetTexture(const std::string& name);
+    static bool HasTexture(const std::string& name);
     
     static void Clear();
 

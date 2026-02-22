@@ -22,6 +22,8 @@ struct GameObject {
     ColliderShape shape = ColliderShape::Box;
     float collisionRadius = 0.5f;
     
+    int parentIndex = -1;
+    bool isFolded = false; 
     
     bool useGravity = false;
     bool isStatic = false;
@@ -75,6 +77,8 @@ public:
     
     void AddObject(GameObject object);
     void RemoveObject(int index);
+    void RemoveObjectTree(int index);
+    void DuplicateObjectTree(int index, int newParentIndex = -1);
     void Clear();
     
     std::vector<GameObject>& GetObjects() { return m_Objects; }
@@ -107,6 +111,8 @@ public:
 
     const std::string& GetFilepath() const { return m_Filepath; }
     void SetFilepath(const std::string& path) { m_Filepath = path; }
+
+    glm::mat4 GetGlobalTransform(int objectIndex);
 
 private:
     std::string m_Filepath = "";

@@ -74,6 +74,44 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 	vao.Unbind();
 }
 
+void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model)
+{
+	shader.use();
+	vao.Bind();
+	unsigned int numDiffuse = 0;
+	unsigned int numSpecular = 0;
+    
+	for (unsigned int i = 0; i < textures.size(); i++)
+	{
+		std::string num;
+		std::string type = textures[i].type;
+		if (type == "diffuse")
+		{
+			num = std::to_string(numDiffuse++);
+		}
+		else if (type == "specular")
+		{
+			num = std::to_string(numSpecular++);
+		}
+		textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
+		textures[i].Bind();
+	}
+	glUniform3f(glGetUniformLocation(shader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+	glUniform3f(glGetUniformLocation(shader.ID, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+	camera.Matrix(camera.FOV, camera.nearPlane, camera.farPlane, shader, "camMatrix");
+
+	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+	
+	
+	float scaleX = glm::length(glm::vec3(model[0]));
+	float scaleY = glm::length(glm::vec3(model[1]));
+	float scaleZ = glm::length(glm::vec3(model[2]));
+	glUniform3f(glGetUniformLocation(shader.ID, "tilingFactor"), scaleX, scaleY, scaleZ);
+
+	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+	vao.Unbind();
+}
+
 bool Mesh::Intersect(const glm::vec3& ray_origin, const glm::vec3& ray_direction, const glm::mat4& modelMatrix, float& intersection_distance)
 {
 	glm::mat4 invModelMatrix = glm::inverse(modelMatrix);

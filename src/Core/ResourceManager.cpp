@@ -60,6 +60,10 @@ Texture& ResourceManager::GetTexture(const std::string& name) {
     return Textures.at(name);
 }
 
+bool ResourceManager::HasTexture(const std::string& name) {
+    return Textures.find(name) != Textures.end();
+}
+
 void ResourceManager::Clear() {
     for (auto& iter : Shaders)
         iter.second.Delete();
