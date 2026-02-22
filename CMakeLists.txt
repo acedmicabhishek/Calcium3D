@@ -22,6 +22,7 @@ set(SOURCES
     src/Core/main.cpp
     src/Core/Application.cpp
     src/Core/RuntimeApplication.cpp
+    src/Core/Console.cpp
     src/Core/EditorApplication.cpp
     src/Core/InputManager.cpp
     src/Core/Logger.cpp
@@ -35,6 +36,7 @@ set(SOURCES
     src/UI/Screens/Screen.cpp
     src/UI/Screens/StartScreen.cpp
     src/UI/Screens/GameScreen.cpp
+    src/UI/Screens/FallbackScreen.cpp
     
     # Home
     src/Home/Home.cpp
@@ -89,11 +91,14 @@ set(SOURCES
     imgui/backends/imgui_impl_glfw.cpp
     imgui/backends/imgui_impl_opengl3.cpp
     imgui/ImGuizmo.cpp
+    src/Game/game_code.cpp
 )
 
 # Add include directories so we don't need relative paths
 # Create executable
 add_executable(calcium3d ${SOURCES})
+
+set_target_properties(calcium3d PROPERTIES ENABLE_EXPORTS ON)
 
 # Add include directories so we don't need relative paths
 target_include_directories(calcium3d PUBLIC
@@ -135,6 +140,7 @@ set(TESTBUILD_SOURCES
     src/Core/main.cpp
     src/Core/Application.cpp
     src/Core/RuntimeApplication.cpp
+    src/Core/Console.cpp
     src/Core/InputManager.cpp
     src/Core/Logger.cpp
     src/Core/ResourceManager.cpp
@@ -146,6 +152,7 @@ set(TESTBUILD_SOURCES
     src/UI/Screens/Screen.cpp
     src/UI/Screens/StartScreen.cpp
     src/UI/Screens/GameScreen.cpp
+    src/UI/Screens/FallbackScreen.cpp
     
     # Renderer
     src/Renderer/Renderer.cpp
@@ -188,6 +195,7 @@ set(TESTBUILD_SOURCES
     imgui/imgui_tables.cpp
     imgui/backends/imgui_impl_glfw.cpp
     imgui/backends/imgui_impl_opengl3.cpp
+    src/Game/game_code.cpp
 )
 
 add_executable(calcium3d_testbuild ${TESTBUILD_SOURCES})

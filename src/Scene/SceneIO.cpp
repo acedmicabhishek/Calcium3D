@@ -3,10 +3,12 @@
 #include <nlohmann/json.hpp>
 #include "../Core/Logger.h"
 #include "ObjectFactory.h"
+#include "BehaviorRegistry.h"
 
 using json = nlohmann::json;
 
 void Scene::Save(const std::string& path) {
+    m_Filepath = path;
     json data;
     
     
@@ -37,6 +39,8 @@ void Scene::Save(const std::string& path) {
         jObj["angularVelocity"] = {obj.angularVelocity.x, obj.angularVelocity.y, obj.angularVelocity.z};
         jObj["shape"] = static_cast<int>(obj.shape);
         jObj["collisionRadius"] = obj.collisionRadius;
+        jObj["scripts"] = obj.scriptNames;
+        jObj["material"] = obj.material.Serialize();
         
         data["objects"].push_back(jObj);
     }
@@ -54,11 +58,13 @@ void Scene::Save(const std::string& path) {
     std::ofstream file(path);
     if (file.is_open()) {
         file << data.dump(4);
+        m_Filepath = path;
         Logger::AddLog("Scene saved to %s", path.c_str());
     }
 }
 
 void Scene::Load(const std::string& path) {
+    m_Filepath = path;
     std::ifstream file(path);
     if (!file.is_open()) {
         Logger::AddLog("[ERROR] Failed to open scene file: %s", path.c_str());
@@ -131,8 +137,29 @@ void Scene::Load(const std::string& path) {
                 if (jObj.contains("collisionRadius")) {
                     obj.collisionRadius = jObj["collisionRadius"];
                 }
+
+                if (jObj.contains("scripts")) {
+                    for (const auto& sName : jObj["scripts"]) {
+                        auto behavior = BehaviorRegistry::Create(sName);
+                        if (behavior) {
+                            behavior->gameObject = nullptr; 
+                            obj.behaviors.push_back(std::move(behavior));
+                            obj.scriptNames.push_back(sName);
+                        }
+                    }
+                }
+
+                if (jObj.contains("material")) {
+                    obj.material.Deserialize(jObj["material"]);
+                }
                 
                 AddObject(std::move(obj));
+                
+                auto& addedObj = m_Objects.back();
+                for (auto& script : addedObj.behaviors) {
+                    script->gameObject = &addedObj;
+                    script->OnStart();
+                }
             }
         }
 

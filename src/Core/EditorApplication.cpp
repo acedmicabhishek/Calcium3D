@@ -88,6 +88,7 @@ void EditorApplication::CreateProject(const std::string& path) {
             fs::create_directories(path + "/Assets");
             fs::create_directories(path + "/Scenes");
             fs::create_directories(path + "/Shaders");
+            fs::create_directories(path + "/Scripts");
         }
         OpenProject(path);
         Logger::AddLog("Created Project: %s", path.c_str());
@@ -96,8 +97,73 @@ void EditorApplication::CreateProject(const std::string& path) {
     }
 }
 
+void EditorApplication::EnterPlayMode() {
+    if (m_PlayMode) return;
+    m_PlayMode = true;
+    Editor::isEditMode = false;
+    
+    
+    m_PlayModeSceneBackup = "/tmp/calcium3d_playmode_backup.scene";
+    m_Scene->Save(m_PlayModeSceneBackup);
+    
+    
+    for (auto& obj : m_Scene->GetObjects()) {
+        for (auto& script : obj.behaviors) {
+            if (script) {
+                script->gameObject = &obj;
+                script->OnStart();
+            }
+        }
+    }
+
+    
+    GameStateManager::SetState(m_EditorLayer->m_PreviewState);
+    
+    Logger::AddLog("▶ Entered Play Mode");
+}
+
+void EditorApplication::ExitPlayMode() {
+    if (!m_PlayMode) return;
+    m_PlayMode = false;
+    Editor::isEditMode = true;
+    
+    
+    if (!m_PlayModeSceneBackup.empty() && std::filesystem::exists(m_PlayModeSceneBackup)) {
+        std::string originalPath = m_Scene->GetFilepath(); 
+        m_Scene->Clear();
+        m_Scene->Load(m_PlayModeSceneBackup);
+        m_Scene->SetFilepath(originalPath); 
+        std::filesystem::remove(m_PlayModeSceneBackup);
+        m_PlayModeSceneBackup.clear();
+    }
+    
+    
+    m_EditorLayer->selectedCube = -1;
+    m_EditorLayer->selectedMesh = -1;
+    m_EditorLayer->isLightSelected = false;
+    m_EditorLayer->selectedPointLightIndex = -1;
+    
+    Logger::AddLog("■ Exited Play Mode — Scene Restored");
+}
+
+void EditorApplication::TogglePlayMode() {
+    if (m_PlayMode) ExitPlayMode();
+    else EnterPlayMode();
+}
+
 void EditorApplication::OnUpdate(float deltaTime)
 {
+    
+    static bool f7Pressed = false;
+    if (glfwGetKey(m_Window, GLFW_KEY_F7) == GLFW_PRESS) {
+        if (!f7Pressed) {
+            f7Pressed = true;
+            TogglePlayMode();
+        }
+    } else {
+        f7Pressed = false;
+    }
+
     if (!m_EditorLayer->isTimePaused) {
         m_EditorLayer->timeOfDay += deltaTime * m_EditorLayer->timeSpeed;
         if (m_EditorLayer->timeOfDay >= 24.0f) m_EditorLayer->timeOfDay -= 24.0f;
@@ -106,6 +172,10 @@ void EditorApplication::OnUpdate(float deltaTime)
 
     if (Editor::isEditMode) {
          m_Camera->Inputs(m_Window);
+    } else {
+        
+        
+        m_Scene->Update(deltaTime);
     }
 
     m_ShowSkybox = m_EditorLayer->showSkybox;

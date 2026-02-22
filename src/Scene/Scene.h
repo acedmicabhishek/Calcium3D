@@ -6,6 +6,9 @@
 #include <glm/gtc/quaternion.hpp>
 #include "Mesh.h"
 #include "../Physics/PhysicsEngine.h"
+#include "Behavior.h"
+#include "../Renderer/Material.h"
+#include <memory>
 
 enum class ColliderShape { Box, Sphere };
 
@@ -33,6 +36,10 @@ struct GameObject {
     glm::vec3 angularVelocity;
     glm::vec3 torque;
     AABB collider;
+    
+    std::vector<std::shared_ptr<Behavior>> behaviors;
+    std::vector<std::string> scriptNames; 
+    Material material; 
     
     void ApplyImpulse(const glm::vec3& impulse) {
         if (!isStatic && mass > 0.0f) {
@@ -98,7 +105,11 @@ public:
     void Save(const std::string& path);
     void Load(const std::string& path);
 
+    const std::string& GetFilepath() const { return m_Filepath; }
+    void SetFilepath(const std::string& path) { m_Filepath = path; }
+
 private:
+    std::string m_Filepath = "";
     std::vector<GameObject> m_Objects;
     std::vector<PointLight> m_PointLights;
     

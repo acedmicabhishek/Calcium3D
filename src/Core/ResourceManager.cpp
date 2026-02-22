@@ -6,6 +6,9 @@ std::unordered_map<std::string, Texture> ResourceManager::Textures;
 
 std::string ResourceManager::ResolvePath(const std::string& path) {
 #ifdef C3D_RUNTIME
+    if (path.length() >= 11 && path.substr(0, 11) == "../shaders/") {
+        return "Internal/shaders/" + path.substr(11);
+    }
     if (path.length() >= 3 && path.substr(0, 3) == "../") {
         return "Internal/" + path.substr(3);
     }

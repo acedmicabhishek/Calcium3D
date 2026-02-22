@@ -12,13 +12,18 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Shader.h"  
 #include "BuildManager/BuildManager.h"
+#include "Core/EditorApplication.h"
+#include "Scene/ScriptCompiler.h"
 #include <imgui_internal.h> 
 #include <filesystem>
+#include <fstream>
 #include <imgui.h>
 #include "UI/UIManager.h"
 #include "UI/UICreationEngine.h"
 #include "UI/Screens/StartScreen.h"
 #include "Core/GameState.h"
+#include "Scene/BehaviorRegistry.h"
+#include "Scene/Behavior.h"
 
 EditorLayer::EditorLayer() {
 }
@@ -419,11 +424,8 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-                
-                
                 selectedCube = -1;
                 selectedMesh = -1;
-                isLightSelected = false;
                 isLightSelected = false;
                 selectedPointLightIndex = -1;
                 Logger::AddLog("Cleared all selections");
@@ -434,46 +436,113 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::EndMenu();
         }
 
+        
+        ImGui::Separator();
+        if (Editor::isEditMode) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.4f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.2f, 1.0f));
+            if (ImGui::Button("▶ Play (F7)")) {
+                auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+                if (edApp) edApp->EnterPlayMode();
+            }
+            ImGui::PopStyleColor(3);
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
+            if (ImGui::Button("■ Stop (F7)")) {
+                auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+                if (edApp) edApp->ExitPlayMode();
+            }
+            ImGui::PopStyleColor(3);
+        }
+        ImGui::Separator();
+        
+        
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.5f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.3f, 0.7f, 1.0f));
+        if (ImGui::Button("Save")) {
+            std::filesystem::path currentScenePath = Application::Get().GetScene()->GetFilepath();
+            if (currentScenePath.empty()) {
+                currentScenePath = std::filesystem::path(Application::Get().GetProjectRoot()) / "Scenes" / "main.scene";
+                Application::Get().GetScene()->SetFilepath(currentScenePath.string());
+            }
+            Application::Get().GetScene()->Save(currentScenePath.string());
+        }
+        ImGui::PopStyleColor(3);
+        
+        ImGui::Separator();
         if (ImGui::BeginMenu("Build")) {
             if (ImGui::MenuItem("Build Settings...")) {
                 ImGui::OpenPopup("Build Settings");
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Build (Linux)")) {
+                
+                auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+                if (edApp && edApp->IsPlayMode()) {
+                    edApp->ExitPlayMode();
+                }
+
                 BuildManager::BuildSettings settings;
                 settings.ProjectRoot = Application::Get().GetProjectRoot();
                 settings.OutputPath = (std::filesystem::path(settings.ProjectRoot) / "Build" / "Linux").string();
+                
+                
+                std::filesystem::path currentScenePath = Application::Get().GetScene()->GetFilepath();
+                if (currentScenePath.empty()) {
+                    currentScenePath = std::filesystem::path(settings.ProjectRoot) / "Scenes" / "main.scene";
+                    Application::Get().GetScene()->SetFilepath(currentScenePath.string());
+                }
+                Application::Get().GetScene()->Save(currentScenePath.string());
+                
+                settings.StartScene = currentScenePath.filename().string();
+                settings.StartGameState = (int)Application::Get().m_StartGameState;
+                
+                
+                nlohmann::json envSetup;
+                envSetup["showSkybox"] = showSkybox;
+                envSetup["showGradientSky"] = showGradientSky;
+                envSetup["showWater"] = showWater;
+                envSetup["showClouds"] = showClouds;
+                envSetup["cloudMode"] = cloudMode;
+                envSetup["waterHeight"] = waterHeight;
+                envSetup["cloudHeight"] = cloud2dHeight;
+                envSetup["cloudDensity"] = cloudDensity;
+                envSetup["cloudCover"] = cloudCover;
+                envSetup["waveSpeed"] = waveSpeed;
+                envSetup["waveStrength"] = waveStrength;
+                envSetup["waterColor"] = {waterColor.x, waterColor.y, waterColor.z};
+                
+                envSetup["timeOfDay"] = timeOfDay;
+                envSetup["sunEnabled"] = sunEnabled;
+                envSetup["sunIntensity"] = sunIntensity;
+                envSetup["sunColor"] = {sunColor.r, sunColor.g, sunColor.b, sunColor.a};
+                envSetup["sunBloom"] = sunBloom;
+                
+                envSetup["moonEnabled"] = moonEnabled;
+                envSetup["moonIntensity"] = moonIntensity;
+                envSetup["moonColor"] = {moonColor.r, moonColor.g, moonColor.b, moonColor.a};
+                envSetup["moonBloom"] = moonBloom;
+                
+                envSetup["globalTilingFactor"] = globalTilingFactor;
+                
+                Camera* cam = Application::Get().GetCamera();
+                if (cam) {
+                    envSetup["camera"]["position"] = {cam->Position.x, cam->Position.y, cam->Position.z};
+                    envSetup["camera"]["orientation"] = {cam->Orientation.x, cam->Orientation.y, cam->Orientation.z};
+                    envSetup["camera"]["yaw"] = cam->yaw;
+                    envSetup["camera"]["pitch"] = cam->pitch;
+                    envSetup["camera"]["fov"] = cam->FOV;
+                }
+                settings.EnvironmentSettings = envSetup;
+                
+                Logger::AddLog("Auto-saved scene to %s before building.", currentScenePath.c_str());
                 BuildManager::Build(settings);
             }
             ImGui::EndMenu();
-        }
-
-        
-        if (ImGui::BeginPopupModal("Build Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-            static char outputPath[256] = "Build/Linux";
-            static char startScene[128] = "main.scene";
-            
-            ImGui::InputText("Output Path", outputPath, IM_ARRAYSIZE(outputPath));
-            ImGui::InputText("Start Scene", startScene, IM_ARRAYSIZE(startScene));
-            
-            if (ImGui::Button("Build Now", ImVec2(120, 40))) {
-                BuildManager::BuildSettings settings;
-                settings.ProjectRoot = Application::Get().GetProjectRoot();
-                settings.StartScene = startScene;
-                
-                std::filesystem::path p(outputPath);
-                if (p.is_relative()) {
-                    settings.OutputPath = (std::filesystem::path(settings.ProjectRoot) / p).string();
-                } else {
-                    settings.OutputPath = p.string();
-                }
-
-                BuildManager::Build(settings);
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 40))) { ImGui::CloseCurrentPopup(); }
-            ImGui::EndPopup();
         }
 
         if (ImGui::BeginMenu("Help")) {
@@ -487,7 +556,6 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::MenuItem("Inspector", NULL, &showInspector);
             ImGui::MenuItem("Console", NULL, &showConsole);
             ImGui::MenuItem("Settings", NULL, &showMetrics); 
-            
             ImGui::EndMenu();
         }
         
@@ -495,7 +563,6 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             if (ImGui::BeginMenu("Primitives")) {
                 if (ImGui::MenuItem("Cube")) {
                     Mesh cubeMesh = ObjectFactory::createCube();
-                    
                     scene.AddObject(GameObject(std::move(cubeMesh), "Cube"));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
@@ -503,7 +570,6 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 }
                 if (ImGui::MenuItem("Sphere")) {
                     Mesh sphereMesh = ObjectFactory::createSphere(32, 16);
-                    
                     GameObject obj(std::move(sphereMesh), "Sphere");
                     obj.shape = ColliderShape::Sphere;
                     scene.AddObject(std::move(obj));
@@ -513,7 +579,6 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 }
                 if (ImGui::MenuItem("Plane")) {
                     Mesh planeMesh = ObjectFactory::createPlane();
-                    
                     scene.AddObject(GameObject(std::move(planeMesh), "Plane"));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
@@ -539,21 +604,57 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                  ImGui::MenuItem("Camera", NULL, false, false); 
                  ImGui::EndMenu();
              }
-             
             ImGui::EndMenu();
         }
+
+        
+        std::string projectName = Application::Get().GetProjectName();
+        float windowWidth = ImGui::GetWindowSize().x;
+        float textWidth = ImGui::CalcTextSize(projectName.c_str()).x;
+        
+        ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+        ImGui::TextColored(ImVec4(0.8f, 0.8f, 1.0f, 1.0f), "%s", projectName.c_str());
         
         
-        ImGui::SameLine(ImGui::GetWindowWidth() - 300);
+        ImGui::SameLine(windowWidth - 300);
         float fps = ImGui::GetIO().Framerate;
         ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f), "%.1f FPS (%.2f ms)", fps, 1000.0f / fps);
         
-        ImGui::SameLine(ImGui::GetWindowWidth() - 120);
+        ImGui::SameLine(windowWidth - 120);
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Mode: %s", Editor::isEditMode ? "EDITOR" : "PLAY");
 
         ImGui::EndMainMenuBar();
     }
+
+    if (ImGui::BeginPopupModal("Build Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char outputPath[256] = "Build/Linux";
+        static char startScene[128] = "main.scene";
+        
+        ImGui::InputText("Output Path", outputPath, IM_ARRAYSIZE(outputPath));
+        ImGui::InputText("Start Scene", startScene, IM_ARRAYSIZE(startScene));
+        
+        if (ImGui::Button("Build Now", ImVec2(120, 40))) {
+            BuildManager::BuildSettings settings;
+            settings.ProjectRoot = Application::Get().GetProjectRoot();
+            settings.StartScene = startScene;
+            settings.StartGameState = (int)Application::Get().m_StartGameState;
+            
+            std::filesystem::path p(outputPath);
+            if (p.is_relative()) {
+                settings.OutputPath = (std::filesystem::path(settings.ProjectRoot) / p).string();
+            } else {
+                settings.OutputPath = p.string();
+            }
+
+            BuildManager::Build(settings);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 40))) { ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
 }
+
 
 void EditorLayer::DrawSceneHierarchy(Scene& scene) {
     ImGuiWindowFlags lockFlags = fixedLayout ? 
@@ -638,6 +739,15 @@ void EditorLayer::DrawInspector(Scene& scene) {
             }
             
             ImGui::Separator();
+            ImGui::Text("Material");
+            ImGui::ColorEdit3("Albedo", &obj.material.albedo[0]);
+            ImGui::SliderFloat("Metallic", &obj.material.metallic, 0.0f, 1.0f);
+            ImGui::SliderFloat("Roughness", &obj.material.roughness, 0.0f, 1.0f);
+            ImGui::SliderFloat("AO", &obj.material.ao, 0.0f, 1.0f);
+            ImGui::DragFloat("Shininess", &obj.material.shininess, 1.0f, 1.0f, 256.0f);
+            ImGui::Checkbox("Use Texture", &obj.material.useTexture);
+            
+            ImGui::Separator();
             ImGui::Text("Physics");
             ImGui::Checkbox("Enable Gravity", &obj.useGravity);
             ImGui::Checkbox("Is Static", &obj.isStatic);
@@ -658,6 +768,141 @@ void EditorLayer::DrawInspector(Scene& scene) {
             ImGui::DragFloat("Mass", &obj.mass, 0.1f, 0.01f, 100.0f);
             ImGui::DragFloat("Friction", &obj.friction, 0.01f, 0.0f, 1.0f);
             ImGui::DragFloat("Bounciness", &obj.restitution, 0.01f, 0.0f, 1.0f);
+
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Scripts");
+            
+            
+            int numScripts = std::min((int)obj.behaviors.size(), (int)obj.scriptNames.size());
+            for (int j = 0; j < numScripts; j++) {
+                ImGui::PushID(j);
+                ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.3f, 1.0f), "  ● %s", obj.scriptNames[j].c_str());
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+                if (ImGui::SmallButton("Remove")) {
+                    obj.behaviors.erase(obj.behaviors.begin() + j);
+                    obj.scriptNames.erase(obj.scriptNames.begin() + j);
+                    ImGui::PopStyleColor();
+                    ImGui::PopID();
+                    break; 
+                }
+                ImGui::PopStyleColor();
+                ImGui::PopID();
+            }
+            
+            while (obj.scriptNames.size() > obj.behaviors.size()) obj.scriptNames.pop_back();
+            while (obj.behaviors.size() > obj.scriptNames.size()) obj.behaviors.pop_back();
+
+            
+            ImGui::Spacing();
+            ImGui::Text("Add Script:");
+            auto availableScripts = BehaviorRegistry::GetAvailableScripts();
+            
+            std::vector<std::string> allScriptOptions;
+            allScriptOptions.push_back("(None)");
+            for (auto& s : availableScripts) allScriptOptions.push_back(s);
+
+            
+            namespace fs = std::filesystem;
+            std::string projectRoot = Application::Get().GetProjectRoot();
+            if (!projectRoot.empty() && fs::exists(projectRoot)) {
+                try {
+                    for (auto& entry : fs::recursive_directory_iterator(projectRoot)) {
+                        if (entry.is_regular_file() && entry.path().extension() == ".cpp") {
+                            
+                            std::string relPath = fs::relative(entry.path(), projectRoot).string();
+                            if (relPath.find("Build") == 0) continue;
+                            
+                            std::string stem = entry.path().stem().string();
+                            
+                            bool alreadyListed = false;
+                            for (auto& existing : allScriptOptions) {
+                                if (existing == stem) { alreadyListed = true; break; }
+                            }
+                            if (!alreadyListed) {
+                                allScriptOptions.push_back(stem);
+                            }
+                        }
+                    }
+                } catch (...) {}
+            }
+
+            {
+                static int addScriptIdx = 0;
+                if (addScriptIdx >= (int)allScriptOptions.size()) addScriptIdx = 0;
+                
+                std::vector<const char*> items;
+                for (auto& s : allScriptOptions) items.push_back(s.c_str());
+                
+                static bool isCompiling = false;
+                static std::string compileScriptName = "";
+                static std::string compileScriptPath = "";
+                static GameObject* compileTargetObj = nullptr;
+                static int compileScriptFramesWait = 0;
+
+                ImGui::Combo("##AddScript", &addScriptIdx, items.data(), (int)items.size());
+                ImGui::SameLine();
+                
+                if (isCompiling) {
+                    ImGui::Button("Compiling...");
+                    if (compileScriptFramesWait > 1) { 
+                        fs::path engineRoot = fs::path("/home/light/Documents/C3D/Calcium3D");
+                        if (ScriptCompiler::CompileAndLoad(compileScriptPath, engineRoot.string())) {
+                            auto behavior = BehaviorRegistry::Create(compileScriptName);
+                            if (behavior && compileTargetObj) {
+                                behavior->gameObject = compileTargetObj;
+                                compileTargetObj->behaviors.push_back(std::move(behavior));
+                                compileTargetObj->scriptNames.push_back(compileScriptName);
+                                Logger::AddLog("Attached '%s' to '%s'", compileScriptName.c_str(), compileTargetObj->name.c_str());
+                            }
+                        } else {
+                            Logger::AddLog("[ERROR] Failed to compile or attach '%s'", compileScriptName.c_str());
+                        }
+                        isCompiling = false;
+                        compileTargetObj = nullptr;
+                    } else {
+                        compileScriptFramesWait++;
+                    }
+                } else {
+                    if (ImGui::Button("Attach")) {
+                    if (addScriptIdx == 0) { 
+                        obj.behaviors.clear();
+                        obj.scriptNames.clear();
+                        Logger::AddLog("Removed all scripts from '%s'", obj.name.c_str());
+                    } else {
+                        std::string sName = allScriptOptions[addScriptIdx];
+                        auto behavior = BehaviorRegistry::Create(sName);
+                        
+                        if (!behavior) {
+                            
+                            std::string projectRoot = Application::Get().GetProjectRoot();
+                            if (!projectRoot.empty()) {
+                                for (auto& entry : fs::recursive_directory_iterator(projectRoot)) {
+                                    if (entry.is_regular_file() && entry.path().stem().string() == sName && entry.path().extension() == ".cpp") {
+                                        std::string relPath = fs::relative(entry.path(), projectRoot).string();
+                                        if (relPath.find("Build") == 0) continue;
+                                        
+                                        isCompiling = true;
+                                        compileScriptName = sName;
+                                        compileScriptPath = entry.path().string();
+                                        compileTargetObj = &obj;
+                                        compileScriptFramesWait = 0;
+                                        Logger::AddLog("Compiling %s... please wait", sName.c_str());
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            
+                            behavior->gameObject = &obj;
+                            obj.behaviors.push_back(std::move(behavior));
+                            obj.scriptNames.push_back(sName);
+                            Logger::AddLog("Attached '%s' to '%s'", sName.c_str(), obj.name.c_str());
+                        }
+                    }
+                    }
+                }
+            }
 
             ImGui::Separator();
             ImGui::Text("Actions");
@@ -709,6 +954,86 @@ void EditorLayer::DrawInspector(Scene& scene) {
         if (ImGui::DragFloat3("Position", pos, 0.1f)) lightPos = glm::vec3(pos[0], pos[1], pos[2]);
     } else {
         ImGui::Text("No object selected.");
+        
+        
+        namespace fs = std::filesystem;
+        if (!m_SelectedContentFile.empty() && fs::exists(m_SelectedContentFile)) {
+            std::string ext = fs::path(m_SelectedContentFile).extension().string();
+            if (ext == ".cpp") {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.3f, 0.5f, 0.9f, 1.0f), "Script: %s", 
+                    fs::path(m_SelectedContentFile).filename().c_str());
+                ImGui::Text("Path: %s", m_SelectedContentFile.c_str());
+                
+                ImGui::Separator();
+                ImGui::Text("Attach to Object:");
+                
+                auto& objects = scene.GetObjects();
+                if (!objects.empty()) {
+                    static int attachTarget = 0;
+                    std::vector<const char*> objNames;
+                    for (auto& obj : objects) objNames.push_back(obj.name.c_str());
+                    
+                    ImGui::Combo("##AttachTarget", &attachTarget, objNames.data(), (int)objNames.size());
+                    
+                    
+                    auto availableScripts = BehaviorRegistry::GetAvailableScripts();
+                    ImGui::Text("Quick Attach:");
+                    for (auto& sName : availableScripts) {
+                        std::string btnLabel = "Attach " + sName + " →";
+                        if (ImGui::Button(btnLabel.c_str())) {
+                            if (attachTarget >= 0 && attachTarget < (int)objects.size()) {
+                                auto& obj = objects[attachTarget];
+                                auto behavior = BehaviorRegistry::Create(sName);
+                                if (behavior) {
+                                    behavior->gameObject = &obj;
+                                    obj.behaviors.push_back(std::move(behavior));
+                                    obj.scriptNames.push_back(sName);
+                                    Logger::AddLog("Attached '%s' to '%s'", sName.c_str(), obj.name.c_str());
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    ImGui::TextDisabled("No objects in scene. Add an object first.");
+                }
+            }
+        }
+
+        
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "Quick Script Attach");
+        ImGui::Text("Select an object and script to attach:");
+        
+        auto& objects = scene.GetObjects();
+        if (!objects.empty()) {
+            static int quickObj = 0;
+            std::vector<const char*> objNames;
+            for (auto& obj : objects) objNames.push_back(obj.name.c_str());
+            ImGui::Combo("Object##QuickAttach", &quickObj, objNames.data(), (int)objNames.size());
+
+            auto availableScripts = BehaviorRegistry::GetAvailableScripts();
+            if (!availableScripts.empty()) {
+                static int quickScript = 0;
+                std::vector<const char*> scriptItems;
+                for (auto& s : availableScripts) scriptItems.push_back(s.c_str());
+                ImGui::Combo("Script##QuickAttach", &quickScript, scriptItems.data(), (int)scriptItems.size());
+
+                if (ImGui::Button("Attach Script to Object")) {
+                    if (quickObj >= 0 && quickObj < (int)objects.size()) {
+                        auto& obj = objects[quickObj];
+                        std::string sName = availableScripts[quickScript];
+                        auto behavior = BehaviorRegistry::Create(sName);
+                        if (behavior) {
+                            behavior->gameObject = &obj;
+                            obj.behaviors.push_back(std::move(behavior));
+                            obj.scriptNames.push_back(sName);
+                            Logger::AddLog("Attached '%s' to '%s'", sName.c_str(), obj.name.c_str());
+                        }
+                    }
+                }
+            }
+        }
     }
     
     ImGui::End();
@@ -1379,30 +1704,178 @@ void EditorLayer::DrawContentBrowserGrid() {
     float panelWidth = ImGui::GetContentRegionAvail().x;
     int columns = (int)(panelWidth / (cellSize + padding));
     if (columns < 1) columns = 1;
+
     
+    if (ImGui::BeginPopupContextWindow("ContentBrowserPopup", ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
+        if (ImGui::MenuItem("New Script (.cpp)")) {
+            ImGui::OpenPopup("NewScriptPopup");
+        }
+        if (ImGui::MenuItem("New Folder")) {
+            ImGui::OpenPopup("NewFolderPopup");
+        }
+        ImGui::EndPopup();
+    }
+
+    
+    static char newScriptName[128] = "MyScript";
+    static bool openNewScriptPopup = false;
+    if (ImGui::BeginPopup("NewScriptPopup_Main")) {
+        ImGui::Text("Script Name:");
+        ImGui::InputText("##ScriptName", newScriptName, 128);
+        if (ImGui::Button("Create")) {
+            std::string scriptPath = m_CurrentContentPath + "/" + std::string(newScriptName) + ".cpp";
+            std::ofstream file(scriptPath);
+            if (file.is_open()) {
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "#include \"Scene/Behavior.h\"\n";
+                file << "#include \"Scene/BehaviorRegistry.h\"\n";
+                file << "#include \"Scene/Scene.h\"\n";
+                file << "#include \"Core/InputManager.h\"\n";
+                file << "#include <GLFW/glfw3.h>\n";
+                file << "#include <glm/glm.hpp>\n";
+                file << "#include <glm/gtc/quaternion.hpp>\n";
+                file << "#include <iostream>\n\n";
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "
+                file << "class " << newScriptName << " : public Behavior {\n";
+                file << "public:\n";
+                file << "    float speed = 5.0f;\n\n";
+                file << "    void OnStart() override {\n";
+                file << "        
+                file << "        std::cout << \"" << newScriptName << " started on: \" << gameObject->name << std::endl;\n";
+                file << "    }\n\n";
+                file << "    void OnUpdate(float dt) override {\n";
+                file << "        if (!gameObject) return;\n\n";
+                file << "        
+                file << "        glm::vec3 move(0.0f);\n";
+                file << "        if (InputManager::IsKeyPressed(GLFW_KEY_W)) move.z -= 1.0f;\n";
+                file << "        if (InputManager::IsKeyPressed(GLFW_KEY_S)) move.z += 1.0f;\n";
+                file << "        if (InputManager::IsKeyPressed(GLFW_KEY_A)) move.x -= 1.0f;\n";
+                file << "        if (InputManager::IsKeyPressed(GLFW_KEY_D)) move.x += 1.0f;\n\n";
+                file << "        if (glm::length(move) > 0.1f) {\n";
+                file << "            move = glm::normalize(move) * speed * dt;\n";
+                file << "            gameObject->position += move;\n";
+                file << "        }\n";
+                file << "    }\n";
+                file << "};\n\n";
+                file << "REGISTER_BEHAVIOR(" << newScriptName << ")\n";
+                file.close();
+                Logger::AddLog("Created script: %s", scriptPath.c_str());
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    
+    static char newFolderName[128] = "NewFolder";
+    if (ImGui::BeginPopup("NewFolderPopup_Main")) {
+        ImGui::Text("Folder Name:");
+        ImGui::InputText("##FolderName", newFolderName, 128);
+        if (ImGui::Button("Create")) {
+            std::string folderPath = m_CurrentContentPath + "/" + std::string(newFolderName);
+            fs::create_directories(folderPath);
+            Logger::AddLog("Created folder: %s", folderPath.c_str());
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
     ImGui::Columns(columns, nullptr, false);
+    
+    static std::string pendingDeletePath;
     
     try {
         for (auto& entry : fs::directory_iterator(m_CurrentContentPath)) {
             std::string filename = entry.path().filename().string();
+            std::string ext = entry.path().extension().string();
             
             ImGui::PushID(filename.c_str());
             
             
-            ImVec4 iconColor = entry.is_directory() ? ImVec4(1.0f, 0.9f, 0.5f, 1.0f) : ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
+            ImVec4 iconColor;
+            if (entry.is_directory()) {
+                iconColor = ImVec4(1.0f, 0.85f, 0.4f, 1.0f);  
+            } else if (ext == ".cpp" || ext == ".h") {
+                iconColor = ImVec4(0.3f, 0.5f, 0.9f, 1.0f);   
+            } else if (ext == ".scene") {
+                iconColor = ImVec4(0.3f, 0.8f, 0.4f, 1.0f);   
+            } else if (ext == ".json") {
+                iconColor = ImVec4(0.9f, 0.6f, 0.2f, 1.0f);   
+            } else if (ext == ".png" || ext == ".jpg") {
+                iconColor = ImVec4(0.8f, 0.3f, 0.8f, 1.0f);   
+            } else {
+                iconColor = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);   
+            }
+            
             ImGui::PushStyleColor(ImGuiCol_Button, iconColor);
             
             if (ImGui::Button("##Item", ImVec2(cellSize, cellSize))) {
                 
+                m_SelectedContentFile = entry.path().string();
             }
+            
             
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 if (entry.is_directory()) {
                     m_CurrentContentPath = entry.path().string();
+                } else if (ext == ".scene") {
+                    auto& app = Application::Get();
+                    app.GetScene()->Load(entry.path().string());
+                    Logger::AddLog("Loaded scene: %s", filename.c_str());
                 }
+            }
+            
+            
+            if (ImGui::BeginPopupContextItem()) {
+                if (entry.is_directory()) {
+                    if (ImGui::MenuItem("Open")) {
+                        m_CurrentContentPath = entry.path().string();
+                    }
+                }
+                if (ext == ".scene" && ImGui::MenuItem("Load Scene")) {
+                    auto& app = Application::Get();
+                    app.GetScene()->Load(entry.path().string());
+                    Logger::AddLog("Loaded scene: %s", filename.c_str());
+                }
+                if (ImGui::MenuItem("Delete")) {
+                    pendingDeletePath = entry.path().string();
+                    ImGui::OpenPopup("ConfirmDelete");
+                }
+                ImGui::EndPopup();
             }
 
             ImGui::PopStyleColor();
+            
             
             ImGui::TextWrapped("%s", filename.c_str());
             
@@ -1412,6 +1885,39 @@ void EditorLayer::DrawContentBrowserGrid() {
     } catch (...) {}
     
     ImGui::Columns(1);
+
+    
+    ImGui::Separator();
+    if (ImGui::Button("+ New Script")) {
+        ImGui::OpenPopup("NewScriptPopup_Main");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+ New Folder")) {
+        ImGui::OpenPopup("NewFolderPopup_Main");
+    }
+
+    
+    if (ImGui::BeginPopupModal("ConfirmDelete", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Delete '%s'?", fs::path(pendingDeletePath).filename().c_str());
+        ImGui::Text("This cannot be undone!");
+        ImGui::Separator();
+        if (ImGui::Button("Delete", ImVec2(120, 0))) {
+            try {
+                fs::remove_all(pendingDeletePath);
+                Logger::AddLog("Deleted: %s", pendingDeletePath.c_str());
+            } catch (const std::exception& e) {
+                Logger::AddLog("[ERROR] Failed to delete: %s", e.what());
+            }
+            pendingDeletePath.clear();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            pendingDeletePath.clear();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 void EditorLayer::DrawUIEditor() {
     static char filter[128] = "";

@@ -3,28 +3,29 @@
 // Outputs colors in RGBA
 out vec4 FragColor;
 
-
-// Imports the color from the Vertex Shader
+// Imports from Vertex Shader
 in vec3 color;
-// Imports the texture coordinates from the Vertex Shader
 in vec2 texCoord;
-// Imports the normal from the Vertex Shader
 in vec3 Normal;
-// Imports the current position from the Vertex Shader
 in vec3 crntPos;
 
-// Gets the Texture Unit from the main function
+// Textures
 uniform sampler2D tex0;
 uniform sampler2D tex1;
-// Gets the color of the light from the main function
-// uniform vec4 lightColor; // Unused in main()
-// Gets the position of the light from the main function
-// uniform vec3 lightPos; // Unused in main()
-// Gets the position of the camera from the main function
+
+// Camera
 uniform vec3 camPos;
-// Sun/Environment uniforms (for ambient/sky)
-// uniform vec4 sunColor; // Unused
-// uniform bool sunEnabled; // Unused
+
+// Material
+struct MaterialData {
+    vec3 albedo;
+    float metallic;
+    float roughness;
+    float ao;
+    float shininess;
+    bool useTexture;
+};
+uniform MaterialData material;
 
 // Point Lights
 #define MAX_POINT_LIGHTS 16
@@ -35,7 +36,6 @@ struct PointLight {
     float constant;
     float linear;
     float quadratic;
-    // bool enabled; // Implicitly if in the array/count, it's enabled. Or check intensity.
 };
 
 uniform PointLight pointLights[MAX_POINT_LIGHTS];
@@ -50,38 +50,53 @@ struct DirectionalLight {
 uniform DirectionalLight sunLight;
 uniform DirectionalLight moonLight;
 
+vec3 GetBaseColor() {
+    if (material.useTexture) {
+        return vec3(texture(tex0, texCoord)) * material.albedo;
+    }
+    return material.albedo;
+}
+
+float GetSpecularStrength() {
+    if (material.useTexture) {
+        return texture(tex1, texCoord).r * (1.0 - material.roughness);
+    }
+    return (1.0 - material.roughness);
+}
+
 vec3 CalcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir) {
     vec3 lightDir = normalize(light.direction);
     // Diffuse
     float diff = max(dot(normal, lightDir), 0.0);
-    // Specular
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0); // Hardcoded shininess for now
+    // Specular (Blinn-Phong)
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
     
-    vec3 diffuse = light.color * diff * vec3(texture(tex0, texCoord));
-    vec3 specular = light.color * spec * vec3(texture(tex1, texCoord).r);
+    vec3 baseColor = GetBaseColor();
+    float specStrength = GetSpecularStrength();
+    
+    vec3 diffuse = light.color * diff * baseColor;
+    vec3 specular = light.color * spec * specStrength * mix(vec3(1.0), baseColor, material.metallic);
     
     return (diffuse + specular) * light.intensity;
 }
 
 void main()
 {
-	// Ambient lighting (global)
-	float ambientStrength = 0.10f;
-    vec3 ambient = ambientStrength * vec3(1.0);
-
     // Normal and View direction
     vec3 normal = normalize(Normal);
     vec3 viewDirection = normalize(camPos - crntPos);
 
+    vec3 baseColor = GetBaseColor();
+
     // Accumulate Lighting
     vec3 totalLighting = vec3(0.0);
     
-    // 1. Ambient
-    totalLighting += ambient * vec3(texture(tex0, texCoord));
+    // 1. Ambient (affected by AO)
+    float ambientStrength = 0.10;
+    totalLighting += ambientStrength * baseColor * material.ao;
 
     // 2. Directional Lights (Sun & Moon)
-    // Only calculate if intensity > 0
     if (sunLight.intensity > 0.0)
         totalLighting += CalcDirLight(sunLight, normal, viewDirection);
     if (moonLight.intensity > 0.0)
@@ -96,28 +111,24 @@ void main()
         
         vec3 lightVec = light.position - crntPos;
         float dist = length(lightVec);
-        float a = light.quadratic;
-        float b = light.linear;
-        float c = light.constant;
-        float intensity = 1.0f / (a * dist * dist + b * dist + c);
+        float attenuation = 1.0 / (light.constant + light.linear * dist + light.quadratic * dist * dist);
         
         vec3 lightDirection = normalize(lightVec);
         
         // Diffuse
-        float diffuse = max(dot(normal, lightDirection), 0.0f);
+        float diffuse = max(dot(normal, lightDirection), 0.0);
         
-        // Specular
-        float specularLight = 0.50f;
-        vec3 reflectionDirection = reflect(-lightDirection, normal);
-        float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 16);
-        float specular = specAmount * specularLight;
+        // Specular (Blinn-Phong)
+        vec3 halfwayDir = normalize(lightDirection + viewDirection);
+        float specAmount = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
+        float specStrength = GetSpecularStrength();
         
-        // Combine
-        vec3 diffuseColor = vec3(texture(tex0, texCoord)) * diffuse * vec3(light.color);
-        vec3 specularColor = vec3(texture(tex1, texCoord).r) * specular * vec3(light.color);
+        // Combine with material
+        vec3 diffuseColor = baseColor * diffuse * vec3(light.color);
+        vec3 specularColor = specStrength * specAmount * vec3(light.color) * mix(vec3(1.0), baseColor, material.metallic);
         
-        totalLighting += (diffuseColor + specularColor) * light.intensity * intensity;
+        totalLighting += (diffuseColor + specularColor) * light.intensity * attenuation;
     }
 
-	FragColor = vec4(totalLighting, 1.0f);
+    FragColor = vec4(totalLighting, 1.0);
 }

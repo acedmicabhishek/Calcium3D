@@ -39,17 +39,17 @@ bool BuildManager::CreateDirectoryStructure(const fs::path& root) {
         fs::remove_all(root);
     }
     fs::create_directories(root);
-    fs::create_directories(root / "Assets");
-    fs::create_directories(root / "Scenes");
-    fs::create_directories(root / "Shaders");
-    fs::create_directories(root / "Internal");
+    fs::create_directories(root / "Internal"); 
     return true;
 }
 
 bool BuildManager::PrepareMesonSource(const fs::path& destination, const std::string& projectName) {
     Logger::AddLog("Preparing Meson source code...");
     
-    fs::path engineRoot = fs::current_path().parent_path();
+    fs::path engineRoot = fs::current_path();
+    while (!fs::exists(engineRoot / "Resource") && engineRoot.has_parent_path()) {
+        engineRoot = engineRoot.parent_path();
+    }
     
     
     if (fs::exists(engineRoot / "src")) {
@@ -64,6 +64,11 @@ bool BuildManager::PrepareMesonSource(const fs::path& destination, const std::st
     
     if (fs::exists(engineRoot / "include")) {
         fs::copy(engineRoot / "include", destination / "include", fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+    }
+
+    
+    if (fs::exists(engineRoot / "fs")) {
+        fs::copy(engineRoot / "fs", destination / "fs", fs::copy_options::recursive | fs::copy_options::overwrite_existing);
     }
 
     
@@ -82,6 +87,50 @@ bool BuildManager::PrepareMesonSource(const fs::path& destination, const std::st
 
         std::ofstream out(destination / "meson.build");
         out << content;
+        out.close();
+
+        
+        fs::path scriptsDir = destination / "Scripts";
+        if (fs::exists(scriptsDir)) {
+            std::vector<std::string> userScripts;
+            for (auto& entry : fs::recursive_directory_iterator(scriptsDir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".cpp") {
+                    std::string relPath = fs::relative(entry.path(), destination).string();
+                    userScripts.push_back(relPath);
+                    Logger::AddLog("  Found user script: %s", relPath.c_str());
+                }
+            }
+            if (!userScripts.empty()) {
+                
+                std::ifstream mesonIn(destination / "meson.build");
+                std::stringstream mesonBuf;
+                mesonBuf << mesonIn.rdbuf();
+                mesonIn.close();
+                std::string mesonContent = mesonBuf.str();
+
+                
+                size_t sourcesEnd = mesonContent.rfind(")");
+                
+                size_t sourcesMarker = mesonContent.find("sources = files(");
+                if (sourcesMarker != std::string::npos) {
+                    
+                    size_t closePos = mesonContent.find(")", sourcesMarker);
+                    if (closePos != std::string::npos) {
+                        std::string inject = ",\n";
+                        for (size_t i = 0; i < userScripts.size(); i++) {
+                            inject += "  '" + userScripts[i] + "'";
+                            if (i < userScripts.size() - 1) inject += ",\n";
+                            else inject += "\n";
+                        }
+                        mesonContent.insert(closePos, inject);
+                        
+                        std::ofstream mesonOut(destination / "meson.build");
+                        mesonOut << mesonContent;
+                        Logger::AddLog("  Injected %d user scripts into meson.build", (int)userScripts.size());
+                    }
+                }
+            }
+        }
     } else {
         Logger::AddLog("[ERROR] Meson template not found at %s", templatePath.c_str());
         return false;
@@ -93,8 +142,20 @@ bool BuildManager::PrepareMesonSource(const fs::path& destination, const std::st
 bool BuildManager::CompileRuntime(const fs::path& buildDir, const std::string& projectName) {
     Logger::AddLog("Compiling standalone runtime with Meson...");
     
-    std::string setupCmd = "cd " + buildDir.string() + " && meson setup build_runtime --wipe || meson setup build_runtime";
-    std::string compileCmd = "cd " + buildDir.string() + " && meson compile -C build_runtime";
+    
+    if (!fs::exists(buildDir / "meson.build")) {
+        Logger::AddLog("[ERROR] meson.build not found in %s! PrepareMesonSource may have failed.", buildDir.c_str());
+        return false;
+    }
+    
+    
+    std::string setupCmd;
+    if (fs::exists(buildDir / "build_runtime")) {
+        setupCmd = "cd '" + buildDir.string() + "' && meson setup build_runtime --wipe";
+    } else {
+        setupCmd = "cd '" + buildDir.string() + "' && meson setup build_runtime";
+    }
+    std::string compileCmd = "cd '" + buildDir.string() + "' && meson compile -C build_runtime";
     
     Logger::AddLog("Running: %s", setupCmd.c_str());
     if (system(setupCmd.c_str()) != 0) {
@@ -114,9 +175,11 @@ bool BuildManager::CompileRuntime(const fs::path& buildDir, const std::string& p
         fs::copy_file(binaryPath, buildDir / projectName, fs::copy_options::overwrite_existing);
         std::string chmodCmd = "chmod +x '" + (buildDir / projectName).string() + "'";
         system(chmodCmd.c_str());
+        Logger::AddLog("Binary copied to: %s", (buildDir / projectName).c_str());
         return true;
     }
 
+    Logger::AddLog("[ERROR] Binary not found at: %s", binaryPath.c_str());
     return false;
 }
 
@@ -133,6 +196,12 @@ bool BuildManager::CopyProjectData(const fs::path& projectRoot, const fs::path& 
     copyIfExists("Assets");
     copyIfExists("Scenes");
     copyIfExists("Shaders");
+    copyIfExists("Scripts");
+
+    
+    if (fs::exists(projectRoot / "ui_layout.json")) {
+        fs::copy_file(projectRoot / "ui_layout.json", destination / "ui_layout.json", fs::copy_options::overwrite_existing);
+    }
     
     return true;
 }
@@ -140,18 +209,29 @@ bool BuildManager::CopyProjectData(const fs::path& projectRoot, const fs::path& 
 bool BuildManager::CopyEngineInternalData(const fs::path& destination) {
     Logger::AddLog("Copying engine internal resources...");
     
-    fs::path engineRoot = fs::current_path().parent_path();
-    
+    fs::path engineRoot = fs::current_path();
+    Logger::AddLog("  CWD: %s", fs::current_path().c_str());
+    while (!fs::exists(engineRoot / "Resource") && engineRoot.has_parent_path()) {
+        engineRoot = engineRoot.parent_path();
+    }
+    Logger::AddLog("  Resolved Engine Root: %s", engineRoot.c_str());
     
     fs::path resPath = engineRoot / "Resource";
     if (fs::exists(resPath)) {
+        Logger::AddLog("  Copying Resource from: %s", resPath.c_str());
+        fs::create_directories(destination / "Internal");
         fs::copy(resPath, destination / "Internal" / "Resource", fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+    } else {
+        Logger::AddLog("  [WARNING] Resource directory not found at: %s", resPath.c_str());
     }
 
-    
     fs::path shaderPath = engineRoot / "shaders";
     if (fs::exists(shaderPath)) {
+        Logger::AddLog("  Copying shaders from: %s", shaderPath.c_str());
+        fs::create_directories(destination / "Internal");
         fs::copy(shaderPath, destination / "Internal" / "shaders", fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+    } else {
+        Logger::AddLog("  [WARNING] shaders directory not found at: %s", shaderPath.c_str());
     }
 
     return true;
@@ -161,13 +241,20 @@ bool BuildManager::GenerateConfigFile(const BuildSettings& settings) {
     Logger::AddLog("Generating project configuration...");
     
     fs::path configPath = fs::path(settings.OutputPath) / "project.json";
+    
+    nlohmann::json config;
+    config["name"] = "Built Application";
+    config["start_scene"] = settings.StartScene;
+    config["start_state"] = settings.StartGameState;
+    config["is_standalone"] = true;
+    
+    if (!settings.EnvironmentSettings.empty()) {
+        config["environment"] = settings.EnvironmentSettings;
+    }
+    
     std::ofstream file(configPath);
     if (file.is_open()) {
-        file << "{\n";
-        file << "  \"name\": \"Built Application\",\n";
-        file << "  \"start_scene\": \"" << settings.StartScene << "\",\n";
-        file << "  \"is_standalone\": true\n";
-        file << "}\n";
+        file << config.dump(4);
         file.close();
         return true;
     }

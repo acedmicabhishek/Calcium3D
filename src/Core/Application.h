@@ -45,9 +45,12 @@ public:
     virtual void OpenProject(const std::string& path);
     virtual void CreateProject(const std::string& path);
     const std::string& GetProjectRoot() const { return m_ProjectRoot; }
+    std::string GetProjectName() const;
 
 public:
     void AddScreen(int stateId, std::unique_ptr<Screen> screen);
+    Scene* GetScene() { return m_Scene.get(); }
+    Camera* GetCamera() { return m_Camera.get(); }
 
 protected:
     virtual void Shutdown();

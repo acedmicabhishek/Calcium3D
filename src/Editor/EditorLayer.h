@@ -135,6 +135,10 @@ public:
         m_CurrentContentPath = path; 
     }
 
+    int GetPreviewState() const { return m_PreviewState; }
+
+    friend class EditorApplication;
+
 private:
     GLFWwindow* m_Window = nullptr;
     bool m_FirstFrame = true;
@@ -147,6 +151,7 @@ private:
     bool uiEditMode = false;
     int selectedUIElement = -1;
     int m_PreviewState = 0;
+    std::string m_SelectedContentFile = ""; 
 
     void DrawMenuBar(Scene& scene);
     void DrawSceneHierarchy(Scene& scene);

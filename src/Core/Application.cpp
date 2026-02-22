@@ -19,6 +19,7 @@
 #include "Pipelines/StandardPipeline.h"
 #include "../UI/Screens/StartScreen.h"
 #include "../UI/Screens/GameScreen.h"
+#include "../UI/Screens/FallbackScreen.h"
 #include "../UI/UIManager.h"
 #include "../UI/UICreationEngine.h"
 
@@ -132,11 +133,11 @@ bool Application::Init()
 
     UICreationEngine::LoadLayout("ui_layout.json");
     
-    m_Screens[0] = std::make_unique<StartScreen>();
-    m_Screens[1] = std::make_unique<GameScreen>();
-    m_Screens[2] = std::make_unique<StartScreen>(); 
-    m_Screens[3] = std::make_unique<StartScreen>(); 
-    m_Screens[4] = std::make_unique<StartScreen>(); 
+    m_Screens[0] = std::make_unique<FallbackScreen>(0);
+    m_Screens[1] = std::make_unique<FallbackScreen>(1);
+    m_Screens[2] = std::make_unique<FallbackScreen>(2);
+    m_Screens[3] = std::make_unique<FallbackScreen>(3);
+    m_Screens[4] = std::make_unique<FallbackScreen>(4); 
     
     for (auto& pair : m_Screens) {
         if (pair.second) pair.second->Init();
@@ -205,10 +206,8 @@ void Application::Run()
         lastFrame = currentFrame;
 
         
-        if (GameStateManager::GetState() == (int)GameState::EXIT) {
-            Close();
-            break;
-        }
+        
+        
 
         
         int currentState = GameStateManager::GetState();
@@ -249,6 +248,16 @@ void Application::Run()
 void Application::OpenProject(const std::string& path) {
     m_ProjectRoot = path;
     Logger::AddLog("Opened Project: %s", path.c_str());
+    
+    std::string title = m_Specification.Name + " - " + GetProjectName();
+    glfwSetWindowTitle(m_Window, title.c_str());
+}
+
+std::string Application::GetProjectName() const {
+    if (m_ProjectRoot.empty()) return "Untitled Project";
+    
+    std::filesystem::path p(m_ProjectRoot);
+    return p.filename().string();
 }
 
 void Application::CreateProject(const std::string& path) {

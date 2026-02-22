@@ -2,7 +2,9 @@
 #define RUNTIME_APPLICATION_H
 
 #include "Application.h"
+#include "Console.h"
 #include <nlohmann/json.hpp>
+#include <memory>
 
 class RuntimeApplication : public Application {
 public:
@@ -17,7 +19,9 @@ protected:
     
 private:
     void LoadProjectConfig();
+    void CreateDefaultScene();
     float m_LastDeltaTime = 0.0f;
+    std::unique_ptr<Console> m_Console;
 };
 
 #endif

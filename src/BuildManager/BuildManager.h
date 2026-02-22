@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 
 class BuildManager {
 public:
@@ -12,6 +13,8 @@ public:
         std::string ProjectRoot;
         std::string TargetPlatform = "Linux";
         std::string StartScene = "main.scene";
+        int StartGameState = 1; 
+        nlohmann::json EnvironmentSettings;
     };
 
     static bool Build(const BuildSettings& settings);

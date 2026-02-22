@@ -19,6 +19,11 @@ public:
     void CreateProject(const std::string& path) override;
     bool Init() override;
 
+    bool IsPlayMode() const { return m_PlayMode; }
+    void EnterPlayMode();
+    void ExitPlayMode();
+    void TogglePlayMode();
+
 protected:
     void OnUpdate(float deltaTime) override;
     void OnRender() override;
@@ -45,6 +50,9 @@ private:
     std::unique_ptr<EditorLayer> m_EditorLayer;
     std::unique_ptr<Home> m_Home;
     std::unique_ptr<Gizmo> m_Gizmo;
+
+    bool m_PlayMode = false;
+    std::string m_PlayModeSceneBackup; 
 };
 
 #endif

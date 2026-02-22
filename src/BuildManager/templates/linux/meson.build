@@ -30,12 +30,17 @@ inc_dirs = include_directories(
   'src/Core',
   'src/Renderer',
   'src/Scene',
-  'src/Environment'
+  'src/Environment',
+  'src/UI',
+  'src/UI/Screens',
+  'imgui',
+  'imgui/backends'
 )
 
 sources = files(
   'src/Core/Application.cpp',
   'src/Core/RuntimeApplication.cpp',
+  'src/Core/Console.cpp',
   'src/Core/InputManager.cpp',
   'src/Core/Logger.cpp',
   'src/Core/ResourceManager.cpp',
@@ -65,7 +70,21 @@ sources = files(
   'src/Scene/ObjectFactory.cpp',
   'src/Scene/Scene.cpp',
   'src/Scene/SceneIO.cpp',
-  'src/glad.c'
+  'src/Game/game_code.cpp',
+  'src/UI/UIManager.cpp',
+  'src/UI/UICreationEngine.cpp',
+  'src/UI/Screens/Screen.cpp',
+  'src/UI/Screens/StartScreen.cpp',
+  'src/UI/Screens/GameScreen.cpp',
+  'src/UI/Screens/FallbackScreen.cpp',
+  'src/glad.c',
+  'fs/filesystem.cpp',
+  'imgui/imgui.cpp',
+  'imgui/imgui_draw.cpp',
+  'imgui/imgui_widgets.cpp',
+  'imgui/imgui_tables.cpp',
+  'imgui/backends/imgui_impl_glfw.cpp',
+  'imgui/backends/imgui_impl_opengl3.cpp'
 )
 
 executable('calcium3d_player',

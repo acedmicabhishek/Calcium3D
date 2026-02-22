@@ -33,6 +33,13 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
 
     for (auto& object : objects) {
         
+        shader.setVec3("material.albedo", object.material.albedo);
+        shader.setFloat("material.metallic", object.material.metallic);
+        shader.setFloat("material.roughness", object.material.roughness);
+        shader.setFloat("material.ao", object.material.ao);
+        shader.setFloat("material.shininess", object.material.shininess);
+        shader.setBool("material.useTexture", object.material.useTexture);
+        
         glm::vec3 finalScale = object.scale * tilingFactor;
         object.mesh.Draw(shader, camera, object.position, object.rotation, finalScale);
     }

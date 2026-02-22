@@ -9,7 +9,22 @@ Scene::~Scene() {
 }
 
 void Scene::Update(float dt) {
+    
+    for (auto& obj : m_Objects) {
+        for (auto& script : obj.behaviors) {
+            if (script) script->gameObject = &obj;
+        }
+    }
+
     physicsEngine.Update(dt, m_Objects);
+    
+    for (auto& obj : m_Objects) {
+        for (auto& script : obj.behaviors) {
+            if (script && script->enabled) {
+                script->OnUpdate(dt);
+            }
+        }
+    }
 }
 
 void Scene::AddObject(GameObject object) {
