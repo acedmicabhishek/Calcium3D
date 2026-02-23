@@ -14,6 +14,7 @@ public:
         std::string TargetPlatform = "Linux";
         std::string StartScene = "main.scene";
         int StartGameState = 1; 
+        std::map<int, std::string> CustomGameStates;
         nlohmann::json EnvironmentSettings;
     };
 

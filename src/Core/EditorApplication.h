@@ -17,6 +17,7 @@ public:
 
     void OpenProject(const std::string& path) override;
     void CreateProject(const std::string& path) override;
+    void SaveProject();
     bool Init() override;
 
     bool IsPlayMode() const { return m_PlayMode; }

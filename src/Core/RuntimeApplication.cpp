@@ -7,6 +7,7 @@
 #include "../UI/UICreationEngine.h"
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -14,6 +15,8 @@
 #include "../Physics/PhysicsEngine.h"
 #include "../Physics/HitboxGraphics.h"
 #include "../Core/InputManager.h"
+#include "../UI/Screens/StartScreen.h"
+#include "../UI/Screens/GameplayScreen.h"
 
 RuntimeApplication::RuntimeApplication(const ApplicationSpecification& spec)
     : Application(spec)
@@ -128,12 +131,38 @@ void RuntimeApplication::LoadProjectConfig() {
                 Logger::AddLog("Loaded extracted Editor Environment Settings.");
             }
 
+            if (config.contains("game_states")) {
+                auto& jStates = config["game_states"];
+                for (auto& item : jStates.items()) {
+                    int id = std::stoi(item.key());
+                    std::string name = item.value().get<std::string>();
+                    GameStateManager::RegisterState(id, name);
+                    
+                    if (name.find("Start Screen") != std::string::npos || name.find("Start Menu") != std::string::npos) {
+                        AddScreen(id, std::make_unique<StartScreen>());
+                    } else if (name.find("Gameplay") != std::string::npos || name.find("Main") != std::string::npos || name.find("Custom") != std::string::npos || id == 1) {
+                        AddScreen(id, std::make_unique<GameplayScreen>());
+                    } else {
+                        
+                        AddScreen(id, std::make_unique<GameplayScreen>());
+                    }
+                }
+            }
+
             if (config.contains("start_state")) {
                 int startState = config["start_state"].get<int>();
                 ChangeState(startState);
             } else {
                 ChangeState((int)GameState::GAMEPLAY);
             }
+            
+            
+            for (auto& pair : m_Screens) {
+                if (pair.second) pair.second->Init();
+            }
+            
+            
+            m_ActiveScreen = m_Screens[GameStateManager::GetState()].get();
             
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to load standalone config: %s", e.what());

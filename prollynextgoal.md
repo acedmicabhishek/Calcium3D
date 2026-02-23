@@ -1,6 +1,11 @@
 
 shader port to the editor 
 
+
+
+think on how states should matter to create levels to the game 
+creating multiple instances of scene is a bad idea i think
+
 audio system
 
 camera create obj

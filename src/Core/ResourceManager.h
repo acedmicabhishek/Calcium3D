@@ -10,7 +10,9 @@
 class ResourceManager {
 public:
     static Shader& LoadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile);
+    static Shader& ReloadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile);
     static Shader& GetShader(const std::string& name);
+    static bool HasShader(const std::string& name);
     
     static std::string ResolvePath(const std::string& path);
     

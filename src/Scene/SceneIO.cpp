@@ -4,6 +4,8 @@
 #include "../Core/Logger.h"
 #include "ObjectFactory.h"
 #include "BehaviorRegistry.h"
+#include <unordered_map>
+#include "../ModelImport/ModelImporter.h"
 
 using json = nlohmann::json;
 
@@ -41,6 +43,11 @@ void Scene::Save(const std::string& path) {
         jObj["collisionRadius"] = obj.collisionRadius;
         jObj["scripts"] = obj.scriptNames;
         jObj["material"] = obj.material.Serialize();
+        jObj["modelPath"] = obj.modelPath;
+        jObj["meshIndex"] = obj.meshIndex;
+        jObj["meshType"] = static_cast<int>(obj.meshType);
+        jObj["parentIndex"] = obj.parentIndex;
+        jObj["isFolded"] = obj.isFolded;
         
         data["objects"].push_back(jObj);
     }
@@ -98,16 +105,62 @@ void Scene::Load(const std::string& path) {
         }
 
         if (data.contains("objects")) {
+            std::unordered_map<std::string, ImportResult> importCache;
+            
             for (const auto& jObj : data["objects"]) {
                 ColliderShape loadedShape = ColliderShape::Box;
                 if (jObj.contains("shape")) {
                     loadedShape = static_cast<ColliderShape>(jObj["shape"].get<int>());
                 }
                 
-                GameObject obj(loadedShape == ColliderShape::Sphere ? 
-                               ObjectFactory::createSphere(30, 30) : 
-                               ObjectFactory::createCube(), 
-                               jObj["name"]);
+                std::string modelPath = "";
+                if (jObj.contains("modelPath")) modelPath = jObj["modelPath"].get<std::string>();
+                int meshIndex = -1;
+                if (jObj.contains("meshIndex")) meshIndex = jObj["meshIndex"].get<int>();
+                
+                MeshType loadedType = MeshType::None;
+                if (jObj.contains("meshType")) loadedType = static_cast<MeshType>(jObj["meshType"].get<int>());
+
+                GameObject* objPtr = nullptr;
+                
+                if (loadedType == MeshType::Model && !modelPath.empty() && meshIndex != -1) {
+                    if (importCache.find(modelPath) == importCache.end()) {
+                        importCache[modelPath] = ModelImporter::Import(modelPath);
+                        if (!importCache[modelPath].success) {
+                            Logger::AddLog("[SceneIO] [WARNING] Failed to re-import model: %s. Error: %s", 
+                                          modelPath.c_str(), importCache[modelPath].error.c_str());
+                        }
+                    }
+                    
+                    auto& result = importCache[modelPath];
+                    if (result.success && meshIndex < (int)result.meshes.size()) {
+                        auto& meshData = result.meshes[meshIndex];
+                        Mesh mesh(meshData.vertices, meshData.indices, meshData.textures);
+                        objPtr = new GameObject(std::move(mesh), jObj["name"]);
+                        objPtr->modelPath = modelPath;
+                        objPtr->meshIndex = meshIndex;
+                        objPtr->meshType = MeshType::Model;
+                        objPtr->isStatic = true; 
+                    }
+                }
+
+                if (!objPtr) {
+                    if (loadedType == MeshType::Cube) {
+                        objPtr = new GameObject(ObjectFactory::createCube(), jObj["name"]);
+                    } else if (loadedType == MeshType::Sphere) {
+                        objPtr = new GameObject(ObjectFactory::createSphere(30,30), jObj["name"]);
+                    } else if (loadedType == MeshType::Plane) {
+                        objPtr = new GameObject(ObjectFactory::createPlane(), jObj["name"]);
+                    } else {
+                        
+                        std::vector<Vertex> rawVerts;
+                        std::vector<GLuint> rawIndices;
+                        objPtr = new GameObject(Mesh(rawVerts, rawIndices, {}), jObj["name"]);
+                    }
+                    objPtr->meshType = loadedType;
+                }
+                
+                GameObject& obj = *objPtr;
                 obj.shape = loadedShape;
                 
                 auto pos = jObj["position"];
@@ -153,7 +206,11 @@ void Scene::Load(const std::string& path) {
                     obj.material.Deserialize(jObj["material"]);
                 }
                 
+                if (jObj.contains("parentIndex")) obj.parentIndex = jObj["parentIndex"];
+                if (jObj.contains("isFolded")) obj.isFolded = jObj["isFolded"];
+                
                 AddObject(std::move(obj));
+                delete objPtr;
                 
                 auto& addedObj = m_Objects.back();
                 for (auto& script : addedObj.behaviors) {

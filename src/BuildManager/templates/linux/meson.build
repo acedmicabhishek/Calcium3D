@@ -77,6 +77,7 @@ sources = files(
   'src/UI/UICreationEngine.cpp',
   'src/UI/Screens/Screen.cpp',
   'src/UI/Screens/StartScreen.cpp',
+  'src/UI/Screens/GameplayScreen.cpp',
   'src/UI/Screens/GameScreen.cpp',
   'src/UI/Screens/FallbackScreen.cpp',
   'src/ModelImport/ModelImporter.cpp',

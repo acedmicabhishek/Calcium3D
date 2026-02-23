@@ -11,6 +11,7 @@
 #include <memory>
 
 enum class ColliderShape { Box, Sphere };
+enum class MeshType { None, Cube, Sphere, Plane, Model };
 
 struct GameObject {
     Mesh mesh; 
@@ -42,6 +43,10 @@ struct GameObject {
     std::vector<std::shared_ptr<Behavior>> behaviors;
     std::vector<std::string> scriptNames; 
     Material material; 
+    
+    std::string modelPath = "";
+    int meshIndex = -1;
+    MeshType meshType = MeshType::None;
     
     void ApplyImpulse(const glm::vec3& impulse) {
         if (!isStatic && mass > 0.0f) {

@@ -63,9 +63,24 @@ void Home::Render() {
         
         ImGui::SetCursorPosX(centerX);
         if (ImGui::Button("Open Project", ImVec2(buttonWidth, 40))) {
-            
-            
-            Application::Get().OpenProject(m_BaseProjectsPath.string());
+            char buffer[256];
+            std::string selectedPath = "";
+            FILE* pipe = popen("zenity --file-selection --directory --title=\"Select Calcium3D Project Folder\"", "r");
+            if (pipe) {
+                while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+                    selectedPath += buffer;
+                }
+                pclose(pipe);
+                if (!selectedPath.empty() && selectedPath.back() == '\n') {
+                    selectedPath.pop_back(); 
+                }
+                if (!selectedPath.empty()) {
+                    Application::Get().OpenProject(selectedPath);
+                }
+            } else {
+                Logger::AddLog("[ERROR] Failed to open native file dialog (Zenity required).");
+                Application::Get().OpenProject(m_BaseProjectsPath.string());
+            }
         }
 
         
@@ -84,17 +99,38 @@ void Home::Render() {
             ImGui::EndPopup();
         }
 
-        ImGui::SetCursorPosY(viewport->WorkSize.y * 0.5f);
+        ImGui::SetCursorPosY(viewport->WorkSize.y * 0.45f);
         ImGui::SetCursorPosX(centerX);
-        ImGui::Text("Recent Projects:");
         
-        ImGui::BeginChild("RecentProjects", ImVec2(buttonWidth, 200), true);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+        ImGui::Text("Recent Projects:");
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+        
+        ImGui::SetCursorPosX(centerX);
+        
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 0.8f));
+        
+        ImGui::BeginChild("RecentProjects", ImVec2(buttonWidth, 220), true);
+        
         for (const auto& path : m_RecentProjects) {
-            if (ImGui::Selectable(path.c_str())) {
+            std::string dirName = std::filesystem::path(path).filename().string();
+            
+            
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+            if (ImGui::Selectable(dirName.c_str())) {
                 Application::Get().OpenProject(path);
+            }
+            ImGui::PopStyleColor();
+            
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s", path.c_str());
             }
         }
         ImGui::EndChild();
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
     }
     ImGui::End();
 }

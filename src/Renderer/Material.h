@@ -14,6 +14,7 @@ struct Material {
     
     std::string diffuseTexture = "";  
     std::string specularTexture = "";
+    std::string customShaderName = "";
     
     bool useTexture = true;  
 
@@ -26,6 +27,7 @@ struct Material {
         j["shininess"] = shininess;
         j["diffuseTexture"] = diffuseTexture;
         j["specularTexture"] = specularTexture;
+        j["customShaderName"] = customShaderName;
         j["useTexture"] = useTexture;
         return j;
     }
@@ -41,6 +43,7 @@ struct Material {
         if (j.contains("shininess")) shininess = j["shininess"].get<float>();
         if (j.contains("diffuseTexture")) diffuseTexture = j["diffuseTexture"].get<std::string>();
         if (j.contains("specularTexture")) specularTexture = j["specularTexture"].get<std::string>();
+        if (j.contains("customShaderName")) customShaderName = j["customShaderName"].get<std::string>();
         if (j.contains("useTexture")) useTexture = j["useTexture"].get<bool>();
     }
 };

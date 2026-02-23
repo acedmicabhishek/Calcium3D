@@ -73,11 +73,58 @@ bool EditorApplication::Init()
     return true;
 }
 
+void EditorApplication::SaveProject() {
+    if (m_ProjectRoot.empty()) return;
+    
+    nlohmann::json config;
+    std::filesystem::path currentScenePath = m_Scene->GetFilepath();
+    
+    if (!currentScenePath.empty()) {
+        
+        
+        std::filesystem::path projRoot(m_ProjectRoot);
+        std::string relPath = std::filesystem::relative(currentScenePath, projRoot).string();
+        config["last_scene"] = relPath;
+    } else {
+        config["last_scene"] = "";
+    }
+    
+    std::string configPath = m_ProjectRoot + "/project.c3dproj";
+    std::ofstream file(configPath);
+    if (file.is_open()) {
+        file << config.dump(4);
+        Logger::AddLog("Saved Project Configuration: %s", configPath.c_str());
+    } else {
+        Logger::AddLog("[ERROR] Failed to save Project Configuration: %s", configPath.c_str());
+    }
+}
+
 void EditorApplication::OpenProject(const std::string& path) {
     m_ProjectRoot = path;
     m_State = AppState::Editor;
     m_EditorLayer->SetContentPath(path);
     Logger::AddLog("Opened Project: %s", path.c_str());
+    
+    std::string configPath = path + "/project.c3dproj";
+    if (std::filesystem::exists(configPath)) {
+        try {
+            std::ifstream file(configPath);
+            nlohmann::json config = nlohmann::json::parse(file);
+            
+            if (config.contains("last_scene")) {
+                std::string lastScene = config["last_scene"].get<std::string>();
+                if (!lastScene.empty()) {
+                    std::filesystem::path fullScenePath = std::filesystem::path(path) / lastScene;
+                    if (std::filesystem::exists(fullScenePath)) {
+                        m_Scene->Load(fullScenePath.string());
+                        Logger::AddLog("Restored last active scene: %s", lastScene.c_str());
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            Logger::AddLog("[ERROR] Failed to parse project.c3dproj: %s", e.what());
+        }
+    }
 }
 
 void EditorApplication::CreateProject(const std::string& path) {
@@ -89,6 +136,13 @@ void EditorApplication::CreateProject(const std::string& path) {
             fs::create_directories(path + "/Scenes");
             fs::create_directories(path + "/Shaders");
             fs::create_directories(path + "/Scripts");
+            
+            nlohmann::json config;
+            config["last_scene"] = "";
+            std::ofstream file(path + "/project.c3dproj");
+            if (file.is_open()) {
+                file << config.dump(4);
+            }
         }
         OpenProject(path);
         Logger::AddLog("Created Project: %s", path.c_str());

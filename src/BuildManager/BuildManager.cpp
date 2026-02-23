@@ -248,6 +248,8 @@ bool BuildManager::GenerateConfigFile(const BuildSettings& settings) {
     config["start_state"] = settings.StartGameState;
     config["is_standalone"] = true;
     
+    config["game_states"] = settings.CustomGameStates;
+    
     if (!settings.EnvironmentSettings.empty()) {
         config["environment"] = settings.EnvironmentSettings;
     }

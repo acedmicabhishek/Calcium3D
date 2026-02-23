@@ -16,35 +16,21 @@ void FallbackScreen::Update(float deltaTime) {
 }
 
 void FallbackScreen::Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
-    
-    ImGui::SetNextWindowPos(ImVec2(baseScreenPos.x, baseScreenPos.y));
-    ImGui::SetNextWindowSize(ImVec2(canvasSize.x, canvasSize.y));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.55f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    bool isCurrentState = (GameStateManager::GetState() == m_StateId);
+    if (!isCurrentState) return; 
 
-    ImGui::Begin("##FallbackOverlay", nullptr,
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | 
-        ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-    ImGui::End();
-
-    ImGui::PopStyleVar(2);
-    ImGui::PopStyleColor();
-
-    
     float panelW = 480.0f;
     float panelH = 320.0f;
-    float panelX = baseScreenPos.x + (canvasSize.x - panelW) * 0.5f;
-    float panelY = baseScreenPos.y + (canvasSize.y - panelH) * 0.5f;
-
-    ImGui::SetNextWindowPos(ImVec2(panelX, panelY), ImGuiCond_Always);
+    
+    
+    ImGui::SetNextWindowPos(ImVec2(baseScreenPos.x + 50, baseScreenPos.y + 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(panelW, 0), ImGuiCond_Always);
 
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.08f, 0.08f, 0.12f, 0.95f));
     ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.90f, 0.35f, 0.15f, 0.80f));
     ImGui::PushStyleColor(ImGuiCol_TitleBg, ImVec4(0.60f, 0.15f, 0.05f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImVec4(0.75f, 0.20f, 0.08f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_TitleBgCollapsed, ImVec4(0.40f, 0.10f, 0.05f, 0.80f)); 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.55f, 0.25f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.70f, 0.30f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.45f, 0.20f, 1.0f));
@@ -52,9 +38,9 @@ void FallbackScreen::Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24, 18));
 
-    ImGui::Begin("Fallback Screen", nullptr,
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
+    
+    ImGui::Begin("Fallback Screen (Game State Not Configured)", nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 
     
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.20f, 1.0f));
@@ -188,5 +174,5 @@ void FallbackScreen::Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
     ImGui::End();
 
     ImGui::PopStyleVar(3);
-    ImGui::PopStyleColor(7);
+    ImGui::PopStyleColor(8); 
 }

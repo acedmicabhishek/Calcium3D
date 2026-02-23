@@ -282,8 +282,6 @@ void EditorLayer::Shutdown() {
 
 void EditorLayer::SetupDockLayout() {
     ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-    
-    
     ImGui::DockBuilderRemoveNode(dockspace_id);
     ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
     
@@ -291,29 +289,59 @@ void EditorLayer::SetupDockLayout() {
     ImGui::DockBuilderSetNodeSize(dockspace_id, vp->Size);
     ImGui::DockBuilderSetNodePos(dockspace_id, vp->Pos);
 
-    
-    ImGuiID dock_left, dock_remaining;
-    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.18f, &dock_left, &dock_remaining);
+    ImGuiID dock_main_id = dockspace_id;
+    ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.25f, nullptr, &dock_main_id);
+    ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.18f, nullptr, &dock_main_id);
+    ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.25f, nullptr, &dock_main_id);
 
-    
-    ImGuiID dock_right;
-    ImGui::DockBuilderSplitNode(dock_remaining, ImGuiDir_Right, 0.25f, &dock_right, &dock_remaining);
-
-    
-    ImGuiID dock_bottom;
-    ImGui::DockBuilderSplitNode(dock_remaining, ImGuiDir_Down, 0.25f, &dock_bottom, &dock_remaining);
-
-    
-
-    
-    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left);
-    ImGui::DockBuilderDockWindow("Inspector", dock_left);
-    ImGui::DockBuilderDockWindow("Settings", dock_right);
-    ImGui::DockBuilderDockWindow("Viewport", dock_remaining);
-    ImGui::DockBuilderDockWindow("Console", dock_bottom);
-    ImGui::DockBuilderDockWindow("Content Browser", dock_bottom);
+    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left_id);
+    ImGui::DockBuilderDockWindow("Inspector", dock_right_id);
+    ImGui::DockBuilderDockWindow("Settings", dock_right_id);
+    ImGui::DockBuilderDockWindow("Content Browser", dock_bottom_id);
+    ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
+    ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
 
     ImGui::DockBuilderFinish(dockspace_id);
+}
+
+void EditorLayer::DrawShaderEditor() {
+    ImGui::SetNextWindowSize(ImVec2(700, 500), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Shader Editor", nullptr, ImGuiWindowFlags_NoCollapse)) {
+        ImGui::Text("Editing: %s", m_EditingShaderPath.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Save & Compile")) {
+            std::ofstream out(m_EditingShaderPath);
+            if (out.is_open()) {
+                out << m_ShaderEditorBuffer;
+                out.close();
+                Logger::AddLog("Saved shader: %s", m_EditingShaderPath.c_str());
+                
+                std::filesystem::path p(m_EditingShaderPath);
+                std::string shaderName = p.stem().string();
+                std::string dir = p.parent_path().string();
+                std::string vertPath = dir + "/" + shaderName + ".vert";
+                std::string fragPath = dir + "/" + shaderName + ".frag";
+                
+                if (std::filesystem::exists(vertPath) && std::filesystem::exists(fragPath)) {
+                    ResourceManager::ReloadShader(shaderName, vertPath.c_str(), fragPath.c_str());
+                    Logger::AddLog("Hot-reloaded shader program: %s", shaderName.c_str());
+                } else {
+                    Logger::AddLog("Saved. Add paired .vert/.frag to compile as '%s'.", shaderName.c_str());
+                }
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Close")) {
+            m_EditingShaderPath = "";
+        }
+        
+        ImGui::Separator();
+        
+        ImGui::InputTextMultiline("##ShaderCode", m_ShaderEditorBuffer, sizeof(m_ShaderEditorBuffer), 
+                                  ImVec2(-FLT_MIN, -FLT_MIN), ImGuiInputTextFlags_AllowTabInput);
+        
+    }
+    ImGui::End();
 }
 
 void EditorLayer::Begin() {
@@ -382,6 +410,8 @@ void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
     
     if (showContentBrowser) DrawContentBrowser();
     
+    if (!m_EditingShaderPath.empty()) DrawShaderEditor();
+    
     DrawSettings(camera);
 #endif
 }
@@ -427,6 +457,10 @@ void EditorLayer::RenderOverlay(Scene& scene, Camera& camera) {
 void EditorLayer::DrawMenuBar(Scene& scene) {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("New Project")) {
+                auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+                if (edApp) edApp->SetState(EditorApplication::AppState::Home);
+            }
             if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
                 selectedCube = -1;
                 selectedMesh = -1;
@@ -467,13 +501,18 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.5f, 0.9f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.3f, 0.7f, 1.0f));
-        if (ImGui::Button("Save")) {
+        bool ctrlSpressed = ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S);
+        
+        if (ImGui::Button("Save") || ctrlSpressed) {
             std::filesystem::path currentScenePath = Application::Get().GetScene()->GetFilepath();
             if (currentScenePath.empty()) {
                 currentScenePath = std::filesystem::path(Application::Get().GetProjectRoot()) / "Scenes" / "main.scene";
                 Application::Get().GetScene()->SetFilepath(currentScenePath.string());
             }
             Application::Get().GetScene()->Save(currentScenePath.string());
+            
+            auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+            if (edApp) edApp->SaveProject();
         }
         ImGui::PopStyleColor(3);
         
@@ -504,6 +543,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 
                 settings.StartScene = currentScenePath.filename().string();
                 settings.StartGameState = (int)Application::Get().m_StartGameState;
+                settings.CustomGameStates = GameStateManager::GetAllStates();
                 
                 
                 nlohmann::json envSetup;
@@ -567,7 +607,9 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             if (ImGui::BeginMenu("Primitives")) {
                 if (ImGui::MenuItem("Cube")) {
                     Mesh cubeMesh = ObjectFactory::createCube();
-                    scene.AddObject(GameObject(std::move(cubeMesh), "Cube"));
+                    GameObject obj(std::move(cubeMesh), "Cube");
+                    obj.meshType = MeshType::Cube;
+                    scene.AddObject(std::move(obj));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Cube");
@@ -576,6 +618,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     Mesh sphereMesh = ObjectFactory::createSphere(32, 16);
                     GameObject obj(std::move(sphereMesh), "Sphere");
                     obj.shape = ColliderShape::Sphere;
+                    obj.meshType = MeshType::Sphere;
                     scene.AddObject(std::move(obj));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
@@ -585,14 +628,18 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     std::vector<Vertex> rawVerts;
                     std::vector<GLuint> rawIndices;
                     Mesh emptyMesh(rawVerts, rawIndices, {});
-                    scene.AddObject(GameObject(std::move(emptyMesh), "Empty Object"));
+                    GameObject obj(std::move(emptyMesh), "Empty Object");
+                    obj.meshType = MeshType::None;
+                    scene.AddObject(std::move(obj));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Empty Object");
                 }
                 if (ImGui::MenuItem("Plane")) {
                     Mesh planeMesh = ObjectFactory::createPlane();
-                    scene.AddObject(GameObject(std::move(planeMesh), "Plane"));
+                    GameObject obj(std::move(planeMesh), "Plane");
+                    obj.meshType = MeshType::Plane;
+                    scene.AddObject(std::move(obj));
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Plane");
@@ -1046,6 +1093,26 @@ void EditorLayer::DrawInspector(Scene& scene) {
                         obj.mesh.textures.end());
                     Logger::AddLog("Cleared specular texture");
                 }
+            }
+            ImGui::Separator();
+            ImGui::Text("Custom Render Shader:");
+            char shaderNameBuffer[128] = "";
+            strncpy(shaderNameBuffer, obj.material.customShaderName.c_str(), sizeof(shaderNameBuffer) - 1);
+            if (ImGui::InputText("##CustomShaderName", shaderNameBuffer, sizeof(shaderNameBuffer))) {
+                obj.material.customShaderName = shaderNameBuffer;
+            }
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SHADER_FILE")) {
+                    std::string shaderPath((const char*)payload->Data, payload->DataSize - 1);
+                    std::filesystem::path p(shaderPath);
+                    obj.material.customShaderName = p.stem().string();
+                    Logger::AddLog("Assigned custom shader: %s", obj.material.customShaderName.c_str());
+                }
+                ImGui::EndDragDropTarget();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("X##ClearShader")) {
+                obj.material.customShaderName = "";
             }
             
             ImGui::Separator();
@@ -1637,16 +1704,22 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                     std::vector<Vertex> rawVerts;
                     std::vector<GLuint> rawIndices;
                     Mesh groupMesh(rawVerts, rawIndices, {});
-                    std::string groupName = std::filesystem::path(modelPath).stem().string();
+                    std::string groupName = "Model: " + std::filesystem::path(modelPath).stem().string();
                     
                     int parentId = (int)app.GetScene()->GetObjects().size();
                     GameObject groupObj(std::move(groupMesh), groupName);
+                    groupObj.isStatic = true;
                     app.GetScene()->AddObject(std::move(groupObj));
                     
+                    int meshIdx = 0;
                     for (auto& meshData : result.meshes) {
                         Mesh mesh(meshData.vertices, meshData.indices, meshData.textures);
                         GameObject obj(std::move(mesh), meshData.name);
                         obj.material.albedo = meshData.albedo;
+                        obj.modelPath = modelPath;
+                        obj.meshIndex = meshIdx++;
+                        obj.meshType = MeshType::Model;
+                        obj.isStatic = true;
                         
                         if (!meshData.textures.empty()) {
                             obj.material.useTexture = true;
@@ -1897,30 +1970,26 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 glm::mat4 view = camera.GetViewMatrix();
                 glm::mat4 projection = camera.GetProjectionMatrix();
                 
-                
-                glm::mat4 modelMatrix = glm::mat4(1.0f);
-                modelMatrix = glm::translate(modelMatrix, obj.position);
-                modelMatrix *= glm::mat4_cast(obj.rotation);
-                modelMatrix = glm::scale(modelMatrix, obj.scale);
-                
+                glm::mat4 worldMatrix = scene.GetGlobalTransform(selectedCube);
                 
                 ImGuizmo::SetOrthographic(false);
                 ImGuizmo::SetDrawlist();
                 ImGuizmo::SetRect(cursorPos.x, cursorPos.y, viewportPanelSize.x, viewportPanelSize.y);
-                
                 
                 ImGuizmo::OPERATION op = ImGuizmo::TRANSLATE;
                 if (gizmoOp == 1) op = ImGuizmo::ROTATE;
                 if (gizmoOp == 2) op = ImGuizmo::SCALE;
                 ImGuizmo::MODE mode = gizmoLocal ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
                 
-                
-                if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(modelMatrix))) {
-                    glm::vec3 skew; glm::vec4 perspective; glm::vec3 newPos, newScale; glm::quat newRot;
-                    glm::decompose(modelMatrix, newScale, newRot, newPos, skew, perspective);
-                    obj.position = newPos;
-                    obj.rotation = newRot;
-                    obj.scale = newScale;
+                if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(worldMatrix))) {
+                    glm::mat4 localMatrix = worldMatrix;
+                    if (obj.parentIndex != -1 && obj.parentIndex < scene.GetObjects().size()) {
+                        glm::mat4 parentWorld = scene.GetGlobalTransform(obj.parentIndex);
+                        localMatrix = glm::inverse(parentWorld) * worldMatrix;
+                    }
+
+                    glm::vec3 skew; glm::vec4 perspective;
+                    glm::decompose(localMatrix, obj.scale, obj.rotation, obj.position, skew, perspective);
                 }
             }
         }
@@ -2002,7 +2071,10 @@ void EditorLayer::DrawContentBrowser() {
     if (m_CurrentContentPath != m_ProjectRoot) {
         ImGui::SameLine();
         if (ImGui::Button("^ Up")) {
-            m_CurrentContentPath = std::filesystem::path(m_CurrentContentPath).parent_path().string();
+            auto parent = std::filesystem::path(m_CurrentContentPath).parent_path().string();
+            if (!parent.empty()) {
+                m_CurrentContentPath = parent;
+            }
         }
     }
     
@@ -2064,7 +2136,10 @@ void EditorLayer::DrawContentBrowserGrid() {
     
     if (ImGui::BeginPopupContextWindow("ContentBrowserPopup", ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
         if (ImGui::MenuItem("New Script (.cpp)")) {
-            ImGui::OpenPopup("NewScriptPopup");
+            ImGui::OpenPopup("NewScriptPopup_Main");
+        }
+        if (ImGui::MenuItem("New Shader Pair (GLSL)")) {
+            ImGui::OpenPopup("NewShaderPopup_Main");
         }
         if (ImGui::MenuItem("New Folder")) {
             ImGui::OpenPopup("NewFolderPopup");
@@ -2122,8 +2197,34 @@ void EditorLayer::DrawContentBrowserGrid() {
         }
         ImGui::EndPopup();
     }
-
     
+    static char newShaderName[128] = "MyShader";
+    if (ImGui::BeginPopup("NewShaderPopup_Main")) {
+        ImGui::Text("Shader Name:");
+        ImGui::InputText("##ShaderName", newShaderName, 128);
+        if (ImGui::Button("Create Pair")) {
+            std::string vertPath = m_CurrentContentPath + "/" + std::string(newShaderName) + ".vert";
+            std::string fragPath = m_CurrentContentPath + "/" + std::string(newShaderName) + ".frag";
+            std::ofstream vfile(vertPath);
+            if (vfile.is_open()) {
+                vfile << "#version 330 core\nlayout (location = 0) in vec3 aPos;\nuniform mat4 model;\nuniform mat4 view;\nuniform mat4 projection;\nvoid main() {\n    gl_Position = projection * view * model * vec4(aPos, 1.0);\n}\n";
+                vfile.close();
+            }
+            std::ofstream ffile(fragPath);
+            if (ffile.is_open()) {
+                ffile << "#version 330 core\nout vec4 FragColor;\nvoid main() {\n    FragColor = vec4(1.0, 0.0, 1.0, 1.0);\n}\n";
+                ffile.close();
+            }
+            Logger::AddLog("Created shader pair: %s", newShaderName);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
     static char newFolderName[128] = "NewFolder";
     if (ImGui::BeginPopup("NewFolderPopup_Main")) {
         ImGui::Text("Folder Name:");
@@ -2205,6 +2306,8 @@ void EditorLayer::DrawContentBrowserGrid() {
                 iconColor = ImVec4(1.0f, 0.85f, 0.4f, 1.0f);  
             } else if (ext == ".cpp" || ext == ".h") {
                 iconColor = ImVec4(0.3f, 0.5f, 0.9f, 1.0f);   
+            } else if (ext == ".vert" || ext == ".frag") {
+                iconColor = ImVec4(0.1f, 0.8f, 0.9f, 1.0f);   
             } else if (ext == ".scene") {
                 iconColor = ImVec4(0.3f, 0.8f, 0.4f, 1.0f);   
             } else if (ext == ".json") {
@@ -2260,9 +2363,28 @@ void EditorLayer::DrawContentBrowserGrid() {
             }
             
             
+            if (!entry.is_directory() && (ext == ".vert" || ext == ".frag")) {
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                    std::string path = entry.path().string();
+                    ImGui::SetDragDropPayload("SHADER_FILE", path.c_str(), path.size() + 1);
+                    ImGui::Text("Shader: %s", filename.c_str());
+                    ImGui::EndDragDropSource();
+                }
+            }
+            
+            
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 if (entry.is_directory()) {
                     m_CurrentContentPath = entry.path().string();
+                } else if (ext == ".vert" || ext == ".frag") {
+                    m_EditingShaderPath = entry.path().string();
+                    std::ifstream t(m_EditingShaderPath);
+                    if (t.is_open()) {
+                        std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+                        strncpy(m_ShaderEditorBuffer, str.c_str(), sizeof(m_ShaderEditorBuffer) - 1);
+                        m_ShaderEditorBuffer[sizeof(m_ShaderEditorBuffer) - 1] = '\0';
+                        Logger::AddLog("Opened shader for editing: %s", filename.c_str());
+                    }
                 } else if (ext == ".scene") {
                     auto& app = Application::Get();
                     app.GetScene()->Load(entry.path().string());
@@ -2275,16 +2397,22 @@ void EditorLayer::DrawContentBrowserGrid() {
                         std::vector<Vertex> rawVerts;
                         std::vector<GLuint> rawIndices;
                         Mesh groupMesh(rawVerts, rawIndices, {});
-                        std::string groupName = std::filesystem::path(entry.path().string()).stem().string();
+                        std::string groupName = "Model: " + std::filesystem::path(entry.path().string()).stem().string();
                         
                         int parentId = (int)app.GetScene()->GetObjects().size();
                         GameObject groupObj(std::move(groupMesh), groupName);
+                        groupObj.isStatic = true;
                         app.GetScene()->AddObject(std::move(groupObj));
 
+                        int meshIdx = 0;
                         for (auto& meshData : result.meshes) {
                             Mesh mesh(meshData.vertices, meshData.indices, meshData.textures);
                             GameObject obj(std::move(mesh), meshData.name);
                             obj.material.albedo = meshData.albedo;
+                            obj.modelPath = entry.path().string();
+                            obj.meshIndex = meshIdx++;
+                            obj.meshType = MeshType::Model;
+                            obj.isStatic = true;
                             
                             
                             if (!meshData.textures.empty()) {
@@ -2364,6 +2492,10 @@ void EditorLayer::DrawContentBrowserGrid() {
     ImGui::Separator();
     if (ImGui::Button("+ New Script")) {
         ImGui::OpenPopup("NewScriptPopup_Main");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+ New Shader")) {
+        ImGui::OpenPopup("NewShaderPopup_Main");
     }
     ImGui::SameLine();
     if (ImGui::Button("+ New Folder")) {

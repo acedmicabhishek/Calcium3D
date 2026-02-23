@@ -58,6 +58,8 @@ public:
     int lastSelectedObject = -1;
     std::vector<GameObject> m_ClipboardNodes;
     int selectedMesh = -1;
+    std::string m_EditingShaderPath;
+    char m_ShaderEditorBuffer[65536] = "";
     bool isLightSelected = false; 
     int selectedPointLightIndex = -1;
     
@@ -137,6 +139,25 @@ public:
     void SetContentPath(const std::string& path) { 
         m_ProjectRoot = path;
         m_CurrentContentPath = path; 
+        
+        
+        std::filesystem::path targetShadersDir = std::filesystem::path(path) / "Shaders";
+        
+        std::string sourceShaders = "";
+        if (std::filesystem::exists("shaders")) sourceShaders = "shaders";
+        else if (std::filesystem::exists("../shaders")) sourceShaders = "../shaders";
+        else if (std::filesystem::exists("../../shaders")) sourceShaders = "../../shaders";
+        
+        if (!sourceShaders.empty()) {
+            try {
+                std::filesystem::copy(sourceShaders, targetShadersDir, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+                std::cout << "[EditorLayer] Successfully copied shaders from " << sourceShaders << " to " << targetShadersDir << "\n";
+            } catch(const std::exception& e) {
+                std::cerr << "[EditorLayer] Failed to copy shaders: " << e.what() << "\n";
+            }
+        } else {
+            std::cerr << "[EditorLayer] Could not locate engine shaders directory to copy!\n";
+        }
     }
 
     int GetPreviewState() const { return m_PreviewState; }
@@ -166,6 +187,7 @@ private:
     void DrawUIEditor();
     void DrawContentBrowserTree(const std::string& path);
     void DrawContentBrowserGrid();
+    void DrawShaderEditor();
     void SetupDockLayout();
 };
 
