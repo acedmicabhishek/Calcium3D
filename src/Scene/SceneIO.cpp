@@ -50,6 +50,28 @@ void Scene::Save(const std::string& path) {
         jObj["isFolded"] = obj.isFolded;
         jObj["isActive"] = obj.isActive;
         
+        jObj["acousticMaterial"] = {
+            {"hardness", obj.acousticMaterial.hardness},
+            {"absorption", obj.acousticMaterial.absorption},
+            {"isAcousticObstacle", obj.acousticMaterial.isAcousticObstacle}
+        };
+        
+        jObj["hasAudio"] = obj.hasAudio;
+        jObj["audio"] = {
+            {"filePath", obj.audio.filePath},
+            {"volume", obj.audio.volume},
+            {"pitch", obj.audio.pitch},
+            {"looping", obj.audio.looping},
+            {"minDistance", obj.audio.minDistance},
+            {"maxDistance", obj.audio.maxDistance},
+            {"type", static_cast<int>(obj.audio.type)},
+            {"playOnAwake", obj.audio.playOnAwake},
+            {"enableDoppler", obj.audio.enableDoppler},
+            {"dopplerFactor", obj.audio.dopplerFactor},
+            {"enableReverb", obj.audio.enableReverb},
+            {"enableOcclusion", obj.audio.enableOcclusion}
+        };
+        
         data["objects"].push_back(jObj);
     }
 
@@ -210,6 +232,31 @@ void Scene::Load(const std::string& path) {
                 if (jObj.contains("parentIndex")) obj.parentIndex = jObj["parentIndex"];
                 if (jObj.contains("isFolded")) obj.isFolded = jObj["isFolded"];
                 if (jObj.contains("isActive")) obj.isActive = jObj["isActive"];
+                
+                if (jObj.contains("acousticMaterial")) {
+                    auto& am = jObj["acousticMaterial"];
+                    if (am.contains("hardness")) obj.acousticMaterial.hardness = am["hardness"];
+                    if (am.contains("absorption")) obj.acousticMaterial.absorption = am["absorption"];
+                    if (am.contains("isAcousticObstacle")) obj.acousticMaterial.isAcousticObstacle = am["isAcousticObstacle"];
+                }
+                
+                if (jObj.contains("hasAudio")) obj.hasAudio = jObj["hasAudio"];
+                if (jObj.contains("audio")) {
+                    auto& a = jObj["audio"];
+                    if (a.contains("filePath")) obj.audio.filePath = a["filePath"];
+                    if (a.contains("volume")) obj.audio.volume = a["volume"];
+                    if (a.contains("pitch")) obj.audio.pitch = a["pitch"];
+                    if (a.contains("looping")) obj.audio.looping = a["looping"];
+                    if (a.contains("minDistance")) obj.audio.minDistance = a["minDistance"];
+                    if (a.contains("maxDistance")) obj.audio.maxDistance = a["maxDistance"];
+                    if (a.contains("type")) obj.audio.type = static_cast<AudioType>(a["type"].get<int>());
+                    if (a.contains("playOnAwake")) obj.audio.playOnAwake = a["playOnAwake"];
+                    
+                    if (a.contains("enableDoppler")) obj.audio.enableDoppler = a["enableDoppler"];
+                    if (a.contains("dopplerFactor")) obj.audio.dopplerFactor = a["dopplerFactor"];
+                    if (a.contains("enableReverb")) obj.audio.enableReverb = a["enableReverb"];
+                    if (a.contains("enableOcclusion")) obj.audio.enableOcclusion = a["enableOcclusion"];
+                }
                 
                 AddObject(std::move(obj));
                 delete objPtr;

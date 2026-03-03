@@ -22,6 +22,7 @@
 #include "../UI/Screens/FallbackScreen.h"
 #include "../UI/UIManager.h"
 #include "../UI/UICreationEngine.h"
+#include "../AudioEngine/AudioEngine.h"
 
 Application* Application::s_Instance = nullptr;
 
@@ -144,6 +145,8 @@ bool Application::Init()
     
     
     
+    AudioEngine::Init();
+    
     Logger::AddLog("Application Initialized");
 
     m_Initialized = true;
@@ -210,6 +213,10 @@ void Application::Run()
             m_Scene->Update(deltaTime);
         }
 
+        if (m_Camera && m_Scene) {
+            AudioEngine::Update(m_Scene.get(), m_Camera->Position, m_Camera->Orientation, m_Camera->Up, deltaTime);
+        }
+
         OnRender();
 
         
@@ -267,6 +274,7 @@ void Application::Shutdown()
     if (!m_Initialized) return;
     
     ResourceManager::Clear();
+    AudioEngine::Shutdown();
     glfwDestroyWindow(m_Window);
     glfwTerminate();
     

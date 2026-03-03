@@ -5,6 +5,7 @@ std::unordered_map<int, bool> InputManager::m_KeyStates;
 std::unordered_map<int, bool> InputManager::m_KeyJustPressed;
 double InputManager::m_MouseX = 0.0;
 double InputManager::m_MouseY = 0.0;
+std::unordered_map<std::string, bool> InputManager::m_ClickedUIButtons;
 
 void InputManager::Init(GLFWwindow* window) {
     m_Window = window;
@@ -15,6 +16,7 @@ void InputManager::Update() {
 
     
     m_KeyJustPressed.clear();
+    m_ClickedUIButtons.clear();
     
     glfwGetCursorPos(m_Window, &m_MouseX, &m_MouseY);
 }
@@ -57,4 +59,16 @@ void InputManager::SetCursorMode(int mode) {
 int InputManager::GetCursorMode() {
     if (!m_Window) return 0;
     return glfwGetInputMode(m_Window, GLFW_CURSOR);
+}
+
+void InputManager::RegisterUIButtonClick(const std::string& btnName) {
+    m_ClickedUIButtons[btnName] = true;
+}
+
+bool InputManager::IsUIButtonClicked(const std::string& btnName) {
+    auto it = m_ClickedUIButtons.find(btnName);
+    if (it != m_ClickedUIButtons.end()) {
+        return it->second;
+    }
+    return false;
 }

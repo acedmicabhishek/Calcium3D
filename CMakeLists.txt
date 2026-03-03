@@ -81,6 +81,9 @@ set(SOURCES
     src/ModelImport/ModelImporter.cpp
     include/ufbx/ufbx_impl.c
     
+    # Audio
+    src/AudioEngine/audioEngine.cpp
+    
     # Environment
     src/Environment/Water.cpp
     src/Environment/2dCloud.cpp
@@ -116,6 +119,7 @@ target_include_directories(calcium3d PUBLIC
     src/Home
     src/BuildManager
     src/ModelImport
+    src/AudioEngine
     src
     include/ufbx
 )
@@ -198,6 +202,9 @@ set(TESTBUILD_SOURCES
     src/ModelImport/ModelImporter.cpp
     include/ufbx/ufbx_impl.c
     
+    # Audio
+    src/AudioEngine/audioEngine.cpp
+    
     # Glad
     src/glad.c
     
@@ -220,6 +227,7 @@ target_include_directories(calcium3d_testbuild PUBLIC
     src/Renderer
     src/Scene
     src/Environment
+    src/AudioEngine
     src
 )
 

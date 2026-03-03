@@ -217,6 +217,9 @@ void RuntimeApplication::LoadProjectConfig() {
 
     
     for (auto& obj : m_Scene->GetObjects()) {
+        if (obj.hasAudio && obj.audio.playOnAwake && !obj.audio.filePath.empty()) {
+            obj.audio.playing = true;
+        }
         for (auto& script : obj.behaviors) {
             if (script) {
                 script->gameObject = &obj;

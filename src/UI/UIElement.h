@@ -31,6 +31,7 @@ struct UIElement {
     
     std::string actionType = "None"; 
     std::string targetState = "";
+    std::string targetAudioObject = "";
     
     std::function<void()> onClick;
 
@@ -48,6 +49,7 @@ struct UIElement {
         j["text"] = text;
         j["actionType"] = actionType;
         j["targetState"] = targetState;
+        j["targetAudioObject"] = targetAudioObject;
         return j;
     }
 
@@ -64,6 +66,7 @@ struct UIElement {
         if (j.contains("text")) text = j["text"];
         if (j.contains("actionType")) actionType = j["actionType"];
         if (j.contains("targetState")) targetState = j["targetState"];
+        if (j.contains("targetAudioObject")) targetAudioObject = j["targetAudioObject"];
     }
 };
 

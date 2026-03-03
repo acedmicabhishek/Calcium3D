@@ -1,6 +1,9 @@
 #include "UIManager.h"
 #include <imgui.h>
 #include "../Core/StateManager.h"
+#include "../Core/InputManager.h"
+#include "../Core/Application.h"
+#include "../AudioEngine/AudioEngine.h"
 
 void UIManager::Render(const std::vector<UIElement>& elements, glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
     for (const auto& el : elements) {
@@ -27,8 +30,16 @@ void UIManager::RenderElement(const UIElement& element, glm::vec2 canvasSize, gl
         ImGui::TextColored(ImVec4(element.color.r, element.color.g, element.color.b, element.color.a), "%s", element.text.c_str());
     } else if (element.type == UIElementType::BUTTON) {
         if (ImGui::Button(element.text.c_str(), ImVec2(element.size.x, element.size.y))) {
-             Logger::AddLog("[UI] Button Click: %s -> Script: %s, Target: %s", 
-                           element.name.c_str(), element.actionType.c_str(), element.targetState.c_str());
+            if (element.actionType == "PlayAudio") {
+                Logger::AddLog("[UI] Button Click: %s -> Script: PlayAudio, Target: %s", 
+                               element.name.c_str(), element.targetAudioObject.c_str());
+            } else {
+                Logger::AddLog("[UI] Button Click: %s -> Script: %s, Target: %s", 
+                               element.name.c_str(), element.actionType.c_str(), element.targetState.c_str());
+            }
+            
+            InputManager::RegisterUIButtonClick(element.name);
+            
             if (element.onClick) element.onClick();
             
             if (element.actionType == "ChangeState" && !element.targetState.empty()) {
@@ -37,6 +48,23 @@ void UIManager::RenderElement(const UIElement& element, glm::vec2 canvasSize, gl
                 StateManager::PushState(element.targetState);
             } else if (element.actionType == "PopState") {
                 StateManager::PopState();
+            } else if (element.actionType == "PlayAudio" && !element.targetAudioObject.empty()) {
+                if (Scene* scene = Application::Get().GetScene()) {
+                    for (auto& obj : scene->GetObjects()) {
+                        if (obj.name == element.targetAudioObject && obj.hasAudio) {
+                            if (!obj.audio.playing) {
+                                obj.audio.playing = true;
+                                AudioEngine::PlayObjectAudio(obj);
+                                Logger::AddLog("[UI] Playing audio for target: %s", obj.name.c_str());
+                            } else {
+                                obj.audio.playing = false;
+                                AudioEngine::StopObjectAudio(obj);
+                                Logger::AddLog("[UI] Stopping audio for target: %s", obj.name.c_str());
+                            }
+                            break;
+                        }
+                    }
+                }
             }
         }
     } else if (element.type == UIElementType::CHECKBOX) {

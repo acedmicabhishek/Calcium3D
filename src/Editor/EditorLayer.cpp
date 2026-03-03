@@ -1,4 +1,5 @@
 #include "EditorLayer.h"
+#include "../AudioEngine/AudioEngine.h"
 #include "Editor.h" 
 #include "Logger.h"
 #include "ObjectFactory.h"
@@ -589,6 +590,19 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 }
                 ImGui::EndMenu();
             }
+
+            if (ImGui::MenuItem("Audio Object")) {
+                std::vector<Vertex> rawVerts;
+                std::vector<GLuint> rawIndices;
+                Mesh emptyMesh(rawVerts, rawIndices, {});
+                GameObject obj(std::move(emptyMesh), "Audio Source");
+                obj.meshType = MeshType::None;
+                obj.hasAudio = true;
+                scene.AddObject(std::move(obj));
+                selectedCube = (int)scene.GetObjects().size() - 1;
+                isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
+                Logger::AddLog("Created Audio Object");
+            }
             
             if (ImGui::BeginMenu("Lights")) {
                 if (ImGui::MenuItem("Point Light")) {
@@ -975,113 +989,217 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 obj.scale = glm::vec3(scale[0], scale[1], scale[2]);
             }
             
-            ImGui::Separator();
-            ImGui::Text("Material");
-            ImGui::ColorEdit3("Albedo", &obj.material.albedo[0]);
-            ImGui::SliderFloat("Metallic", &obj.material.metallic, 0.0f, 1.0f);
-            ImGui::SliderFloat("Roughness", &obj.material.roughness, 0.0f, 1.0f);
-            ImGui::SliderFloat("AO", &obj.material.ao, 0.0f, 1.0f);
-            ImGui::DragFloat("Shininess", &obj.material.shininess, 1.0f, 1.0f, 256.0f);
-            ImGui::Checkbox("Use Texture", &obj.material.useTexture);
+            if (obj.meshType != MeshType::None) {
+                ImGui::Separator();
+                ImGui::Text("Material");
+                ImGui::ColorEdit3("Albedo", &obj.material.albedo[0]);
+                ImGui::SliderFloat("Metallic", &obj.material.metallic, 0.0f, 1.0f);
+                ImGui::SliderFloat("Roughness", &obj.material.roughness, 0.0f, 1.0f);
+                ImGui::SliderFloat("AO", &obj.material.ao, 0.0f, 1.0f);
+                ImGui::DragFloat("Shininess", &obj.material.shininess, 1.0f, 1.0f, 256.0f);
+                ImGui::Checkbox("Use Texture", &obj.material.useTexture);
 
-            
-            ImGui::Text("Diffuse Texture:");
-            std::string diffLabel = obj.material.diffuseTexture.empty() 
-                ? "[ Drop texture here ]##diffusedrop" 
-                : std::filesystem::path(obj.material.diffuseTexture).filename().string() + "##diffusedrop";
-            ImGui::Button(diffLabel.c_str(), ImVec2(-40, 0));
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE")) {
-                    std::string texPath((const char*)payload->Data, payload->DataSize - 1);
-                    obj.material.diffuseTexture = texPath;
-                    obj.material.useTexture = true;
-                    
-                    obj.material.albedo = glm::vec3(1.0f);
-                    
-                    obj.mesh.textures.clear();
-                    obj.mesh.textures.push_back(Texture(texPath.c_str(), "diffuse"));
-                    Logger::AddLog("Set diffuse texture: %s", texPath.c_str());
+                
+                ImGui::Text("Diffuse Texture:");
+                std::string diffLabel = obj.material.diffuseTexture.empty() 
+                    ? "[ Drop texture here ]##diffusedrop" 
+                    : std::filesystem::path(obj.material.diffuseTexture).filename().string() + "##diffusedrop";
+                ImGui::Button(diffLabel.c_str(), ImVec2(-40, 0));
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE")) {
+                        std::string texPath((const char*)payload->Data, payload->DataSize - 1);
+                        obj.material.diffuseTexture = texPath;
+                        obj.material.useTexture = true;
+                        
+                        obj.material.albedo = glm::vec3(1.0f);
+                        
+                        obj.mesh.textures.clear();
+                        obj.mesh.textures.push_back(Texture(texPath.c_str(), "diffuse"));
+                        Logger::AddLog("Set diffuse texture: %s", texPath.c_str());
+                    }
+                    ImGui::EndDragDropTarget();
                 }
-                ImGui::EndDragDropTarget();
-            }
-            if (!obj.material.diffuseTexture.empty()) {
+                if (!obj.material.diffuseTexture.empty()) {
+                    ImGui::SameLine();
+                    if (ImGui::Button("X##ClearDiff")) {
+                        obj.material.diffuseTexture = "";
+                        obj.mesh.textures.clear();
+                        Logger::AddLog("Cleared diffuse texture");
+                    }
+                }
+
+                
+                ImGui::Text("Specular Texture:");
+                std::string specLabel = obj.material.specularTexture.empty() 
+                    ? "[ Drop texture here ]##speculardrop" 
+                    : std::filesystem::path(obj.material.specularTexture).filename().string() + "##speculardrop";
+                ImGui::Button(specLabel.c_str(), ImVec2(-40, 0));
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE")) {
+                        std::string texPath((const char*)payload->Data, payload->DataSize - 1);
+                        obj.material.specularTexture = texPath;
+                        obj.mesh.textures.push_back(Texture(texPath.c_str(), "specular"));
+                        Logger::AddLog("Set specular texture: %s", texPath.c_str());
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+                if (!obj.material.specularTexture.empty()) {
+                    ImGui::SameLine();
+                    if (ImGui::Button("X##ClearSpec")) {
+                        obj.material.specularTexture = "";
+                        
+                        obj.mesh.textures.erase(
+                            std::remove_if(obj.mesh.textures.begin(), obj.mesh.textures.end(),
+                                [](const Texture& t) { return std::string(t.type) == "specular"; }),
+                            obj.mesh.textures.end());
+                        Logger::AddLog("Cleared specular texture");
+                    }
+                }
+                ImGui::Separator();
+                ImGui::Text("Custom Render Shader:");
+                char shaderNameBuffer[128] = "";
+                strncpy(shaderNameBuffer, obj.material.customShaderName.c_str(), sizeof(shaderNameBuffer) - 1);
+                if (ImGui::InputText("##CustomShaderName", shaderNameBuffer, sizeof(shaderNameBuffer))) {
+                    obj.material.customShaderName = shaderNameBuffer;
+                }
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SHADER_FILE")) {
+                        std::string shaderPath((const char*)payload->Data, payload->DataSize - 1);
+                        std::filesystem::path p(shaderPath);
+                        obj.material.customShaderName = p.stem().string();
+                        Logger::AddLog("Assigned custom shader: %s", obj.material.customShaderName.c_str());
+                    }
+                    ImGui::EndDragDropTarget();
+                }
                 ImGui::SameLine();
-                if (ImGui::Button("X##ClearDiff")) {
-                    obj.material.diffuseTexture = "";
-                    obj.mesh.textures.clear();
-                    Logger::AddLog("Cleared diffuse texture");
+                if (ImGui::Button("X##ClearShader")) {
+                    obj.material.customShaderName = "";
                 }
             }
-
             
-            ImGui::Text("Specular Texture:");
-            std::string specLabel = obj.material.specularTexture.empty() 
-                ? "[ Drop texture here ]##speculardrop" 
-                : std::filesystem::path(obj.material.specularTexture).filename().string() + "##speculardrop";
-            ImGui::Button(specLabel.c_str(), ImVec2(-40, 0));
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE_FILE")) {
-                    std::string texPath((const char*)payload->Data, payload->DataSize - 1);
-                    obj.material.specularTexture = texPath;
-                    obj.mesh.textures.push_back(Texture(texPath.c_str(), "specular"));
-                    Logger::AddLog("Set specular texture: %s", texPath.c_str());
+            if (obj.meshType != MeshType::None) {
+                ImGui::Separator();
+                ImGui::Text("Physics");
+                ImGui::Checkbox("Enable Gravity", &obj.useGravity);
+                ImGui::Checkbox("Is Static", &obj.isStatic);
+                ImGui::Checkbox("Enable Collision", &obj.enableCollision);
+                
+                float com[3] = { obj.centerOfMassOffset.x, obj.centerOfMassOffset.y, obj.centerOfMassOffset.z };
+                if (ImGui::DragFloat3("COM Offset", com, 0.01f)) {
+                    obj.centerOfMassOffset = glm::vec3(com[0], com[1], com[2]);
                 }
-                ImGui::EndDragDropTarget();
+                
+                float vel[3] = { obj.velocity.x, obj.velocity.y, obj.velocity.z };
+                ImGui::BeginDisabled();
+                ImGui::DragFloat3("Velocity", vel, 0.0f);
+                float aVel[3] = { obj.angularVelocity.x, obj.angularVelocity.y, obj.angularVelocity.z };
+                ImGui::DragFloat3("Angular Vel", aVel, 0.0f);
+                ImGui::EndDisabled();
+
+                ImGui::DragFloat("Mass", &obj.mass, 0.1f, 0.01f, 100.0f);
+                ImGui::DragFloat("Friction", &obj.friction, 0.01f, 0.0f, 1.0f);
+                ImGui::DragFloat("Bounciness", &obj.restitution, 0.01f, 0.0f, 1.0f);
             }
-            if (!obj.material.specularTexture.empty()) {
-                ImGui::SameLine();
-                if (ImGui::Button("X##ClearSpec")) {
-                    obj.material.specularTexture = "";
+            
+            if (obj.meshType != MeshType::None) {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.6f, 0.9f, 0.6f, 1.0f), "Acoustic Surface");
+                ImGui::SliderFloat("Hardness", &obj.acousticMaterial.hardness, 0.0f, 1.0f, "%.2f");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = soft (carpet, foam)\n1 = hard (concrete, metal)\nAffects echo and reflections");
+                ImGui::SliderFloat("Absorption", &obj.acousticMaterial.absorption, 0.0f, 1.0f, "%.2f");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("How much sound energy is absorbed\n0 = none, 1 = fully absorbed");
+                ImGui::Checkbox("Acoustic Obstacle", &obj.acousticMaterial.isAcousticObstacle);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Can this object block/reflect sound?");
+            }
+            
+            
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Audio");
+            ImGui::Checkbox("Enable Audio", &obj.hasAudio);
+            if (obj.hasAudio) {
+                ImGui::Indent();
+                
+                ImGui::Text("Audio File:");
+                std::string audioLabel = obj.audio.filePath.empty() 
+                    ? "[ Drop audio here ]##audiodrop" 
+                    : std::filesystem::path(obj.audio.filePath).filename().string() + "##audiodrop";
+                
+                ImGui::Button(audioLabel.c_str(), ImVec2(-40, 0));
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AUDIO_FILE")) {
+                        std::string audioPath((const char*)payload->Data, payload->DataSize - 1);
+                        obj.audio.filePath = audioPath;
+                        Logger::AddLog("Assigned audio file: %s", audioPath.c_str());
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+                if (!obj.audio.filePath.empty()) {
+                    ImGui::SameLine();
+                    if (ImGui::Button("X##ClearAudio")) {
+                        obj.audio.filePath = "";
+                    }
+                }
+
+                ImGui::SliderFloat("Volume", &obj.audio.volume, 0.0f, 1.0f);
+                ImGui::SliderFloat("Pitch", &obj.audio.pitch, 0.1f, 2.0f);
+                ImGui::Checkbox("Looping", &obj.audio.looping);
+                ImGui::Checkbox("Play On Awake", &obj.audio.playOnAwake);
+
+                const char* audioTypes[] = { "Directional", "Ambience" };
+                int currentAudioType = (int)obj.audio.type;
+                if (ImGui::Combo("Type", &currentAudioType, audioTypes, IM_ARRAYSIZE(audioTypes))) {
+                    obj.audio.type = (AudioType)currentAudioType;
+                }
+
+                if (obj.audio.type == AudioType::Directional) {
+                    ImGui::DragFloat("Min Distance", &obj.audio.minDistance, 0.1f, 0.1f, 100.0f);
+                    ImGui::DragFloat("Max Distance", &obj.audio.maxDistance, 1.0f, 1.0f, 1000.0f);
                     
-                    obj.mesh.textures.erase(
-                        std::remove_if(obj.mesh.textures.begin(), obj.mesh.textures.end(),
-                            [](const Texture& t) { return std::string(t.type) == "specular"; }),
-                        obj.mesh.textures.end());
-                    Logger::AddLog("Cleared specular texture");
+                    
+                    ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Physics Audio");
+                    
+                    
+                    ImGui::Checkbox("Doppler Effect", &obj.audio.enableDoppler);
+                    if (obj.audio.enableDoppler) {
+                        ImGui::SliderFloat("Doppler Factor", &obj.audio.dopplerFactor, 0.0f, 5.0f, "%.1f");
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Higher = more extreme pitch shift\nfrom object movement");
+                    }
+                    
+                    
+                    ImGui::Checkbox("Reverb / Echo", &obj.audio.enableReverb);
+                    if (obj.audio.enableReverb && obj.audio.playing) {
+                        ImGui::BeginDisabled();
+                        ImGui::SliderFloat("Reverb Mix##ro", &obj.audio.reverbMix, 0.0f, 1.0f);
+                        ImGui::SliderFloat("Echo Delay##ro", &obj.audio.echoDelay, 0.0f, 0.5f, "%.3f s");
+                        ImGui::SliderFloat("Echo Decay##ro", &obj.audio.echoDecay, 0.0f, 1.0f);
+                        ImGui::EndDisabled();
+                    }
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Computed from nearby surfaces.\nHarder surfaces = more echo.");
+                    
+                    
+                    ImGui::Checkbox("Occlusion", &obj.audio.enableOcclusion);
+                    if (obj.audio.enableOcclusion && obj.audio.playing) {
+                        ImGui::BeginDisabled();
+                        ImGui::SliderFloat("Occlusion##ro", &obj.audio.occlusionFactor, 0.0f, 1.0f);
+                        ImGui::EndDisabled();
+                    }
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Sound blocked by objects between\nsource and listener.");
                 }
-            }
-            ImGui::Separator();
-            ImGui::Text("Custom Render Shader:");
-            char shaderNameBuffer[128] = "";
-            strncpy(shaderNameBuffer, obj.material.customShaderName.c_str(), sizeof(shaderNameBuffer) - 1);
-            if (ImGui::InputText("##CustomShaderName", shaderNameBuffer, sizeof(shaderNameBuffer))) {
-                obj.material.customShaderName = shaderNameBuffer;
-            }
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SHADER_FILE")) {
-                    std::string shaderPath((const char*)payload->Data, payload->DataSize - 1);
-                    std::filesystem::path p(shaderPath);
-                    obj.material.customShaderName = p.stem().string();
-                    Logger::AddLog("Assigned custom shader: %s", obj.material.customShaderName.c_str());
-                }
-                ImGui::EndDragDropTarget();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("X##ClearShader")) {
-                obj.material.customShaderName = "";
-            }
-            
-            ImGui::Separator();
-            ImGui::Text("Physics");
-            ImGui::Checkbox("Enable Gravity", &obj.useGravity);
-            ImGui::Checkbox("Is Static", &obj.isStatic);
-            ImGui::Checkbox("Enable Collision", &obj.enableCollision);
-            
-            float com[3] = { obj.centerOfMassOffset.x, obj.centerOfMassOffset.y, obj.centerOfMassOffset.z };
-            if (ImGui::DragFloat3("COM Offset", com, 0.01f)) {
-                obj.centerOfMassOffset = glm::vec3(com[0], com[1], com[2]);
-            }
-            
-            float vel[3] = { obj.velocity.x, obj.velocity.y, obj.velocity.z };
-            ImGui::BeginDisabled();
-            ImGui::DragFloat3("Velocity", vel, 0.0f);
-            float aVel[3] = { obj.angularVelocity.x, obj.angularVelocity.y, obj.angularVelocity.z };
-            ImGui::DragFloat3("Angular Vel", aVel, 0.0f);
-            ImGui::EndDisabled();
 
-            ImGui::DragFloat("Mass", &obj.mass, 0.1f, 0.01f, 100.0f);
-            ImGui::DragFloat("Friction", &obj.friction, 0.01f, 0.0f, 1.0f);
-            ImGui::DragFloat("Bounciness", &obj.restitution, 0.01f, 0.0f, 1.0f);
+                ImGui::Spacing();
+                if (obj.audio.playing) {
+                    if (ImGui::Button("Stop Preview")) {
+                        AudioEngine::StopObjectAudio(obj);
+                    }
+                } else {
+                    if (ImGui::Button("Play Preview")) {
+                        AudioEngine::PlayObjectAudio(obj);
+                    }
+                }
+
+                ImGui::Unindent();
+            }
 
             ImGui::Separator();
             ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Scripts");
@@ -2128,6 +2246,9 @@ void EditorLayer::DrawContentBrowserGrid() {
         if (ImGui::MenuItem("New Script (.cpp)")) {
             ImGui::OpenPopup("NewScriptPopup_Main");
         }
+        if (ImGui::MenuItem("New Audio Script (UI Trigger)")) {
+            ImGui::OpenPopup("NewAudioScriptPopup");
+        }
         if (ImGui::MenuItem("New Shader Pair (GLSL)")) {
             ImGui::OpenPopup("NewShaderPopup_Main");
         }
@@ -2143,11 +2264,10 @@ void EditorLayer::DrawContentBrowserGrid() {
     if (ImGui::BeginPopup("NewScriptPopup_Main")) {
         ImGui::Text("Script Name:");
         ImGui::InputText("##ScriptName", newScriptName, 128);
-        if (ImGui::Button("Create")) {
+        if (ImGui::Button("Create Movement Script")) {
             std::string scriptPath = m_CurrentContentPath + "/" + std::string(newScriptName) + ".cpp";
             std::ofstream file(scriptPath);
             if (file.is_open()) {
-                file << "
                 file << "#include \"Scene/Behavior.h\"\n";
                 file << "#include \"Scene/BehaviorRegistry.h\"\n";
                 file << "#include \"Scene/Scene.h\"\n";
@@ -2177,7 +2297,64 @@ void EditorLayer::DrawContentBrowserGrid() {
                 file << "};\n\n";
                 file << "REGISTER_BEHAVIOR(" << newScriptName << ")\n";
                 file.close();
-                Logger::AddLog("Created script: %s", scriptPath.c_str());
+                Logger::AddLog("Created movement script: %s", scriptPath.c_str());
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        
+        ImGui::SameLine();
+    }
+    
+    static char audioScriptName[128] = "MyAudioScript";
+    static char targetBtnName[128] = "PlayBtn";
+    static char targetObjName[128] = "AudioSource";
+    
+    if (ImGui::BeginPopup("NewAudioScriptPopup")) {
+        ImGui::Text("Script Name:");
+        ImGui::InputText("##AudioScriptName", audioScriptName, 128);
+        ImGui::Text("Trigger UI Button Name:");
+        ImGui::InputText("##TargetBtnName", targetBtnName, 128);
+        ImGui::Text("Target Audio Object Name:");
+        ImGui::InputText("##TargetObjName", targetObjName, 128);
+
+        if (ImGui::Button("Create Script")) {
+            std::string scriptPath = m_CurrentContentPath + "/" + std::string(audioScriptName) + ".cpp";
+            std::ofstream file(scriptPath);
+            if (file.is_open()) {
+                file << "#include \"Scene/Behavior.h\"\n";
+                file << "#include \"Scene/BehaviorRegistry.h\"\n";
+                file << "#include \"Scene/Scene.h\"\n";
+                file << "#include \"Core/InputManager.h\"\n";
+                file << "#include \"AudioEngine/AudioEngine.h\"\n";
+                file << "#include \"Core/Application.h\"\n";
+                file << "#include <GLFW/glfw3.h>\n";
+                file << "#include <iostream>\n\n";
+                file << "class " << audioScriptName << " : public Behavior {\n";
+                file << "public:\n";
+                file << "    void OnStart() override {\n";
+                file << "        std::cout << \"" << audioScriptName << " initialized.\\n\";\n";
+                file << "    }\n\n";
+                file << "    void OnUpdate(float dt) override {\n";
+                file << "        if (!gameObject) return;\n\n";
+                file << "        if (InputManager::IsUIButtonClicked(\"" << targetBtnName << "\")) {\n";
+                file << "            if (Scene* scene = Application::Get().GetScene()) {\n";
+                file << "               for (auto& obj : scene->GetObjects()) {\n";
+                file << "                   if (obj.name == \"" << targetObjName << "\" && obj.hasAudio) {\n";
+                file << "                       if (!obj.audio.playing) {\n";
+                file << "                           obj.audio.playing = true;\n";
+                file << "                           AudioEngine::PlayObjectAudio(obj);\n";
+                file << "                           std::cout << \"Playing Target Audio!\\n\";\n";
+                file << "                       }\n";
+                file << "                       break;\n";
+                file << "                   }\n";
+                file << "               }\n";
+                file << "            }\n";
+                file << "        }\n";
+                file << "    }\n";
+                file << "};\n\n";
+                file << "REGISTER_BEHAVIOR(" << audioScriptName << ")\n";
+                file.close();
+                Logger::AddLog("Created auto-playing audio script: %s", scriptPath.c_str());
             }
             ImGui::CloseCurrentPopup();
         }
@@ -2358,6 +2535,17 @@ void EditorLayer::DrawContentBrowserGrid() {
                     std::string path = entry.path().string();
                     ImGui::SetDragDropPayload("SHADER_FILE", path.c_str(), path.size() + 1);
                     ImGui::Text("Shader: %s", filename.c_str());
+                    ImGui::EndDragDropSource();
+                }
+            }
+
+            
+            bool isAudioFile = (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac");
+            if (!entry.is_directory() && isAudioFile) {
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                    std::string path = entry.path().string();
+                    ImGui::SetDragDropPayload("AUDIO_FILE", path.c_str(), path.size() + 1);
+                    ImGui::Text("Audio: %s", filename.c_str());
                     ImGui::EndDragDropSource();
                 }
             }
@@ -2597,12 +2785,12 @@ void EditorLayer::DrawUIEditor() {
             ImGui::Separator();
             ImGui::Text("Button Scripting");
             
-            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState" };
+            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState", "PlayAudio" };
             int currentActionIdx = 0;
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 5; i++) {
                 if (el.actionType == actionOptions[i]) currentActionIdx = i;
             }
-            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, 4)) {
+            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, 5)) {
                 el.actionType = actionOptions[currentActionIdx];
             }
             
@@ -2619,6 +2807,31 @@ void EditorLayer::DrawUIEditor() {
                     
                     if (ImGui::Combo("Target State", &currentStateIdx, stateNamesCstrs.data(), stateNamesCstrs.size())) {
                         el.targetState = states[currentStateIdx];
+                    }
+                }
+            } else if (el.actionType == "PlayAudio") {
+                if (Scene* scene = Application::Get().GetScene()) {
+                    auto& objects = scene->GetObjects();
+                    std::vector<const char*> audioNames;
+                    int currentAudioIdx = 0;
+                    int audioIndex = 0;
+                    for (int i = 0; i < (int)objects.size(); i++) {
+                        if (objects[i].hasAudio) {
+                            if (el.targetAudioObject == objects[i].name) currentAudioIdx = audioIndex;
+                            audioNames.push_back(objects[i].name.c_str());
+                            audioIndex++;
+                        }
+                    }
+                    if (!audioNames.empty()) {
+                        if (el.targetAudioObject.empty()) {
+                            el.targetAudioObject = audioNames[0];
+                        }
+                        
+                        if (ImGui::Combo("Target Audio", &currentAudioIdx, audioNames.data(), audioNames.size())) {
+                            el.targetAudioObject = audioNames[currentAudioIdx];
+                        }
+                    } else {
+                        ImGui::TextDisabled("No audio objects in scene.");
                     }
                 }
             }

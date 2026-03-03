@@ -1,8 +1,4 @@
 
-
-
-audio system
-
 camera create obj
 
 2d image and video object
@@ -12,6 +8,7 @@ camera create obj
 more viewports
 more framebuffer for diff camera
 
+animation engine , gonna be ass
 
 mutithreading with disable functionality
 
@@ -26,5 +23,12 @@ save game state
 
 
 Scene Management — Multi-scene workflow, prefabs, scene transitions
-Audio System — Sound effects, music, 3D spatial audio
-Build System Polish — Auto-detect user scripts, progress bar, Windows support
+
+
+shadow map lol 
+
+ray tracing 
+path tracing 
+nvidia/amd/arc hardware acc 
+
+demo scene for all featuers 

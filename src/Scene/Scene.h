@@ -12,6 +12,44 @@
 
 enum class ColliderShape { Box, Sphere };
 enum class MeshType { None, Cube, Sphere, Plane, Model };
+enum class AudioType { Directional, Ambience };
+
+
+struct AcousticMaterial {
+    float hardness = 0.5f;       
+    float absorption = 0.3f;     
+    bool isAcousticObstacle = true; 
+};
+
+struct AudioComponent {
+    std::string filePath = "";
+    float volume = 1.0f;
+    float pitch = 1.0f;
+    bool looping = false;
+    float minDistance = 1.0f;
+    float maxDistance = 100.0f;
+    AudioType type = AudioType::Directional;
+    bool playOnAwake = true;
+    bool playing = false;
+    
+    
+    bool enableDoppler = true;
+    float dopplerFactor = 1.0f;  
+    
+    
+    bool enableReverb = true;
+    float reverbMix = 0.0f;      
+    float echoDelay = 0.0f;      
+    float echoDecay = 0.0f;      
+    
+    
+    bool enableOcclusion = true;
+    float occlusionFactor = 0.0f; 
+    
+    
+    void* pSource = nullptr;
+    void* pEchoSource = nullptr; 
+};
 
 struct GameObject {
     Mesh mesh; 
@@ -44,6 +82,15 @@ struct GameObject {
     std::vector<std::shared_ptr<Behavior>> behaviors;
     std::vector<std::string> scriptNames; 
     Material material; 
+    
+    
+    AcousticMaterial acousticMaterial;
+    
+    bool hasAudio = false;
+    AudioComponent audio;
+    
+    
+    glm::vec3 prevPosition = glm::vec3(0.0f);
     
     std::string modelPath = "";
     int meshIndex = -1;

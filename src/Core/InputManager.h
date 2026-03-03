@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <unordered_map>
+#include <string>
 
 class InputManager {
 public:
@@ -23,6 +24,9 @@ public:
     static void SetCursorMode(int mode); 
     static int GetCursorMode();
 
+    static void RegisterUIButtonClick(const std::string& btnName);
+    static bool IsUIButtonClicked(const std::string& btnName);
+
 private:
     static GLFWwindow* m_Window;
     static std::unordered_map<int, bool> m_KeyStates;
@@ -30,6 +34,8 @@ private:
     
     static double m_MouseX;
     static double m_MouseY;
+    
+    static std::unordered_map<std::string, bool> m_ClickedUIButtons;
 };
 
 #endif
