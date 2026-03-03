@@ -10,6 +10,7 @@ public:
     static Mesh createPlane();
     static Mesh createCameraMesh();
     static Mesh createSphere(int sectorCount, int stackCount);
+    static Mesh createWaterGrid(int resolution = 200);
 };
 
 #endif

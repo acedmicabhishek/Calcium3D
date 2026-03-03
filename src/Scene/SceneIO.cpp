@@ -9,7 +9,7 @@
 
 using json = nlohmann::json;
 
-void Scene::Save(const std::string& path) {
+void Scene::Save(const std::string& path, bool silent) {
     m_Filepath = path;
     json data;
     
@@ -41,6 +41,7 @@ void Scene::Save(const std::string& path) {
         jObj["angularVelocity"] = {obj.angularVelocity.x, obj.angularVelocity.y, obj.angularVelocity.z};
         jObj["shape"] = static_cast<int>(obj.shape);
         jObj["collisionRadius"] = obj.collisionRadius;
+        jObj["isTrigger"] = obj.isTrigger;
         jObj["scripts"] = obj.scriptNames;
         jObj["material"] = obj.material.Serialize();
         jObj["modelPath"] = obj.modelPath;
@@ -97,6 +98,89 @@ void Scene::Save(const std::string& path) {
             {"videoKeepAspect", obj.screen.videoKeepAspect}
         };
         
+        jObj["hasWater"] = obj.hasWater;
+        jObj["water"] = {
+            {"waveSpeed", obj.water.waveSpeed},
+            {"waveStrength", obj.water.waveStrength},
+            {"shininess", obj.water.shininess},
+            {"waterColor", {obj.water.waterColor.r, obj.water.waterColor.g, obj.water.waterColor.b}},
+            {"waveSystem", obj.water.waveSystem},
+            {"tiling", obj.water.tiling},
+            {"gridResolution", obj.water.gridResolution},
+            {"surfaceHeight", obj.water.surfaceHeight},
+            {"depth", obj.water.depth},
+            {"liquidDensity", obj.water.liquidDensity}
+        };
+
+        
+        json jSkeleton;
+        for (const auto& bone : obj.mesh.skeleton.bones) {
+            json jBone;
+            jBone["name"] = bone.name;
+            jBone["index"] = bone.index;
+            jBone["parentIndex"] = bone.parentIndex;
+            
+            auto matToArr = [](const glm::mat4& m) {
+                std::vector<float> v;
+                const float* p = glm::value_ptr(m);
+                for(int i=0; i<16; ++i) v.push_back(p[i]);
+                return v;
+            };
+            jBone["localTransform"] = matToArr(bone.localTransform);
+            jBone["offsetMatrix"] = matToArr(bone.offsetMatrix);
+            jSkeleton["bones"].push_back(jBone);
+        }
+        jObj["skeleton"] = jSkeleton;
+
+        if (!obj.mesh.skeleton.bones.empty()) {
+            json jVerts = json::array();
+            for (const auto& v : obj.mesh.vertices) {
+                json jV;
+                jV["b"] = {v.boneIds[0], v.boneIds[1], v.boneIds[2], v.boneIds[3]};
+                jV["w"] = {v.weights[0], v.weights[1], v.weights[2], v.weights[3]};
+                jVerts.push_back(jV);
+            }
+            jObj["vertexBoneData"] = jVerts;
+        }
+
+        
+        json jAnims = json::array();
+        for (const auto& anim : obj.animations) {
+            json jAnim;
+            jAnim["name"] = anim.name;
+            jAnim["duration"] = anim.duration;
+            jAnim["ticksPerSecond"] = anim.ticksPerSecond;
+            
+            json jChannels = json::array();
+            for (const auto& ch : anim.channels) {
+                json jCh;
+                jCh["boneName"] = ch.boneName;
+                
+                json jPosKeys = json::array();
+                for (const auto& k : ch.positionKeys) {
+                    jPosKeys.push_back({{"t", k.time}, {"v", {k.value.x, k.value.y, k.value.z}}});
+                }
+                jCh["positionKeys"] = jPosKeys;
+
+                json jRotKeys = json::array();
+                for (const auto& k : ch.rotationKeys) {
+                    jRotKeys.push_back({{"t", k.time}, {"v", {k.value.w, k.value.x, k.value.y, k.value.z}}});
+                }
+                jCh["rotationKeys"] = jRotKeys;
+
+                json jScaleKeys = json::array();
+                for (const auto& k : ch.scaleKeys) {
+                    jScaleKeys.push_back({{"t", k.time}, {"v", {k.value.x, k.value.y, k.value.z}}});
+                }
+                jCh["scaleKeys"] = jScaleKeys;
+                
+                jChannels.push_back(jCh);
+            }
+            jAnim["channels"] = jChannels;
+            jAnims.push_back(jAnim);
+        }
+        jObj["animations"] = jAnims;
+
         data["objects"].push_back(jObj);
     }
 
@@ -113,8 +197,8 @@ void Scene::Save(const std::string& path) {
     std::ofstream file(path);
     if (file.is_open()) {
         file << data.dump(4);
-        m_Filepath = path;
-        Logger::AddLog("Scene saved to %s", path.c_str());
+        if (!silent)
+            Logger::AddLog("Scene saved to %s", path.c_str());
     }
 }
 
@@ -189,6 +273,7 @@ void Scene::Load(const std::string& path) {
                         objPtr->meshIndex = meshIndex;
                         objPtr->meshType = MeshType::Model;
                         objPtr->isStatic = true; 
+                        objPtr->animations = result.animations;
                     }
                 }
 
@@ -240,6 +325,9 @@ void Scene::Load(const std::string& path) {
                 if (jObj.contains("collisionRadius")) {
                     obj.collisionRadius = jObj["collisionRadius"];
                 }
+                if (jObj.contains("isTrigger")) {
+                    obj.isTrigger = jObj["isTrigger"];
+                }
 
                 if (jObj.contains("scripts")) {
                     for (const auto& sName : jObj["scripts"]) {
@@ -284,6 +372,83 @@ void Scene::Load(const std::string& path) {
                     if (a.contains("enableReverb")) obj.audio.enableReverb = a["enableReverb"];
                     if (a.contains("enableOcclusion")) obj.audio.enableOcclusion = a["enableOcclusion"];
                 }
+
+                
+                if (jObj.contains("skeleton") && jObj["skeleton"].contains("bones")) {
+                    obj.mesh.skeleton.bones.clear();
+                    obj.mesh.skeleton.boneMapping.clear();
+                    
+                    auto arrToMat = [](const json& j) {
+                        glm::mat4 m;
+                        float* p = glm::value_ptr(m);
+                        for(int i=0; i<16; ++i) p[i] = j[i].get<float>();
+                        return m;
+                    };
+
+                    for (const auto& jBone : jObj["skeleton"]["bones"]) {
+                        Bone bone;
+                        bone.name = jBone["name"].get<std::string>();
+                        bone.index = jBone["index"].get<int>();
+                        bone.parentIndex = jBone["parentIndex"].get<int>();
+                        bone.localTransform = arrToMat(jBone["localTransform"]);
+                        bone.offsetMatrix = arrToMat(jBone["offsetMatrix"]);
+                        obj.mesh.skeleton.bones.push_back(bone);
+                        obj.mesh.skeleton.boneMapping[bone.name] = bone.index;
+                    }
+
+                    
+                    
+                    
+                    
+                    
+                    
+                }
+
+                
+                if (jObj.contains("animations")) {
+                    obj.animations.clear();
+                    for (const auto& jAnim : jObj["animations"]) {
+                        AnimationClip anim;
+                        anim.name = jAnim["name"].get<std::string>();
+                        anim.duration = jAnim["duration"].get<float>();
+                        anim.ticksPerSecond = jAnim["ticksPerSecond"].get<float>();
+                        
+                        if (jAnim.contains("channels")) {
+                            for (const auto& jCh : jAnim["channels"]) {
+                                AnimationChannel ch;
+                                ch.boneName = jCh["boneName"].get<std::string>();
+                                
+                                for (const auto& k : jCh["positionKeys"]) {
+                                    ch.positionKeys.push_back({k["t"].get<float>(), glm::vec3(k["v"][0], k["v"][1], k["v"][2])});
+                                }
+                                for (const auto& k : jCh["rotationKeys"]) {
+                                    ch.rotationKeys.push_back({k["t"].get<float>(), glm::quat(k["v"][0], k["v"][1], k["v"][2], k["v"][3])});
+                                }
+                                for (const auto& k : jCh["scaleKeys"]) {
+                                    ch.scaleKeys.push_back({k["t"].get<float>(), glm::vec3(k["v"][0], k["v"][1], k["v"][2])});
+                                }
+                                anim.channels.push_back(ch);
+                            }
+                        }
+                        obj.animations.push_back(anim);
+                    }
+                }
+
+                if (jObj.contains("vertexBoneData")) {
+                    const auto& jVerts = jObj["vertexBoneData"];
+                    if (jVerts.is_array() && jVerts.size() == obj.mesh.vertices.size()) {
+                        for (size_t i = 0; i < jVerts.size(); ++i) {
+                            auto& v = obj.mesh.vertices[i];
+                            auto b = jVerts[i]["b"];
+                            auto w = jVerts[i]["w"];
+                            for (int k = 0; k < 4; ++k) {
+                                v.boneIds[k] = b[k].get<int>();
+                                v.weights[k] = w[k].get<float>();
+                            }
+                        }
+                        obj.mesh.UpdateVBO();
+                    }
+                }
                 
                 if (jObj.contains("hasCamera")) obj.hasCamera = jObj["hasCamera"];
                 if (jObj.contains("camera")) {
@@ -310,6 +475,28 @@ void Scene::Load(const std::string& path) {
                     if (s.contains("videoPlaybackSpeed")) obj.screen.videoPlaybackSpeed = s["videoPlaybackSpeed"];
                     if (s.contains("videoVolume")) obj.screen.videoVolume = s["videoVolume"];
                     if (s.contains("videoKeepAspect")) obj.screen.videoKeepAspect = s["videoKeepAspect"];
+                }
+                
+                if (jObj.contains("hasWater")) obj.hasWater = jObj["hasWater"];
+                if (jObj.contains("water")) {
+                    auto& w = jObj["water"];
+                    if (w.contains("waveSpeed")) obj.water.waveSpeed = w["waveSpeed"];
+                    if (w.contains("waveStrength")) obj.water.waveStrength = w["waveStrength"];
+                    if (w.contains("shininess")) obj.water.shininess = w["shininess"];
+                    if (w.contains("waterColor")) {
+                        auto col = w["waterColor"];
+                        obj.water.waterColor = glm::vec3(col[0], col[1], col[2]);
+                    }
+                    if (w.contains("waveSystem")) obj.water.waveSystem = w["waveSystem"];
+                    if (w.contains("tiling")) obj.water.tiling = w["tiling"];
+                    if (w.contains("gridResolution")) obj.water.gridResolution = w["gridResolution"];
+                    if (w.contains("surfaceHeight")) obj.water.surfaceHeight = w["surfaceHeight"];
+                    if (w.contains("depth")) obj.water.depth = w["depth"];
+                    if (w.contains("liquidDensity")) obj.water.liquidDensity = w["liquidDensity"];
+                    
+                    if (obj.hasWater) {
+                        obj.mesh = ObjectFactory::createWaterGrid(obj.water.gridResolution);
+                    }
                 }
                 
                 AddObject(std::move(obj));

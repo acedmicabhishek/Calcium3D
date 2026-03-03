@@ -29,9 +29,6 @@ public:
     void SetGradientSkyEnabled(bool v) { m_ShowGradientSky = v; }
     bool IsGradientSkyEnabled() const { return m_ShowGradientSky; }
 
-    void SetWaterEnabled(bool v) { m_ShowWater = v; }
-    bool IsWaterEnabled() const { return m_ShowWater; }
-
     void SetCloudsEnabled(bool v) { m_ShowClouds = v; }
     bool IsCloudsEnabled() const { return m_ShowClouds; }
 
@@ -66,7 +63,6 @@ private:
     
     bool m_ShowSkybox = true;
     bool m_ShowGradientSky = false;
-    bool m_ShowWater = false;
     bool m_ShowClouds = false;
     bool m_TimePaused = false;
     float m_TimeSpeed = 1.0f;

@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include "../Renderer/VBO.h"
 #include "../Renderer/Texture.h"
+#include "../AniEngine/Animation.h"
 
 struct ImportedMeshData {
     std::vector<Vertex> vertices;
@@ -16,12 +17,16 @@ struct ImportedMeshData {
     glm::vec3 albedo = glm::vec3(0.8f);
     float metallic = 0.0f;
     float roughness = 0.5f;
+
+    
+    Skeleton skeleton;
 };
 
 struct ImportResult {
     bool success = false;
     std::string error;
     std::vector<ImportedMeshData> meshes;
+    std::vector<AnimationClip> animations;
     std::string sourceFile;
 };
 

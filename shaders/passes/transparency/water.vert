@@ -10,9 +10,12 @@ uniform float time;
 uniform float waveSpeed;
 uniform float waveStrength;
 uniform int waveSystem;
+uniform float tiling;
+uniform float surfaceHeight;
 
 out vec3 FragPos;
 out vec3 WorldPos;
+out vec3 OriginalWorldPos;
 out float WaveHeight;
 out vec2 TexCoord;
 out vec3 TangentLightDir;
@@ -82,26 +85,30 @@ float getWaveHeight(vec2 pos, float time) {
 
 void main()
 {
-    vec3 pos = aPos;
+    // Transform to world space first to calculate waves independent of model scale
+    WorldPos = vec3(model * vec4(aPos, 1.0));
+    OriginalWorldPos = WorldPos;
     
     // Choose wave system (uncomment one):
-    // Option 1: Gerstner waves (more realistic ocean)
     float waveHeight = 0.0;
+    vec2 tiledPos = WorldPos.xz * tiling;
+    
     if (waveSystem == 0) {
         // Blinn-Wyvill waves
-        waveHeight = getWaveHeight(pos.xz, time * waveSpeed) * waveStrength;
-        pos.y += waveHeight;
+        waveHeight = getWaveHeight(tiledPos, time * waveSpeed) * waveStrength;
+        WorldPos.y += waveHeight + surfaceHeight;
     } else {
         // Gerstner waves
-        vec3 waveDisplacement = calculateWaves(pos.xz, time * waveSpeed) * waveStrength;
-        pos += waveDisplacement;
+        vec3 waveDisplacement = calculateWaves(tiledPos, time * waveSpeed) * waveStrength;
+        WorldPos += waveDisplacement;
+        WorldPos.y += surfaceHeight;
         waveHeight = waveDisplacement.y;
     }
     
-    // Transform to world space
-    WorldPos = vec3(model * vec4(pos, 1.0));
-    FragPos = pos;
+    FragPos = WorldPos; // Let FragPos and WorldPos be the same for simplicity
+    OriginalWorldPos.y += surfaceHeight; // Keep OriginalWorldPos in sync for normal sampling
     WaveHeight = waveHeight;
+
     TexCoord = aTexCoord;
     
     // Calculate tangent space for better normal mapping (optional)

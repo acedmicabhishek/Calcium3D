@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include "../Core/ThreadManager.h"
+#include "../AniEngine/AniEngine.h"
 
 Scene::Scene() {
     
@@ -11,7 +12,7 @@ Scene::~Scene() {
     Clear();
 }
 
-void Scene::Update(float dt) {
+void Scene::Update(float dt, float time) {
     
     for (auto& obj : m_Objects) {
         for (auto& script : obj.behaviors) {
@@ -19,7 +20,7 @@ void Scene::Update(float dt) {
         }
     }
 
-    physicsEngine.Update(dt, m_Objects);
+    physicsEngine.Update(dt, time, m_Objects);
     
     
     if (ThreadManager::IsEnabled()) {
@@ -30,6 +31,7 @@ void Scene::Update(float dt) {
                     script->OnUpdate(dt);
                 }
             }
+            AniEngine::Update(obj, dt);
         });
     } else {
         for (auto& obj : m_Objects) {
@@ -38,6 +40,7 @@ void Scene::Update(float dt) {
                     script->OnUpdate(dt);
                 }
             }
+            AniEngine::Update(obj, dt);
         }
     }
 }
@@ -160,12 +163,12 @@ void Scene::RemovePointLight(int index) {
     }
 }
 
-glm::mat4 Scene::GetGlobalTransform(int objectIndex) {
+glm::mat4 Scene::GetGlobalTransform(int objectIndex) const {
     if (objectIndex < 0 || objectIndex >= m_Objects.size()) {
         return glm::mat4(1.0f);
     }
     
-    GameObject& obj = m_Objects[objectIndex];
+    const GameObject& obj = m_Objects[objectIndex];
     glm::mat4 local = glm::translate(glm::mat4(1.0f), obj.position) * 
                       glm::mat4_cast(obj.rotation) * 
                       glm::scale(glm::mat4(1.0f), obj.scale);

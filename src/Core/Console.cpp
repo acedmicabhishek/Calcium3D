@@ -71,8 +71,6 @@ void Console::ExecuteCommand(const std::string& cmd) {
         AddLog("  /vsync [on|off]     — Toggle VSync");
         AddLog("  /timescale <value>  — Set time speed multiplier");
         AddLog("  /pause              — Pause/unpause time");
-        AddLog("  /skybox [on|off]    — Toggle skybox");
-        AddLog("  /water [on|off]     — Toggle water");
         AddLog("  /clouds [on|off]    — Toggle clouds");
         AddLog("  /fov <value>        — Set camera FOV");
         AddLog("  /dynamicsky [on|off]— Toggle dynamic sky mode");
@@ -165,13 +163,6 @@ void Console::ExecuteCommand(const std::string& cmd) {
         else if (arg == "off") m_ShowSkybox = false;
         else m_ShowSkybox = !m_ShowSkybox;
         AddLog("  Skybox: %s", m_ShowSkybox ? "ON" : "OFF");
-    }
-    else if (parsed.rfind("water", 0) == 0) {
-        std::string arg = (parsed.size() > 6) ? parsed.substr(6) : "";
-        if (arg == "on") m_ShowWater = true;
-        else if (arg == "off") m_ShowWater = false;
-        else m_ShowWater = !m_ShowWater;
-        AddLog("  Water: %s", m_ShowWater ? "ON" : "OFF");
     }
     else if (parsed.rfind("clouds", 0) == 0) {
         std::string arg = (parsed.size() > 7) ? parsed.substr(7) : "";
@@ -431,7 +422,6 @@ void Console::RenderRenderingSettings(RenderContext& ctx) {
         m_ShowGradientSky = (skyMode == 1);
     }
 
-    ImGui::Checkbox("Water", &m_ShowWater);
     ImGui::Checkbox("Clouds", &m_ShowClouds);
 
     ImGui::Separator();
@@ -526,21 +516,6 @@ void Console::RenderEnvironmentSettings(RenderContext& ctx) {
     }
     ImGui::SliderFloat("Moon Intensity", &ctx.moonIntensity, 0.0f, 5.0f);
     ImGui::SliderFloat("Moon Bloom", &ctx.moonBloom, 0.0f, 0.1f);
-
-    ImGui::Separator();
-    ImGui::TextColored(ImVec4(0.45f, 0.90f, 0.50f, 1.0f), "Water");
-
-    if (m_ShowWater) {
-        ImGui::SliderFloat("Water Height", &ctx.waterHeight, -10.0f, 10.0f);
-        ImGui::SliderFloat("Wave Speed", &ctx.waveSpeed, 0.0f, 5.0f);
-        ImGui::SliderFloat("Wave Strength", &ctx.waveStrength, 0.0f, 1.0f);
-        float wCol[3] = { ctx.waterColor.r, ctx.waterColor.g, ctx.waterColor.b };
-        if (ImGui::ColorEdit3("Water Color", wCol)) {
-            ctx.waterColor = glm::vec3(wCol[0], wCol[1], wCol[2]);
-        }
-    } else {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Water disabled. Enable via /water on");
-    }
 
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.45f, 0.90f, 0.50f, 1.0f), "Clouds");

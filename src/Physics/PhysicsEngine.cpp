@@ -2,6 +2,67 @@
 #include "../Core/ThreadManager.h"
 #include "../Scene/Scene.h"
 #include <algorithm>
+#include <iostream>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+
+static float blinnWyvillHelper(float x) {
+    float x2 = x * x;
+    if (x2 >= 1.0f) return 0.0f;
+    return (1.0f - x2) * (1.0f - x2) * (1.0f - x2);
+}
+
+static glm::vec3 gerstnerWaveHelper(glm::vec2 pos, glm::vec2 direction, float amplitude, float wavelength, float speed, float time) {
+    float k = 2.0f * 3.14159f / wavelength;
+    float c = speed;
+    glm::vec2 d = glm::normalize(direction);
+    float f = k * (glm::dot(d, pos) - c * time);
+    float steepness = 0.6f;
+    
+    return glm::vec3(
+        d.x * amplitude * cos(f) * steepness,
+        amplitude * sin(f),
+        d.y * amplitude * cos(f) * steepness
+    );
+}
+
+static float getSampledWaveHeight(glm::vec2 pos, float time, float waveSpeed, float waveStrength, int waveSystem, float tiling) {
+    glm::vec2 tiledPos = pos * tiling;
+    float t = time * waveSpeed;
+
+    if (waveSystem == 0) {
+        
+        glm::vec2 w1 = glm::vec2(tiledPos.x + tiledPos.y * 2.5f, tiledPos.y - tiledPos.x * 1.8f) * 0.6f;
+        glm::vec2 w2 = glm::vec2(tiledPos.x * 1.3f - tiledPos.y * 3.2f, tiledPos.y * 1.5f + tiledPos.x * 2.8f) * 0.4f;
+        glm::vec2 w3 = glm::vec2(tiledPos.x * 2.2f + tiledPos.y * 1.7f, tiledPos.y * 1.9f - tiledPos.x * 2.3f) * 0.5f;
+        glm::vec2 w4 = glm::vec2(tiledPos.x * 3.5f - tiledPos.y * 0.9f, tiledPos.y * 2.7f + tiledPos.x * 1.2f) * 0.7f;
+        glm::vec2 w5 = glm::vec2(tiledPos.x * 4.1f + tiledPos.y * 0.5f, tiledPos.y * 3.3f - tiledPos.x * 1.6f) * 0.8f;
+        
+        auto mod2 = [](float x, float y) { return x - y * floor(x / y); };
+        float t1 = mod2(w1.x + t * 0.8f, 2.0f) - 1.0f;
+        float t2 = mod2(w2.y - t * 1.2f, 2.0f) - 1.0f;
+        float t3 = mod2(w3.x + t * 0.6f, 2.0f) - 1.0f;
+        float t4 = mod2(w4.y - t * 1.5f, 2.0f) - 1.0f;
+        float t5 = mod2(w5.x + t * 0.9f, 2.0f) - 1.0f;
+        
+        float h = (blinnWyvillHelper(t1) * 0.22f + blinnWyvillHelper(t2) * 0.16f + 
+                   blinnWyvillHelper(t3) * 0.11f + blinnWyvillHelper(t4) * 0.07f + 
+                   blinnWyvillHelper(t5) * 0.05f);
+        return h * waveStrength;
+    } else {
+        
+        glm::vec3 wave(0.0f);
+        wave += gerstnerWaveHelper(tiledPos, glm::vec2(1.0f, 0.3f), 0.15f, 8.0f, 2.0f, t);
+        wave += gerstnerWaveHelper(tiledPos, glm::vec2(-0.7f, 0.9f), 0.12f, 6.5f, 1.8f, t);
+        wave += gerstnerWaveHelper(tiledPos, glm::vec2(0.5f, -1.0f), 0.08f, 4.0f, 2.5f, t);
+        wave += gerstnerWaveHelper(tiledPos, glm::vec2(-0.9f, -0.4f), 0.06f, 3.5f, 2.2f, t);
+        wave += gerstnerWaveHelper(tiledPos, glm::vec2(0.8f, 0.6f), 0.04f, 2.0f, 3.0f, t);
+        wave += gerstnerWaveHelper(tiledPos, glm::vec2(-0.3f, -0.8f), 0.03f, 1.5f, 3.5f, t);
+        return wave.y * waveStrength;
+    }
+}
+
 
 bool PhysicsEngine::GlobalGravityEnabled = true;
 glm::vec3 PhysicsEngine::Gravity = glm::vec3(0.0f, -9.81f, 0.0f);
@@ -198,17 +259,91 @@ glm::mat3 GetBoxInertiaTensor(const glm::vec3& halfExtents, float mass) {
     );
 }
 
-void PhysicsEngine::Update(float deltaTime, std::vector<GameObject>& objects) {
+void PhysicsEngine::Update(float deltaTime, float time, std::vector<GameObject>& objects) {
     if (deltaTime <= 0.0f || !GlobalPhysicsEnabled) return;
 
     float subDeltaTime = deltaTime / (float)SubSteps;
 
     for (int step = 0; step < SubSteps; ++step) {
         
+        struct WaterVolume { 
+            AABB box; 
+            float surfaceY; 
+            float bottomY; 
+            float density; 
+            float waveSpeed;
+            float waveStrength;
+            int waveSystem;
+            float tiling;
+        };
+        std::vector<WaterVolume> waterVolumes;
+        for (const auto& wObj : objects) {
+            if (wObj.hasWater && wObj.isActive) {
+                AABB worldAABB = GetTransformedAABB(wObj.collider, wObj.position, wObj.rotation, wObj.scale);
+                float sY = wObj.position.y + wObj.water.surfaceHeight;
+                waterVolumes.push_back({
+                    worldAABB, sY, sY - wObj.water.depth, wObj.water.liquidDensity,
+                    wObj.water.waveSpeed, wObj.water.waveStrength, 
+                    wObj.water.waveSystem, wObj.water.tiling
+                });
+            }
+        }
+        
         auto integrateFunc = [&](int i) {
             auto& obj = objects[i];
             if (!obj.isActive || obj.isStatic) return;
 
+            
+            for (const auto& water : waterVolumes) {
+                const AABB& waterBox = water.box;
+                
+                AABB objAABB = GetTransformedAABB(obj.collider, obj.position, obj.rotation, obj.scale);
+                
+                
+                if (objAABB.max.x > waterBox.min.x && objAABB.min.x < waterBox.max.x &&
+                    objAABB.max.z > waterBox.min.z && objAABB.min.z < waterBox.max.z) 
+                {
+                    
+                    float waveH = getSampledWaveHeight(glm::vec2(obj.position.x, obj.position.z), 
+                                                     time, water.waveSpeed, water.waveStrength, 
+                                                     water.waveSystem, water.tiling);
+                    
+                    float dynamicSurfaceY = water.surfaceY + waveH;
+                    float waterBottomY = water.bottomY;
+
+                    if (objAABB.min.y < dynamicSurfaceY && objAABB.max.y > waterBottomY) {
+                        float objHeight = objAABB.max.y - objAABB.min.y;
+                        if (objHeight < 0.0001f) objHeight = 0.0001f;
+                        
+                        float effectiveSurfaceY = std::min(dynamicSurfaceY, objAABB.max.y);
+                        float effectiveBottomY = std::max(waterBottomY, objAABB.min.y);
+                        float submergedHeight = std::max(0.0f, effectiveSurfaceY - effectiveBottomY);
+                        float submergedRatio = std::min(1.0f, submergedHeight / objHeight);
+                        
+                        float objVolume = 1.0f;
+                        if (obj.shape == ColliderShape::Box) {
+                            objVolume = (obj.collider.max.x - obj.collider.min.x) * obj.scale.x *
+                                        (obj.collider.max.y - obj.collider.min.y) * obj.scale.y *
+                                        (obj.collider.max.z - obj.collider.min.z) * obj.scale.z;
+                        } else if (obj.shape == ColliderShape::Sphere) {
+                            float r = obj.collisionRadius * obj.scale.x;
+                            objVolume = (4.0f / 3.0f) * glm::pi<float>() * r * r * r;
+                        }
+                        
+                        if (objVolume > 0.0f && obj.mass > 0.0f) {
+                            float buoyantForce = water.density * (objVolume * submergedRatio) * std::abs(Gravity.y);
+                            
+                            
+                            obj.velocity.y += (buoyantForce / obj.mass) * subDeltaTime;
+                            
+                            
+                            float dragCoeff = 0.8f; 
+                            obj.velocity *= std::pow(dragCoeff, subDeltaTime * 60.0f);
+                            obj.angularVelocity *= std::pow(dragCoeff, subDeltaTime * 60.0f);
+                        }
+                    }
+                }
+            }
             
             if (GlobalGravityEnabled && obj.useGravity) {
                 obj.velocity += Gravity * subDeltaTime;
@@ -300,6 +435,8 @@ void PhysicsEngine::Update(float deltaTime, std::vector<GameObject>& objects) {
                 }
 
                 if (collided) {
+                    if (objA.isTrigger || objB.isTrigger || objA.hasWater || objB.hasWater) continue;
+                    
                     float invMassA = objA.isStatic ? 0.0f : (1.0f / objA.mass);
                     float invMassB = objB.isStatic ? 0.0f : (1.0f / objB.mass);
 

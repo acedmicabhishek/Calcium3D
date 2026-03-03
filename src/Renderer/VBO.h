@@ -11,6 +11,10 @@ struct Vertex
 	glm::vec3 normal;
 	glm::vec3 color;
 	glm::vec2 texUV;
+
+	
+	int boneIds[4] = { -1, -1, -1, -1 };
+	float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };
 
 class VBO

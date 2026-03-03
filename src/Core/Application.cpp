@@ -5,7 +5,6 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include "Renderer.h"
-#include "Water.h"
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
 #include <iostream>
@@ -118,7 +117,6 @@ bool Application::Init()
     
     HitboxGraphics::Init();
     
-    m_Water = std::make_unique<Water>();
     m_Cloud2D = std::make_unique<Cloud2D>();
     m_VolumetricCloud = std::make_unique<VolumetricCloud>();
     
@@ -212,7 +210,7 @@ void Application::Run()
         OnUpdate(deltaTime);
         
         if (GameStateManager::IsState(GameState::GAMEPLAY)) {
-            m_Scene->Update(deltaTime);
+            m_Scene->Update(deltaTime, (float)glfwGetTime());
         }
 
         if (m_Camera && m_Scene) {

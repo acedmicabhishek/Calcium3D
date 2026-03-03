@@ -2,7 +2,6 @@
 #include "Editor.h"
 #include "Logger.h"
 #include "ResourceManager.h"
-#include "Water.h"
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
 #include <iostream>
@@ -48,6 +47,7 @@ bool EditorApplication::Init()
     glfwSetWindowUserPointer(m_Window, &windowData);
     
     ResourceManager::LoadShader("gizmo", "../shaders/editor/gizmo.vert", "../shaders/editor/gizmo.frag");
+    ResourceManager::LoadShader("skeletal", "../shaders/passes/geometry/skeletal.vert", "../shaders/passes/geometry/skeletal.frag");
 
     CreateViewportFramebuffer(m_Specification.Width, m_Specification.Height);
     
@@ -120,7 +120,7 @@ void EditorApplication::LoadGlobalSettings() {
     } catch (...) {}
 }
 
-void EditorApplication::SaveProject() {
+void EditorApplication::SaveProject(bool silent) {
     if (m_ProjectRoot.empty()) return;
     
     nlohmann::json config;
@@ -153,7 +153,8 @@ void EditorApplication::SaveProject() {
     std::ofstream file(configPath);
     if (file.is_open()) {
         file << config.dump(4);
-        Logger::AddLog("Saved Project Configuration: %s", configPath.c_str());
+        if (!silent)
+            Logger::AddLog("Saved Project Configuration: %s", configPath.c_str());
         SaveGlobalSettings();
     } else {
         Logger::AddLog("[ERROR] Failed to save Project Configuration: %s", configPath.c_str());
@@ -324,17 +325,16 @@ void EditorApplication::OnUpdate(float deltaTime)
         if (m_EditorLayer->timeOfDay < 0.0f) m_EditorLayer->timeOfDay += 24.0f;
     }
 
-    if (Editor::isEditMode) {
-         m_Camera->Inputs(m_Window, deltaTime);
-    } else {
-        
-        
-        m_Scene->Update(deltaTime);
+    if (Editor::isEditMode || m_EditorLayer->m_MasterControl) {
+         m_Camera->Inputs(m_Window, deltaTime, m_EditorLayer->m_MasterControl);
+    }
+    
+    if (!Editor::isEditMode) {
+        m_Scene->Update(deltaTime, (float)glfwGetTime());
     }
 
     m_ShowSkybox = m_EditorLayer->showSkybox;
     m_ShowGradientSky = m_EditorLayer->showGradientSky;
-    m_ShowWater = m_EditorLayer->showWater;
     m_ShowClouds = m_EditorLayer->showClouds;
 
     if (m_MSAASamples != m_EditorLayer->msaaSamples) {
@@ -391,9 +391,10 @@ void EditorApplication::RenderEditor(float deltaTime) {
     m_RenderContext.height = m_ViewportHeight;
     m_RenderContext.camera = m_Camera.get();
     m_RenderContext.scene = m_Scene.get();
-    m_RenderContext.water = m_Water.get();
     m_RenderContext.cloud2d = m_Cloud2D.get();
     m_RenderContext.volCloud = m_VolumetricCloud.get();
+    
+    m_RenderContext.time = glfwGetTime();
     
     if (m_EditorLayer->msaaSamples > 0 && m_MSAAFBO != 0) {
         m_RenderContext.mainFBO = m_MSAAFBO;
@@ -401,16 +402,11 @@ void EditorApplication::RenderEditor(float deltaTime) {
         m_RenderContext.mainFBO = m_ViewportFBO;
     }
     
-    m_RenderContext.showWater = m_ShowWater;
     m_RenderContext.showClouds = m_ShowClouds;
     m_RenderContext.cloudMode = m_EditorLayer->cloudMode;
-    m_RenderContext.waterHeight = m_EditorLayer->waterHeight;
     m_RenderContext.cloudHeight = m_EditorLayer->cloud2dHeight;
     m_RenderContext.cloudDensity = m_EditorLayer->cloudDensity; 
     m_RenderContext.cloudCover = m_EditorLayer->cloudCover;
-    m_RenderContext.waveSpeed = m_EditorLayer->waveSpeed;
-    m_RenderContext.waveStrength = m_EditorLayer->waveStrength;
-    m_RenderContext.waterColor = m_EditorLayer->waterColor;
     m_RenderContext.showSkybox = m_ShowSkybox;
     m_RenderContext.showGradientSky = m_ShowGradientSky;
 

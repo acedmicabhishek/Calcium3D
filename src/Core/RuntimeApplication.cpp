@@ -1,6 +1,5 @@
 #include "RuntimeApplication.h"
 #include "Logger.h"
-#include "Water.h"
 #include "2dCloud.h"
 #include "VolumetricCloud.h"
 #include "ObjectFactory.h"
@@ -81,19 +80,7 @@ void RuntimeApplication::LoadProjectConfig() {
                 auto& env = config["environment"];
                 if (env.contains("showSkybox")) m_Console->SetSkyboxEnabled(env["showSkybox"]);
                 if (env.contains("showGradientSky")) m_Console->SetGradientSkyEnabled(env["showGradientSky"]);
-                if (env.contains("showWater")) m_Console->SetWaterEnabled(env["showWater"]);
-                if (env.contains("showClouds")) m_Console->SetCloudsEnabled(env["showClouds"]);
-                if (env.contains("cloudMode")) m_RenderContext.cloudMode = env["cloudMode"];
-                if (env.contains("waterHeight")) m_RenderContext.waterHeight = env["waterHeight"];
-                if (env.contains("cloudHeight")) m_RenderContext.cloudHeight = env["cloudHeight"];
-                if (env.contains("cloudDensity")) m_RenderContext.cloudDensity = env["cloudDensity"];
                 if (env.contains("cloudCover")) m_RenderContext.cloudCover = env["cloudCover"];
-                if (env.contains("waveSpeed")) m_RenderContext.waveSpeed = env["waveSpeed"];
-                if (env.contains("waveStrength")) m_RenderContext.waveStrength = env["waveStrength"];
-                if (env.contains("waterColor")) {
-                    auto& c = env["waterColor"];
-                    m_RenderContext.waterColor = glm::vec3(c[0], c[1], c[2]);
-                }
                 
                 if (env.contains("timeOfDay")) m_RenderContext.timeOfDay = env["timeOfDay"];
                 if (env.contains("sunEnabled")) m_RenderContext.sunEnabled = env["sunEnabled"];
@@ -322,7 +309,7 @@ void RuntimeApplication::OnUpdate(float deltaTime)
     m_LastDeltaTime = deltaTime;
     
     if (m_Scene) {
-        m_Scene->Update(deltaTime);
+        m_Scene->Update(deltaTime, (float)glfwGetTime());
     }
 
     
@@ -469,7 +456,6 @@ void RuntimeApplication::OnRender()
     m_RenderContext.height = winH;
     m_RenderContext.camera = m_Camera.get();
     m_RenderContext.scene = m_Scene.get();
-    m_RenderContext.water = m_Water.get();
     m_RenderContext.cloud2d = m_Cloud2D.get();
     m_RenderContext.volCloud = m_VolumetricCloud.get();
     
@@ -481,7 +467,6 @@ void RuntimeApplication::OnRender()
     
     m_RenderContext.showSkybox = m_Console->IsSkyboxEnabled();
     m_RenderContext.showGradientSky = m_Console->IsGradientSkyEnabled();
-    m_RenderContext.showWater = m_Console->IsWaterEnabled();
     m_RenderContext.showClouds = m_Console->IsCloudsEnabled();
     
     float angle = (m_RenderContext.timeOfDay - 6.0f) / 24.0f * 2.0f * glm::pi<float>();

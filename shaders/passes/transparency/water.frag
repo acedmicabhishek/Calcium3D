@@ -3,6 +3,7 @@ out vec4 FragColor;
 
 in vec3 FragPos;
 in vec3 WorldPos;
+in vec3 OriginalWorldPos;
 in float WaveHeight;
 
 uniform float time;
@@ -11,11 +12,40 @@ uniform float waveSpeed;
 uniform float waveStrength;
 uniform float shininess;
 uniform vec3 waterColor;
+uniform int waveSystem;
+uniform float tiling;
 
 // Blinn-Wyvill approximation
 float blinnWyvill(float x) {
     float x2 = x * x;
     return (1.0 - x2) * (1.0 - x2) * (1.0 - x2);
+}
+
+// Gerstner wave function
+vec3 gerstnerWave(vec2 pos, vec2 direction, float amplitude, float wavelength, float speed, float time_param) {
+    float k = 2.0 * 3.14159 / wavelength;
+    float c = speed;
+    vec2 d = normalize(direction);
+    float f = k * (dot(d, pos) - c * time_param);
+    float steepness = 0.6;
+    
+    return vec3(
+        d.x * amplitude * cos(f) * steepness,
+        amplitude * sin(f),
+        d.y * amplitude * cos(f) * steepness
+    );
+}
+
+// Combined wave system
+vec3 calculateWaves(vec2 pos, float time_param) {
+    vec3 wave = vec3(0.0);
+    wave += gerstnerWave(pos, vec2(1.0, 0.3), 0.15, 8.0, 2.0, time_param);
+    wave += gerstnerWave(pos, vec2(-0.7, 0.9), 0.12, 6.5, 1.8, time_param);
+    wave += gerstnerWave(pos, vec2(0.5, -1.0), 0.08, 4.0, 2.5, time_param);
+    wave += gerstnerWave(pos, vec2(-0.9, -0.4), 0.06, 3.5, 2.2, time_param);
+    wave += gerstnerWave(pos, vec2(0.8, 0.6), 0.04, 2.0, 3.0, time_param);
+    wave += gerstnerWave(pos, vec2(-0.3, -0.8), 0.03, 1.5, 3.5, time_param);
+    return wave;
 }
 
 float getWaveHeight(vec2 pos, float time_param) {
@@ -37,12 +67,19 @@ float getWaveHeight(vec2 pos, float time_param) {
     return wave1 + wave2 + wave3 + wave4;
 }
 
-vec3 calculateNormal(vec3 pos, float delta, float time) {
-    vec2 p_xz = pos.xz;
+vec3 calculateNormal(vec3 pos, float delta, float time_param) {
+    vec2 p_xz = pos.xz * tiling;
     
-    float h0 = getWaveHeight(p_xz, time);
-    float hx = getWaveHeight(p_xz + vec2(delta, 0.0), time);
-    float hz = getWaveHeight(p_xz + vec2(0.0, delta), time);
+    float h0, hx, hz;
+    if (waveSystem == 0) {
+        h0 = getWaveHeight(p_xz, time_param) * waveStrength;
+        hx = getWaveHeight(p_xz + vec2(delta, 0.0), time_param) * waveStrength;
+        hz = getWaveHeight(p_xz + vec2(0.0, delta), time_param) * waveStrength;
+    } else {
+        h0 = calculateWaves(p_xz, time_param).y * waveStrength;
+        hx = calculateWaves(p_xz + vec2(delta, 0.0), time_param).y * waveStrength;
+        hz = calculateWaves(p_xz + vec2(0.0, delta), time_param).y * waveStrength;
+    }
     
     vec3 tangentX = normalize(vec3(delta, hx - h0, 0.0));
     vec3 tangentZ = normalize(vec3(0.0, hz - h0, delta));
@@ -59,7 +96,7 @@ float fresnel(vec3 viewDir, vec3 normal, float power) {
 void main()
 {
     // Calculate normal with finer detail
-    vec3 normal = calculateNormal(FragPos, 0.015, time * waveSpeed);
+    vec3 normal = calculateNormal(OriginalWorldPos, 0.015, time * waveSpeed);
     
     // Lighting setup
     vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));

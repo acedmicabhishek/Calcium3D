@@ -22,19 +22,31 @@ Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::v
 
 	vao.Bind();
 	VBO VBO(vertices);
+	vboID = VBO.ID;
 	EBO EBO(indices);
 	
 	vao.LinkAttrib(VBO, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, position));
 	vao.LinkAttrib(VBO, 1, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, color));
 	vao.LinkAttrib(VBO, 2, 2, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, texUV));
 	vao.LinkAttrib(VBO, 3, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+	
+	
+	vao.LinkAttribInt(VBO, 4, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, boneIds));
+	vao.LinkAttrib(VBO, 5, 4, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, weights));
+	
 	vao.Unbind();
 	VBO.Unbind();
 	EBO.Unbind();
 }
 
+void Mesh::UpdateVBO() {
+    glBindBuffer(GL_ARRAY_BUFFER, vboID);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
-void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale, unsigned int textureOverride)
+
+void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale, unsigned int textureOverride, const std::vector<glm::mat4>& boneMatrices)
 {
 	shader.use();
 	vao.Bind();
@@ -72,14 +84,15 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 	
-	glm::vec3 tilingFactor = glm::vec3(scale.x, scale.y, scale.z);
-	glUniform3f(glGetUniformLocation(shader.ID, "tilingFactor"), tilingFactor.x, tilingFactor.y, tilingFactor.z);
+	for (int i = 0; i < (int)boneMatrices.size() && i < 100; i++) {
+		shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", boneMatrices[i]);
+	}
 
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 	vao.Unbind();
 }
 
-void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned int textureOverride)
+void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned int textureOverride, const std::vector<glm::mat4>& boneMatrices)
 {
 	shader.use();
 	vao.Bind();
@@ -112,6 +125,10 @@ void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned
 	camera.Matrix(camera.FOV, camera.nearPlane, camera.farPlane, shader, "camMatrix");
 
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+	for (int i = 0; i < (int)boneMatrices.size() && i < 100; i++) {
+		shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", boneMatrices[i]);
+	}
 	
 	
 	float scaleX = glm::length(glm::vec3(model[0]));

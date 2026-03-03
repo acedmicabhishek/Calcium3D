@@ -40,19 +40,15 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
         if (!renderEditorObjects && object.meshType == MeshType::Camera) continue;
         
         Shader* activeShader = &shader;
-        bool usingCustom = false;
         if (!object.material.customShaderName.empty() && ResourceManager::HasShader(object.material.customShaderName)) {
             activeShader = &ResourceManager::GetShader(object.material.customShaderName);
-            usingCustom = true;
-            activeShader->use();
-            activeShader->setMat4("view", camera.GetViewMatrix());
-            activeShader->setMat4("projection", camera.GetProjectionMatrix());
-            
-            
-            
-        } else {
-            activeShader->use();
+        } else if (object.isAnimating && !object.boneMatrices.empty() && ResourceManager::HasShader("skeletal")) {
+            activeShader = &ResourceManager::GetShader("skeletal");
         }
+
+        activeShader->use();
+        activeShader->setMat4("view", camera.GetViewMatrix());
+        activeShader->setMat4("projection", camera.GetProjectionMatrix());
         
         glm::vec3 finalAlbedo = object.material.albedo;
         if (object.hasScreen && (object.screen.type == ScreenType::Image || object.screen.type == ScreenType::Video)) {
@@ -70,6 +66,10 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
         
         
         glm::mat4 finalMatrix = glm::scale(globalTransform, glm::vec3(tilingFactor));
+        
+        for (int j = 0; j < (int)object.boneMatrices.size() && j < 100; j++) {
+            activeShader->setMat4("finalBonesMatrices[" + std::to_string(j) + "]", object.boneMatrices[j]);
+        }
         
         unsigned int texOverride = 0;
         if (object.hasScreen && object.screen.enabled) {
@@ -152,6 +152,6 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
             }
         }
         
-        object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride);
+        object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride, object.boneMatrices);
     }
 }

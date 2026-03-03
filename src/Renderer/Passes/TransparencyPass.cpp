@@ -3,7 +3,6 @@
 #include "ResourceManager.h"
 #include "Scene.h"
 #include "Camera.h"
-#include "Water.h"
 #include "2dCloud.h"
 #include "VolumetricCloud.h" 
 #include <glad/glad.h>
@@ -64,20 +63,35 @@ void TransparencyPass::Execute(const RenderContext& context)
     }
 
     
-    if (context.showWater && context.water) {
-        
-        
+    if (context.scene && context.camera) {
         Shader& waterShader = ResourceManager::GetShader("water");
         
-        context.water->position.y = context.waterHeight;
-        context.water->waveSpeed = context.waveSpeed;
-        context.water->waveStrength = context.waveStrength;
-        context.water->waterColor = context.waterColor;
-        
-        
-        glm::mat4 projection = context.camera->GetProjectionMatrix();
-        
-        context.water->Draw(waterShader, *context.camera, projection, context.time, context.camera->Position);
+        auto& objects = context.scene->GetObjects();
+        for (int i = 0; i < objects.size(); ++i) {
+            auto& obj = objects[i];
+            if (obj.hasWater && obj.isActive) {
+                waterShader.use();
+                
+                glm::mat4 model = context.scene->GetGlobalTransform(i);
+                waterShader.setMat4("model", model);
+                waterShader.setMat4("view", context.camera->GetViewMatrix());
+                glm::mat4 projection = context.camera->GetProjectionMatrix();
+                waterShader.setMat4("projection", projection);
+                
+                waterShader.setFloat("time", context.time);
+                waterShader.setVec3("viewPos", context.camera->Position);
+                
+                waterShader.setFloat("waveSpeed", obj.water.waveSpeed);
+                waterShader.setFloat("waveStrength", obj.water.waveStrength);
+                waterShader.setFloat("shininess", obj.water.shininess);
+                waterShader.setVec3("waterColor", obj.water.waterColor);
+                waterShader.setInt("waveSystem", obj.water.waveSystem);
+                waterShader.setFloat("tiling", obj.water.tiling);
+                waterShader.setFloat("surfaceHeight", obj.water.surfaceHeight);
+                
+                obj.mesh.Draw(waterShader, *context.camera, model);
+            }
+        }
     }
     
     glDisable(GL_BLEND);

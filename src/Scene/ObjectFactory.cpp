@@ -192,3 +192,51 @@ Mesh ObjectFactory::createCameraMesh() {
     tex.emplace_back("../Resource/default/texture/DefaultTex.png", "specular", 1);
     return Mesh(vertices, indices, tex);
 }
+
+Mesh ObjectFactory::createWaterGrid(int resolution) {
+    std::vector<Vertex> vertices;
+    std::vector<GLuint> indices;
+
+    float step = 1.0f / (float)resolution;
+
+    for (int z = 0; z <= resolution; ++z) {
+        for (int x = 0; x <= resolution; ++x) {
+            float vx = -0.5f + x * step;
+            float vz = -0.5f + z * step;
+            
+            Vertex vertex;
+            vertex.position = glm::vec3(vx, 0.0f, vz);
+            vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            vertex.color = glm::vec3(0.0f, 0.3f, 0.5f);
+            vertex.texUV = glm::vec2((float)x, (float)z);
+            for(int i = 0; i < 4; i++) {
+                vertex.boneIds[i] = -1;
+                vertex.weights[i] = 0.0f;
+            }
+            vertices.push_back(vertex);
+        }
+    }
+
+    for (int z = 0; z < resolution; ++z) {
+        for (int x = 0; x < resolution; ++x) {
+            int topLeft = (z * (resolution + 1)) + x;
+            int topRight = topLeft + 1;
+            int bottomLeft = ((z + 1) * (resolution + 1)) + x;
+            int bottomRight = bottomLeft + 1;
+
+            indices.push_back(topLeft);
+            indices.push_back(bottomLeft);
+            indices.push_back(topRight);
+
+            indices.push_back(topRight);
+            indices.push_back(bottomLeft);
+            indices.push_back(bottomRight);
+        }
+    }
+
+    std::vector<Texture> tex;
+    tex.emplace_back("../Resource/default/texture/DefaultTex.png", "diffuse", 0);
+    tex.emplace_back("../Resource/default/texture/DefaultTex.png", "specular", 1);
+
+    return Mesh(vertices, indices, tex);
+}

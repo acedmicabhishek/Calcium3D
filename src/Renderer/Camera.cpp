@@ -27,11 +27,11 @@ void Camera::Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shade
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, uniform), 1, GL_FALSE, glm::value_ptr(projection * view));
 }
 
-void Camera::Inputs(GLFWwindow* window, float deltaTime)
+void Camera::Inputs(GLFWwindow* window, float deltaTime, bool forceFreeMove)
 {
 
 #ifndef C3D_RUNTIME
-	if (Editor::isEditMode) {
+	if (Editor::isEditMode || forceFreeMove) {
 		
 		if (InputManager::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_2)) {
 			if (!m_cameraEnabled) {

@@ -9,9 +9,10 @@
 #include "Behavior.h"
 #include "../Renderer/Material.h"
 #include <memory>
+#include "../AniEngine/Animation.h"
 
 enum class ColliderShape { Box, Sphere };
-enum class MeshType { None, Cube, Sphere, Plane, Model, Camera };
+enum class MeshType { None, Cube, Sphere, Plane, Model, Camera, Water };
 enum class AudioType { Directional, Ambience };
 enum class ScreenType { None, Image, Video, CameraFeed };
 
@@ -83,6 +84,20 @@ struct ScreenComponent {
     bool videoKeepAspect = true;
 };
 
+struct WaterComponent {
+    float waveSpeed = 1.0f;
+    float waveStrength = 0.5f;
+    float shininess = 64.0f;
+    glm::vec3 waterColor = glm::vec3(0.0f, 0.4f, 0.8f);
+    int waveSystem = 0; 
+    float tiling = 1.0f;
+    int gridResolution = 200;
+    
+    float surfaceHeight = 0.0f; 
+    float depth = 5.0f;         
+    float liquidDensity = 1.0f; 
+};
+
 struct GameObject {
     Mesh mesh; 
     glm::vec3 position;
@@ -127,12 +142,23 @@ struct GameObject {
     bool hasScreen = false;
     ScreenComponent screen;
     
+    bool isTrigger = false;
+    
+    bool hasWater = false;
+    WaterComponent water;
     
     glm::vec3 prevPosition = glm::vec3(0.0f);
     
     std::string modelPath = "";
     int meshIndex = -1;
     MeshType meshType = MeshType::None;
+
+    
+    std::vector<AnimationClip> animations;
+    int currentAnimationIndex = -1;
+    float animationTime = 0.0f;
+    bool isAnimating = false;
+    std::vector<glm::mat4> boneMatrices; 
     
     void ApplyImpulse(const glm::vec3& impulse) {
         if (!isStatic && mass > 0.0f) {
@@ -145,7 +171,7 @@ struct GameObject {
           shape(ColliderShape::Box), collisionRadius(0.5f), isActive(true),
           useGravity(false), isStatic(false), mass(1.0f), friction(0.5f), restitution(0.5f), enableCollision(true),
           centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f), angularVelocity(0.0f), torque(0.0f),
-          hasAudio(false), hasCamera(false), hasScreen(false) {
+          hasAudio(false), hasCamera(false), hasScreen(false), hasWater(false) {
               
         if (!mesh.vertices.empty()) {
             glm::vec3 minExtent = mesh.vertices[0].position;
@@ -165,7 +191,7 @@ public:
     Scene();
     ~Scene();
 
-    void Update(float dt);
+    void Update(float dt, float time);
     
     void AddObject(GameObject object);
     void RemoveObject(int index);
@@ -198,13 +224,13 @@ public:
     void RemovePointLight(int index);
     std::vector<PointLight>& GetPointLights() { return m_PointLights; }
 
-    void Save(const std::string& path);
+    void Save(const std::string& path, bool silent = false);
     void Load(const std::string& path);
 
     const std::string& GetFilepath() const { return m_Filepath; }
     void SetFilepath(const std::string& path) { m_Filepath = path; }
 
-    glm::mat4 GetGlobalTransform(int objectIndex);
+    glm::mat4 GetGlobalTransform(int objectIndex) const;
 
 private:
     std::string m_Filepath = "";

@@ -44,7 +44,7 @@ public:
 	
 	void Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shader, const char* uniform);
 	
-	void Inputs(GLFWwindow* window, float deltaTime = 1.0f/60.0f);
+	void Inputs(GLFWwindow* window, float deltaTime = 1.0f/60.0f, bool forceFreeMove = false);
 	glm::mat4 GetViewMatrix();
 	glm::mat4 GetProjectionMatrix();
 	glm::vec3 GetRay(GLFWwindow* window);

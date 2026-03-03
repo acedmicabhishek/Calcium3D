@@ -17,7 +17,7 @@ public:
 
     void OpenProject(const std::string& path) override;
     void CreateProject(const std::string& path) override;
-    void SaveProject();
+    void SaveProject(bool silent = false);
     void SaveGlobalSettings();
     void LoadGlobalSettings();
     bool Init() override;

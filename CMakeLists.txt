@@ -88,8 +88,13 @@ set(SOURCES
     # Audio
     src/AudioEngine/audioEngine.cpp
     
+    # Animation
+    src/AniEngine/AniEngine.cpp
+    src/AniEngine/Animation.h
+    src/AniEngine/AnimatorUI.cpp
+    src/AniEngine/RiggingUI.cpp
+    
     # Environment
-    src/Environment/Water.cpp
     src/Environment/2dCloud.cpp
     src/Environment/VolumetricCloud.cpp
     
@@ -124,6 +129,7 @@ target_include_directories(calcium3d PUBLIC
     src/BuildManager
     src/ModelImport
     src/AudioEngine
+    src/AniEngine
     src
     include/ufbx
 )
@@ -201,7 +207,6 @@ set(TESTBUILD_SOURCES
     src/Scene/SceneIO.cpp
     
     # Environment
-    src/Environment/Water.cpp
     src/Environment/2dCloud.cpp
     src/Environment/VolumetricCloud.cpp
     src/Physics/HitboxGraphics.cpp
@@ -212,6 +217,9 @@ set(TESTBUILD_SOURCES
     
     # Audio
     src/AudioEngine/audioEngine.cpp
+    
+    # Animation
+    src/AniEngine/AniEngine.cpp
     
     # Glad
     src/glad.c
@@ -236,6 +244,7 @@ target_include_directories(calcium3d_testbuild PUBLIC
     src/Scene
     src/Environment
     src/AudioEngine
+    src/AniEngine
     src
 )
 

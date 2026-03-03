@@ -18,6 +18,15 @@
 
 namespace fs = std::filesystem;
 
+static glm::mat4 ToMat4(const ufbx_matrix& m) {
+    glm::mat4 out;
+    out[0] = { (float)m.cols[0].x, (float)m.cols[0].y, (float)m.cols[0].z, 0.0f };
+    out[1] = { (float)m.cols[1].x, (float)m.cols[1].y, (float)m.cols[1].z, 0.0f };
+    out[2] = { (float)m.cols[2].x, (float)m.cols[2].y, (float)m.cols[2].z, 0.0f };
+    out[3] = { (float)m.cols[3].x, (float)m.cols[3].y, (float)m.cols[3].z, 1.0f };
+    return out;
+}
+
 std::vector<std::string> ModelImporter::GetSupportedExtensions() {
     return { ".obj", ".fbx", ".gltf", ".glb", ".stl", ".ply" };
 }
@@ -167,6 +176,31 @@ ImportResult ModelImporter::ImportFBX(const std::string& filepath) {
         return result;
     }
 
+    
+    Skeleton globalSkeleton;
+    
+    std::map<ufbx_node*, int> nodeToBone;
+    globalSkeleton.bones.clear();
+    globalSkeleton.boneMapping.clear();
+    
+    for (size_t ni = 0; ni < scene->nodes.count; ni++) {
+        ufbx_node* node = scene->nodes.data[ni];
+        
+        Bone bone;
+        bone.name = std::string(node->name.data, node->name.length);
+        bone.index = (int)globalSkeleton.bones.size();
+        nodeToBone[node] = bone.index;
+        globalSkeleton.bones.push_back(bone);
+        globalSkeleton.boneMapping[bone.name] = bone.index;
+    }
+    
+    for (size_t ni = 0; ni < scene->nodes.count; ni++) {
+        ufbx_node* node = scene->nodes.data[ni];
+        if (node->parent) {
+            globalSkeleton.bones[nodeToBone[node]].parentIndex = nodeToBone[node->parent];
+        }
+    }
+
     std::string modelDir = fs::path(filepath).parent_path().string() + "/";
 
     
@@ -244,10 +278,36 @@ ImportResult ModelImporter::ImportFBX(const std::string& filepath) {
 
                 vertex.color = glm::vec3(1.0f);
 
+                
+                if (umesh->skin_deformers.count > 0) {
+                    ufbx_skin_deformer* skin = umesh->skin_deformers.data[0];
+                    size_t vidx = umesh->vertex_indices.data[idx];
+                    ufbx_skin_vertex skin_vert = skin->vertices.data[vidx];
+                    
+                    int count = std::min((int)skin_vert.num_weights, 4);
+                    for (int wi = 0; wi < count; wi++) {
+                        ufbx_skin_weight weight = skin->weights.data[skin_vert.weight_begin + wi];
+                        vertex.boneIds[wi] = nodeToBone[skin->clusters.data[weight.cluster_index]->bone_node];
+                        vertex.weights[wi] = (float)weight.weight;
+                    }
+                }
+
                 mesh.indices.push_back(static_cast<GLuint>(mesh.vertices.size()));
                 mesh.vertices.push_back(vertex);
             }
         }
+        
+        
+        if (umesh->skin_deformers.count > 0) {
+            ufbx_skin_deformer* skin = umesh->skin_deformers.data[0];
+            for (size_t ci = 0; ci < skin->clusters.count; ci++) {
+                ufbx_skin_cluster* cluster = skin->clusters.data[ci];
+                int bIdx = nodeToBone[cluster->bone_node];
+                globalSkeleton.bones[bIdx].offsetMatrix = ToMat4(cluster->geometry_to_bone);
+            }
+        }
+        
+        mesh.skeleton = globalSkeleton;
 
         
         if (umesh->materials.count > 0 && umesh->materials.data[0]) {
@@ -335,6 +395,54 @@ ImportResult ModelImporter::ImportFBX(const std::string& filepath) {
         }
     }
 
+    
+    for (size_t ai = 0; ai < scene->anim_stacks.count; ai++) {
+        ufbx_anim_stack* stack = scene->anim_stacks.data[ai];
+        AnimationClip clip;
+        clip.name = std::string(stack->name.data, stack->name.length);
+        clip.duration = (float)stack->time_end - (float)stack->time_begin;
+        clip.ticksPerSecond = 1.0f; 
+
+        for (size_t ni = 0; ni < scene->nodes.count; ni++) {
+            ufbx_node* node = scene->nodes.data[ni];
+            ufbx_anim_layer* layer = (stack->anim && stack->anim->layers.count > 0) ? stack->anim->layers.data[0] : nullptr;
+            
+            ufbx_anim_prop* transform_prop = layer ? ufbx_find_anim_prop(layer, &node->element, "Lcl Translation") : nullptr;
+            ufbx_anim_prop* rotation_prop = layer ? ufbx_find_anim_prop(layer, &node->element, "Lcl Rotation") : nullptr;
+            ufbx_anim_prop* scale_prop = layer ? ufbx_find_anim_prop(layer, &node->element, "Lcl Scaling") : nullptr;
+
+            if (transform_prop || rotation_prop || scale_prop) {
+                AnimationChannel channel;
+                channel.boneName = std::string(node->name.data, node->name.length);
+                
+                
+                
+                
+                
+                
+                
+                float fps = 30.0f;
+                int numFrames = (int)(clip.duration * fps);
+                for (int i = 0; i < numFrames; i++) {
+                    float t = (float)i / fps;
+                    ufbx_transform xform = ufbx_evaluate_transform(stack->anim, node, t);
+                    
+                    VectorKey pk; pk.time = t; pk.value = {xform.translation.x, xform.translation.y, xform.translation.z};
+                    channel.positionKeys.push_back(pk);
+                    
+                    QuatKey rk; rk.time = t; 
+                    rk.value = glm::quat((float)xform.rotation.w, (float)xform.rotation.x, (float)xform.rotation.y, (float)xform.rotation.z);
+                    channel.rotationKeys.push_back(rk);
+                    
+                    VectorKey sk; sk.time = t; sk.value = {xform.scale.x, xform.scale.y, xform.scale.z};
+                    channel.scaleKeys.push_back(sk);
+                }
+                clip.channels.push_back(channel);
+            }
+        }
+        result.animations.push_back(clip);
+    }
+
     ufbx_free_scene(scene);
     result.success = !result.meshes.empty();
     if (!result.success) result.error = "No meshes found in FBX file";
@@ -385,17 +493,22 @@ ImportResult ModelImporter::ImportGLTF(const std::string& filepath) {
         std::ifstream file(filepath);
         if (!file) { result.error = "Cannot open glTF file"; return result; }
         file >> gltf;
-
         if (gltf.contains("buffers") && !gltf["buffers"].empty()) {
-            std::string uri = gltf["buffers"][0]["uri"];
-            std::ifstream binFile(baseDir + uri, std::ios::binary);
-            if (binFile) {
-                binData.assign(std::istreambuf_iterator<char>(binFile), {});
+            for (auto& buffer : gltf["buffers"]) {
+                if (buffer.contains("uri")) {
+                    std::string uri = buffer["uri"];
+                    std::ifstream binFile(baseDir + uri, std::ios::binary);
+                    if (binFile) {
+                        std::vector<unsigned char> data((std::istreambuf_iterator<char>(binFile)), std::istreambuf_iterator<char>());
+                        binData.insert(binData.end(), data.begin(), data.end());
+                    }
+                }
             }
         }
     }
 
     auto getFloats = [&](const nlohmann::json& accessor) -> std::vector<float> {
+        if (accessor.is_null()) return {};
         unsigned int bvIdx = accessor.value("bufferView", 0);
         unsigned int count = accessor["count"];
         unsigned int byteOff = accessor.value("byteOffset", 0);
@@ -442,7 +555,49 @@ ImportResult ModelImporter::ImportGLTF(const std::string& filepath) {
         return out;
     };
 
+    
+    Skeleton globalSkeleton;
+    if (gltf.contains("skins") && !gltf["skins"].empty()) {
+        auto& skin = gltf["skins"][0]; 
+        std::vector<float> ibm;
+        if (skin.contains("inverseBindMatrices")) {
+            ibm = getFloats(gltf["accessors"][(unsigned int)skin["inverseBindMatrices"]]);
+        }
+
+        auto& joints = skin["joints"];
+        for (size_t ji = 0; ji < joints.size(); ji++) {
+            int nodeIdx = joints[ji];
+            auto& node = gltf["nodes"][nodeIdx];
+            Bone bone;
+            bone.name = node.value("name", "Joint_" + std::to_string(ji));
+            bone.index = (int)ji;
+            
+            if (ji * 16 + 15 < ibm.size()) {
+                bone.offsetMatrix = glm::make_mat4(&ibm[ji * 16]);
+            }
+            
+            globalSkeleton.bones.push_back(bone);
+            globalSkeleton.boneMapping[bone.name] = (int)ji;
+        }
+        
+        
+        for (size_t ji = 0; ji < joints.size(); ji++) {
+            int nodeIdx = joints[ji];
+            if (gltf["nodes"][nodeIdx].contains("children")) {
+                for (int childNodeIdx : gltf["nodes"][nodeIdx]["children"]) {
+                    
+                    for (size_t cji = 0; cji < joints.size(); cji++) {
+                        if (joints[cji] == childNodeIdx) {
+                            globalSkeleton.bones[cji].parentIndex = (int)ji;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
     auto getIndices = [&](const nlohmann::json& accessor) -> std::vector<GLuint> {
+        if (accessor.is_null()) return {};
         unsigned int bvIdx = accessor.value("bufferView", 0);
         unsigned int count = accessor["count"];
         unsigned int byteOff = accessor.value("byteOffset", 0);
@@ -514,8 +669,22 @@ ImportResult ModelImporter::ImportGLTF(const std::string& filepath) {
 
                 v.texUV = (i*2+1 < uvFloats.size()) ? glm::vec2(uvFloats[i*2], 1.0f - uvFloats[i*2+1]) : glm::vec2(0);
                 v.color = glm::vec3(1.0f);
+
+                
+                if (attrs.contains("JOINTS_0") && attrs.contains("WEIGHTS_0")) {
+                    auto jointFloats = getFloats(gltf["accessors"][(unsigned int)attrs["JOINTS_0"]]);
+                    auto weightFloats = getFloats(gltf["accessors"][(unsigned int)attrs["WEIGHTS_0"]]);
+                    
+                    for (int j = 0; j < 4; j++) {
+                        v.boneIds[j] = (int)jointFloats[i * 4 + j];
+                        v.weights[j] = weightFloats[i * 4 + j];
+                    }
+                }
+
                 mesh.vertices.push_back(v);
             }
+            
+            mesh.skeleton = globalSkeleton;
 
             if (prim.contains("indices")) {
                 mesh.indices = getIndices(gltf["accessors"][(unsigned int)prim["indices"]]);
@@ -650,13 +819,59 @@ ImportResult ModelImporter::ImportGLTF(const std::string& filepath) {
         }
     }
 
-    result.success = !result.meshes.empty();
+    
+    if (gltf.contains("animations")) {
+        for (auto& gAnim : gltf["animations"]) {
+            AnimationClip clip;
+            clip.name = gAnim.value("name", "Anim_" + std::to_string(result.animations.size()));
+            
+            for (auto& gChannel : gAnim["channels"]) {
+                int samplerIdx = gChannel["sampler"];
+                auto& gSampler = gAnim["samplers"][samplerIdx];
+                int targetNode = gChannel["target"]["node"];
+                std::string path = gChannel["target"]["path"];
+                
+                auto& targetNodeData = gltf["nodes"][targetNode];
+                std::string nodeName = targetNodeData.value("name", "Node_" + std::to_string(targetNode));
+                
+                
+                AnimationChannel* channel = nullptr;
+                for (auto& c : clip.channels) {
+                    if (c.boneName == nodeName) {
+                        channel = &c;
+                        break;
+                    }
+                }
+                if (!channel) {
+                    clip.channels.push_back({nodeName});
+                    channel = &clip.channels.back();
+                }
+
+                auto times = getFloats(gltf["accessors"][(unsigned int)gSampler["input"]]);
+                auto values = getFloats(gltf["accessors"][(unsigned int)gSampler["output"]]);
+                
+                clip.duration = std::max(clip.duration, times.back());
+
+                if (path == "translation") {
+                    for (size_t i = 0; i < times.size(); i++) {
+                        channel->positionKeys.push_back({times[i], {values[i*3], values[i*3+1], values[i*3+2]}});
+                    }
+                } else if (path == "rotation") {
+                    for (size_t i = 0; i < times.size(); i++) {
+                        channel->rotationKeys.push_back({times[i], {values[i*4+3], values[i*4], values[i*4+1], values[i*4+2]}});
+                    }
+                } else if (path == "scale") {
+                    for (size_t i = 0; i < times.size(); i++) {
+                        channel->scaleKeys.push_back({times[i], {values[i*3], values[i*3+1], values[i*3+2]}});
+                    }
+                }
+            }
+            result.animations.push_back(clip);
+        }
+    }    result.success = !result.meshes.empty();
     if (!result.success) result.error = "No meshes extracted from glTF";
     return result;
 }
-
-
-
 
 ImportResult ModelImporter::ImportSTL(const std::string& filepath) {
     ImportResult result;

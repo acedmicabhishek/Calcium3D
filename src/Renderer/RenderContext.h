@@ -7,14 +7,12 @@
 
 class Scene;
 class Camera;
-class Water;
 class Cloud2D;
 class VolumetricCloud;
 
 struct RenderContext {
     Scene* scene = nullptr;
     Camera* camera = nullptr;
-    Water* water = nullptr;
     Cloud2D* cloud2d = nullptr;
     VolumetricCloud* volCloud = nullptr;
     
@@ -45,21 +43,13 @@ struct RenderContext {
     int height = 0;
     
     
-    bool showWater = false;
     bool showClouds = false;
     int cloudMode = 0; 
-    float waterHeight = 0.0f;
     float cloudHeight = 50.0f;
     
     
     float cloudDensity = 0.5f;
     float cloudCover = 0.5f;
-    
-    
-    float waveSpeed = 1.0f;
-    float waveStrength = 0.1f;
-    glm::vec3 waterColor = glm::vec3(0.0, 0.3, 0.5);
-
     
     bool wireframe = false;
     bool showSkybox = true;

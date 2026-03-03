@@ -70,13 +70,11 @@ protected:
     
     std::unique_ptr<Camera> m_Camera;
 
-    std::unique_ptr<class Water> m_Water;
     std::unique_ptr<class Cloud2D> m_Cloud2D;
     std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
     
     bool m_ShowSkybox = true;
     bool m_ShowGradientSky = false;
-    bool m_ShowWater = false; 
     bool m_ShowClouds = false; 
     
     

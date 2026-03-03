@@ -262,14 +262,14 @@ void EditorLayer::TriggerAutoSave(Scene& scene) {
         scene.SetFilepath(currentScenePath.string());
     }
     
-    scene.Save(currentScenePath.string());
+    scene.Save(currentScenePath.string(), true);
     
     
     std::string uiLayoutPath = m_ProjectRoot + "/ui_layout.json";
     UICreationEngine::SaveLayout(uiLayoutPath);
     
     auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
-    if (edApp) edApp->SaveProject();
+    if (edApp) edApp->SaveProject(true);
 }
 
 void EditorLayer::Init(GLFWwindow* window) {
@@ -324,6 +324,7 @@ void EditorLayer::SetupDockLayout() {
     ImGui::DockBuilderDockWindow("Settings", dock_right_id);
     ImGui::DockBuilderDockWindow("Content Browser", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
+    ImGui::DockBuilderDockWindow("Animator", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
 
     ImGui::DockBuilderFinish(dockspace_id);
@@ -434,6 +435,8 @@ void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
     }
     
     if (showContentBrowser) DrawContentBrowser();
+    if (showAnimator) DrawAnimator(scene);
+    
     
     if (!m_EditingShaderPath.empty()) DrawShaderEditor();
     
@@ -517,8 +520,19 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             if (ImGui::Button("■ Stop (F7)")) {
                 auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
                 if (edApp) edApp->ExitPlayMode();
+                m_MasterControl = false;
             }
             ImGui::PopStyleColor(3);
+
+            ImGui::SameLine();
+            if (m_MasterControl) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+            if (ImGui::Button(m_MasterControl ? "🔒 Lock View" : "🔓 Master Control")) {
+                m_MasterControl = !m_MasterControl;
+                if (m_MasterControl) Logger::AddLog("[Master] View Unlocked - Free navigation enabled");
+                else Logger::AddLog("[Master] View Locked");
+            }
+            if (m_MasterControl) ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Allows free camera movement and object manipulation in Play Mode.");
         }
         ImGui::Separator();
         
@@ -564,6 +578,8 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::MenuItem("Scene Hierarchy", NULL, &showSceneHierarchy);
             ImGui::MenuItem("Inspector", NULL, &showInspector);
             ImGui::MenuItem("Console", NULL, &showConsole);
+            ImGui::MenuItem("Content Browser", NULL, &showContentBrowser);
+            ImGui::MenuItem("Animator", NULL, &showAnimator);
             ImGui::MenuItem("Settings", NULL, &showMetrics); 
             ImGui::EndMenu();
         }
@@ -612,6 +628,23 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Plane");
+                }
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Environment")) {
+                if (ImGui::MenuItem("Water Plane")) {
+                    Mesh waterMesh = ObjectFactory::createWaterGrid(200);
+                    GameObject obj(std::move(waterMesh), "Water");
+                    obj.meshType = MeshType::Water;
+                    obj.hasWater = true;
+                    obj.isTrigger = true;
+                    obj.water = WaterComponent();    
+                    scene.AddObject(std::move(obj));
+                    TriggerAutoSave(scene);
+                    selectedCube = (int)scene.GetObjects().size() - 1;
+                    isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
+                    Logger::AddLog("Created Water Plane");
                 }
                 ImGui::EndMenu();
             }
@@ -954,9 +987,10 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                 }
                 ImGui::EndDragDropTarget();
             }
-            
-            if (nodeOpen) {
-                if (hasChildren) {
+                        if (nodeOpen) {
+                 m_RiggingUI.DrawBoneHierarchy(scene, index, selectedCube);
+ 
+                 if (hasChildren) {
                     for (int i = 0; i < objects.size(); ++i) {
                         
                         if (i < objects.size() && objects[i].parentIndex == index) drawNode(i);
@@ -1201,6 +1235,8 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 ImGui::Checkbox("Enable Gravity", &obj.useGravity);
                 ImGui::Checkbox("Is Static", &obj.isStatic);
                 ImGui::Checkbox("Enable Collision", &obj.enableCollision);
+                ImGui::Checkbox("Is Trigger", &obj.isTrigger);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Triggers overlap events but doesn't apply physical force/collisions.");
                 
                 float com[3] = { obj.centerOfMassOffset.x, obj.centerOfMassOffset.y, obj.centerOfMassOffset.z };
                 if (ImGui::DragFloat3("COM Offset", com, 0.01f)) {
@@ -1323,6 +1359,39 @@ void EditorLayer::DrawInspector(Scene& scene) {
 
                 ImGui::Unindent();
             }
+
+            if (obj.hasWater) {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.2f, 0.7f, 1.0f, 1.0f), "Water Properties");
+                ImGui::Indent();
+                
+                ImGui::SliderFloat("Wave Speed##Water", &obj.water.waveSpeed, 0.0f, 5.0f);
+                ImGui::SliderFloat("Wave Strength##Water", &obj.water.waveStrength, 0.0f, 1.0f);
+                ImGui::SliderFloat("Shininess##Water", &obj.water.shininess, 1.0f, 256.0f);
+                ImGui::SliderFloat("Tiling##Water", &obj.water.tiling, 0.1f, 100.0f);
+                ImGui::ColorEdit3("Water Color##Water", glm::value_ptr(obj.water.waterColor));
+                
+                ImGui::Separator();
+                ImGui::DragFloat("Render Height##Water", &obj.water.surfaceHeight, 0.05f);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Visual surface level offset from base position");
+                ImGui::DragFloat("Water Depth##Water", &obj.water.depth, 0.1f, 0.0f, 100.0f);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("How deep the buoyancy volume goes below surface");
+                ImGui::DragFloat("Liquid Density##Water", &obj.water.liquidDensity, 0.01f, 0.01f, 10.0f);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Heavier liquid = stronger buoyancy (objects float more)");
+                
+                const char* waveSystems[] = { "Blinn-Wyvill", "Gerstner" };
+                ImGui::Combo("Wave System##Water", &obj.water.waveSystem, waveSystems, IM_ARRAYSIZE(waveSystems));
+                
+                ImGui::Separator();
+                ImGui::SliderInt("Grid Resolution##Water", &obj.water.gridResolution, 10, 1000);
+                if (ImGui::Button("Rebuild Grid Mesh##Water", ImVec2(-1, 0))) {
+                    obj.mesh = ObjectFactory::createWaterGrid(obj.water.gridResolution);
+                }
+                
+                ImGui::Unindent();
+            }
+
+            m_RiggingUI.DrawRiggingInspector(obj, scene);
 
             ImGui::Separator();
             ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Scripts");
@@ -1570,6 +1639,23 @@ void EditorLayer::DrawInspector(Scene& scene) {
                             ImGui::TextDisabled("No cameras in scene.");
                         }
                     }
+                }
+            }
+
+            ImGui::Separator();
+            if (!obj.animations.empty()) {
+                if (ImGui::CollapsingHeader("Animations", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Playing", &obj.isAnimating);
+                    
+                    std::vector<const char*> animNames;
+                    animNames.reserve(obj.animations.size());
+                    for (const auto& anim : obj.animations) animNames.push_back(anim.name.c_str());
+                    
+                    if (ImGui::Combo("Clip", &obj.currentAnimationIndex, animNames.data(), animNames.size())) {
+                        obj.animationTime = 0.0f;
+                    }
+                    
+                    ImGui::ProgressBar(obj.animationTime / obj.animations[obj.currentAnimationIndex].duration);
                 }
             }
 
@@ -1873,16 +1959,6 @@ void EditorLayer::DrawSettings(Camera& camera) {
         }
     }
     
-    if (showWater && ImGui::CollapsingHeader("Water Settings")) {
-        ImGui::SliderFloat("Height", &waterHeight, -10.0f, 10.0f);
-        ImGui::SliderFloat("Wave Speed", &waveSpeed, 0.0f, 5.0f);
-        ImGui::SliderFloat("Wave Strength", &waveStrength, 0.0f, 1.0f);
-        ImGui::SliderFloat("Shininess", &waterShininess, 1.0f, 256.0f);
-        ImGui::ColorEdit3("Water Color", glm::value_ptr(waterColor));
-        const char* waveSystems[] = { "Blinn-Wyvill", "Gerstner" };
-        ImGui::Combo("Wave System", &waveSystem, waveSystems, IM_ARRAYSIZE(waveSystems));
-    }
-    
     if (ImGui::CollapsingHeader("Engine Settings")) {
         ImGui::Text("UI Theme");
         const char* themes[] = { "Dark", "Light" };
@@ -2084,13 +2160,52 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             ImGui::Image((ImTextureID)(intptr_t)camTex, imgSize, ImVec2(0, 1), ImVec2(1, 0));
             ImGui::EndChild();
         } else {
-            ImGui::Image(
-                (ImTextureID)(intptr_t)viewportTextureID,
+            ImGui::Image((ImTextureID)(intptr_t)viewportTextureID,
                 ImVec2(viewportWidth, viewportHeight),
                 ImVec2(0, 1),  
                 ImVec2(1, 0)   
             );
         }
+
+        
+        if (!Editor::isEditMode) {
+            float overlayPadding = 10.0f;
+            ImVec2 overlayPos = ImVec2(cursorPos.x + viewportWidth - overlayPadding, cursorPos.y + viewportHeight - overlayPadding);
+            
+            
+            float btnWidth = m_MasterControl ? 220.0f : 100.0f;
+            float btnHeight = 30.0f;
+            overlayPos.x -= btnWidth;
+            overlayPos.y -= btnHeight;
+            
+            ImGui::SetCursorScreenPos(overlayPos);
+            
+            if (m_MasterControl) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.4f, 0.0f, 0.85f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.5f, 0.1f, 1.0f));
+                if (ImGui::Button(" 🔓 MASTER MODE ACTIVE (F8) ")) {
+                    m_MasterControl = false;
+                    Logger::AddLog("[Master] View Locked");
+                }
+                ImGui::PopStyleColor(2);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 0.6f));
+                if (ImGui::Button(" 🔓 MASTER ")) {
+                    m_MasterControl = true;
+                    Logger::AddLog("[Master] View Unlocked - Free navigation enabled");
+                }
+                ImGui::PopStyleColor(1);
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Toggle Master Control (F8) to move camera freely in Play Mode.");
+            
+            
+            if (ImGui::IsKeyPressed(ImGuiKey_F8)) {
+                m_MasterControl = !m_MasterControl;
+                if (m_MasterControl) Logger::AddLog("[Master] View Unlocked (F8)");
+                else Logger::AddLog("[Master] View Locked (F8)");
+            }
+        }
+        
 
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MODEL_FILE")) {
@@ -2119,6 +2234,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                         obj.meshIndex = meshIdx++;
                         obj.meshType = MeshType::Model;
                         obj.isStatic = true;
+                        obj.animations = result.animations;
                         
                         if (!meshData.textures.empty()) {
                             obj.material.useTexture = true;
@@ -2128,6 +2244,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                         obj.parentIndex = parentId;
                         app.GetScene()->AddObject(std::move(obj));
                     }
+                    groupObj.animations = result.animations;
                     Logger::AddLog("Added model group: %s (%zu meshes)", groupName.c_str(), result.meshes.size());
                 } else {
                     Logger::AddLog("[ERROR] Import failed: %s", result.error.c_str());
@@ -2137,7 +2254,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         }
         
         
-        if (Editor::isEditMode && (ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) && 
+        if ((Editor::isEditMode || m_MasterControl) && (ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) && 
             !ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
             if (ImGui::IsKeyPressed(ImGuiKey_W)) gizmoOp = 0; 
             if (ImGui::IsKeyPressed(ImGuiKey_E)) gizmoOp = 1; 
@@ -2266,7 +2383,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         
         bool gizmoOver = ImGuizmo::IsOver();
         
-        if (Editor::isEditMode && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) 
+        if ((Editor::isEditMode || m_MasterControl) && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) 
             && !gizmoUsing && !gizmoOver) {
             
             ImVec2 mousePos = ImGui::GetMousePos();
@@ -2369,9 +2486,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             }
         }
         
-        
-        
-       
+        m_RiggingUI.RenderBoneOverlay(scene, camera, selectedCube, cursorPos, viewportWidth, viewportHeight);
         
         
         if (selectedCube >= 0) {
@@ -2379,11 +2494,8 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             if (selectedCube < (int)objects.size()) {
                 auto& obj = objects[selectedCube];
                 
-                
                 glm::mat4 view = camera.GetViewMatrix();
                 glm::mat4 projection = camera.GetProjectionMatrix();
-                
-                glm::mat4 worldMatrix = scene.GetGlobalTransform(selectedCube);
                 
                 ImGuizmo::SetOrthographic(false);
                 ImGuizmo::SetDrawlist();
@@ -2394,15 +2506,37 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 if (gizmoOp == 2) op = ImGuizmo::SCALE;
                 ImGuizmo::MODE mode = gizmoLocal ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
                 
-                if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(worldMatrix))) {
-                    glm::mat4 localMatrix = worldMatrix;
-                    if (obj.parentIndex != -1 && obj.parentIndex < scene.GetObjects().size()) {
-                        glm::mat4 parentWorld = scene.GetGlobalTransform(obj.parentIndex);
-                        localMatrix = glm::inverse(parentWorld) * worldMatrix;
-                    }
+                if (m_RiggingUI.editRigMode && m_RiggingUI.selectedBone >= 0 && m_RiggingUI.selectedBone < (int)obj.mesh.skeleton.bones.size()) {
+                    
+                    std::function<glm::mat4(int)> getBoneGlobal = [&](int bIdx) -> glm::mat4 {
+                        if (bIdx < 0 || bIdx >= obj.mesh.skeleton.bones.size()) return scene.GetGlobalTransform(selectedCube);
+                        glm::mat4 pMat = getBoneGlobal(obj.mesh.skeleton.bones[bIdx].parentIndex);
+                        return pMat * obj.mesh.skeleton.bones[bIdx].localTransform;
+                    };
+                    
+                    glm::mat4 boneWorld = getBoneGlobal(m_RiggingUI.selectedBone);
+                    
+                        if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(boneWorld))) {
+                            glm::mat4 parentWorld = getBoneGlobal(obj.mesh.skeleton.bones[m_RiggingUI.selectedBone].parentIndex);
+                            glm::mat4 newLocal = glm::inverse(parentWorld) * boneWorld;
+                            obj.mesh.skeleton.bones[m_RiggingUI.selectedBone].localTransform = newLocal;
+                            
+                            if (m_AnimatorUI.IsRecording()) {
+                                m_AnimatorUI.AddKeyframe(obj, m_RiggingUI.selectedBone, obj.animationTime);
+                            }
+                        }
+                } else {
+                    glm::mat4 worldMatrix = scene.GetGlobalTransform(selectedCube);
+                    if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(worldMatrix))) {
+                        glm::mat4 localMatrix = worldMatrix;
+                        if (obj.parentIndex != -1 && obj.parentIndex < scene.GetObjects().size()) {
+                            glm::mat4 parentWorld = scene.GetGlobalTransform(obj.parentIndex);
+                            localMatrix = glm::inverse(parentWorld) * worldMatrix;
+                        }
 
-                    glm::vec3 skew; glm::vec4 perspective;
-                    glm::decompose(localMatrix, obj.scale, obj.rotation, obj.position, skew, perspective);
+                        glm::vec3 skew; glm::vec4 perspective;
+                        glm::decompose(localMatrix, obj.scale, obj.rotation, obj.position, skew, perspective);
+                    }
                 }
             }
         }
@@ -2455,6 +2589,11 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         if (ImGui::SmallButton(gizmoLocal ? "Local" : "World")) {
             gizmoLocal = !gizmoLocal;
         }
+        
+        ImGui::SameLine();
+        ImGui::Text(" | ");
+        ImGui::SameLine();
+        m_RiggingUI.DrawRiggingControls();
         
         ImGui::PopStyleVar(2);
     }
@@ -2513,6 +2652,10 @@ void EditorLayer::DrawContentBrowser() {
     ImGui::EndChild();
     
     ImGui::End();
+}
+
+void EditorLayer::DrawAnimator(Scene& scene) {
+    m_AnimatorUI.DrawPanel(scene, showAnimator, selectedObjects);
 }
 
 void EditorLayer::DrawContentBrowserTree(const std::string& path) {
@@ -2906,6 +3049,7 @@ void EditorLayer::DrawContentBrowserGrid() {
                             obj.meshIndex = meshIdx++;
                             obj.meshType = MeshType::Model;
                             obj.isStatic = true;
+                            obj.animations = result.animations;
                             
                             
                             if (!meshData.textures.empty()) {
@@ -2918,6 +3062,9 @@ void EditorLayer::DrawContentBrowserGrid() {
                             obj.parentIndex = parentId;
                             app.GetScene()->AddObject(std::move(obj));
                         }
+                        
+                        groupObj.animations = result.animations; 
+                        
                         Logger::AddLog("Imported model group from %s (%zu meshes)", filename.c_str(), result.meshes.size());
                     } else {
                         Logger::AddLog("[ERROR] Import failed: %s", result.error.c_str());

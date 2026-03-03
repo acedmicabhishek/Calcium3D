@@ -22,6 +22,8 @@
 #include "Mesh.h"    
 #include "Model.h"   
 #include "Shader.h"  
+#include "../AniEngine/AnimatorUI.h"
+#include "../AniEngine/RiggingUI.h"
 
 class EditorLayer {
 public:
@@ -44,6 +46,7 @@ public:
     bool showInspector = true;
     bool showConsole = true;
     bool showContentBrowser = true;
+    bool showAnimator = true;
     
     
     unsigned int viewportTextureID = 0;
@@ -54,6 +57,10 @@ public:
     int gizmoOp = 0; 
     bool gizmoLocal = false; 
     Gizmo gizmo;
+    
+    
+    AnimatorUI m_AnimatorUI;
+    RiggingUI m_RiggingUI;
 
     
     int selectedCube = -1;
@@ -138,6 +145,7 @@ public:
     bool darkTheme = true; 
     bool fixedLayout = false; 
     bool autoSave = true;
+    bool m_MasterControl = false;
 
     void ApplyDarkTheme();
     void ApplyLightTheme();
@@ -194,6 +202,7 @@ private:
     void DrawSettings(Camera& camera);
     void DrawViewport(Scene& scene, Camera& camera);
     void DrawContentBrowser();
+    void DrawAnimator(Scene& scene);
     void DrawUIEditor();
     void DrawContentBrowserTree(const std::string& path);
     void DrawContentBrowserGrid();

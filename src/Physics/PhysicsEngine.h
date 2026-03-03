@@ -29,7 +29,7 @@ public:
     static bool GlobalCOMEnabled;
 
     
-    static void Update(float deltaTime, std::vector<GameObject>& objects);
+    static void Update(float deltaTime, float time, std::vector<GameObject>& objects);
 
     
     static bool CheckCollision(const AABB& a, const AABB& b);
