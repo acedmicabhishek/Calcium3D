@@ -69,6 +69,6 @@ void GeometryPass::Execute(const RenderContext& context)
         shader.setFloat("moonLight.intensity", moonInt);
         
         
-        Renderer::RenderScene(*context.scene, *context.camera, shader, context.globalTilingFactor);
+        Renderer::RenderScene(*context.scene, *context.camera, shader, context.globalTilingFactor, context.renderEditorObjects, context.deltaTime);
     }
 }

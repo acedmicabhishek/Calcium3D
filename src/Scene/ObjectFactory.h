@@ -8,6 +8,7 @@ class ObjectFactory {
 public:
     static Mesh createCube();
     static Mesh createPlane();
+    static Mesh createCameraMesh();
     static Mesh createSphere(int sectorCount, int stackCount);
 };
 

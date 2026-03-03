@@ -41,6 +41,7 @@ public:
 
     virtual void OpenProject(const std::string& path);
     virtual void CreateProject(const std::string& path);
+    void ProcessSceneCameras();
     const std::string& GetProjectRoot() const { return m_ProjectRoot; }
     std::string GetProjectName() const;
 

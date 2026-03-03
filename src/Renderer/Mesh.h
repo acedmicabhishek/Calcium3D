@@ -26,9 +26,10 @@ public:
     void Draw(Shader& shader, Camera& camera, 
               glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), 
               glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f), 
-              glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f));
+              glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f),
+              unsigned int textureOverride = 0);
               
-    void Draw(Shader& shader, Camera& camera, const glm::mat4& matrix);
+    void Draw(Shader& shader, Camera& camera, const glm::mat4& matrix, unsigned int textureOverride = 0);
               
     bool Intersect(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::mat4& modelMatrix, float& intersectionDistance);
 };

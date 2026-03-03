@@ -71,4 +71,6 @@ struct RenderContext {
     bool msaaSkyPass = true;
     bool msaaGeometryPass = true;
     bool msaaTransparencyPass = true;
+    
+    bool renderEditorObjects = false;
 };

@@ -12,6 +12,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "../Physics/HitboxGraphics.h"
 #include "../UI/UICreationEngine.h"
+#include "../UI/Screens/GameplayScreen.h"
 
 struct WindowData {
     Camera* camera;
@@ -194,8 +195,6 @@ void EditorApplication::EnterPlayMode() {
     }
 
     
-    GameStateManager::ChangeState(m_EditorLayer->m_PreviewState);
-    
     Logger::AddLog("▶ Entered Play Mode");
 }
 
@@ -219,6 +218,7 @@ void EditorApplication::ExitPlayMode() {
     m_EditorLayer->selectedMesh = -1;
     m_EditorLayer->isLightSelected = false;
     m_EditorLayer->selectedPointLightIndex = -1;
+    m_EditorLayer->m_PlayModeActiveScreen.clear();
     
     Logger::AddLog("■ Exited Play Mode — Scene Restored");
 }
@@ -359,6 +359,16 @@ void EditorApplication::RenderEditor(float deltaTime) {
     m_RenderContext.msaaGeometryPass = m_EditorLayer->msaaGeometryPass;
     m_RenderContext.msaaTransparencyPass = m_EditorLayer->msaaTransparencyPass;
 
+    ProcessSceneCameras();
+
+    if (m_EditorLayer->msaaSamples > 0 && m_MSAAFBO != 0) {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_MSAAFBO);
+    } else {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_ViewportFBO);
+    }
+    glViewport(0, 0, m_ViewportWidth, m_ViewportHeight);
+
+    m_RenderContext.renderEditorObjects = true;
     m_RenderPipeline->Execute(m_RenderContext);
     HitboxGraphics::Render(*m_Scene, *m_Camera);
 
@@ -446,3 +456,4 @@ void EditorApplication::CreateViewportFramebuffer(int width, int height) {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+

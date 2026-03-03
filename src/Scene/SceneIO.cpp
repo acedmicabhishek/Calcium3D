@@ -72,6 +72,31 @@ void Scene::Save(const std::string& path) {
             {"enableOcclusion", obj.audio.enableOcclusion}
         };
         
+        jObj["hasCamera"] = obj.hasCamera;
+        jObj["camera"] = {
+            {"enabled", obj.camera.enabled},
+            {"fov", obj.camera.fov},
+            {"nearPlane", obj.camera.nearPlane},
+            {"farPlane", obj.camera.farPlane},
+            {"resolutionX", obj.camera.resolutionX},
+            {"resolutionY", obj.camera.resolutionY}
+        };
+        
+        jObj["hasScreen"] = obj.hasScreen;
+        jObj["screen"] = {
+            {"enabled", obj.screen.enabled},
+            {"type", static_cast<int>(obj.screen.type)},
+            {"filePath", obj.screen.filePath},
+            {"targetCameraIndex", obj.screen.targetCameraIndex},
+            {"isVideoPlaying", obj.screen.isVideoPlaying},
+            {"brightness", obj.screen.brightness},
+            {"videoLoop", obj.screen.videoLoop},
+            {"videoPaused", obj.screen.videoPaused},
+            {"videoPlaybackSpeed", obj.screen.videoPlaybackSpeed},
+            {"videoVolume", obj.screen.videoVolume},
+            {"videoKeepAspect", obj.screen.videoKeepAspect}
+        };
+        
         data["objects"].push_back(jObj);
     }
 
@@ -174,6 +199,8 @@ void Scene::Load(const std::string& path) {
                         objPtr = new GameObject(ObjectFactory::createSphere(30,30), jObj["name"]);
                     } else if (loadedType == MeshType::Plane) {
                         objPtr = new GameObject(ObjectFactory::createPlane(), jObj["name"]);
+                    } else if (loadedType == MeshType::Camera) {
+                        objPtr = new GameObject(ObjectFactory::createCameraMesh(), jObj["name"]);
                     } else {
                         
                         std::vector<Vertex> rawVerts;
@@ -256,6 +283,33 @@ void Scene::Load(const std::string& path) {
                     if (a.contains("dopplerFactor")) obj.audio.dopplerFactor = a["dopplerFactor"];
                     if (a.contains("enableReverb")) obj.audio.enableReverb = a["enableReverb"];
                     if (a.contains("enableOcclusion")) obj.audio.enableOcclusion = a["enableOcclusion"];
+                }
+                
+                if (jObj.contains("hasCamera")) obj.hasCamera = jObj["hasCamera"];
+                if (jObj.contains("camera")) {
+                    auto& c = jObj["camera"];
+                    if (c.contains("enabled")) obj.camera.enabled = c["enabled"];
+                    if (c.contains("fov")) obj.camera.fov = c["fov"];
+                    if (c.contains("nearPlane")) obj.camera.nearPlane = c["nearPlane"];
+                    if (c.contains("farPlane")) obj.camera.farPlane = c["farPlane"];
+                    if (c.contains("resolutionX")) obj.camera.resolutionX = c["resolutionX"];
+                    if (c.contains("resolutionY")) obj.camera.resolutionY = c["resolutionY"];
+                }
+                
+                if (jObj.contains("hasScreen")) obj.hasScreen = jObj["hasScreen"];
+                if (jObj.contains("screen")) {
+                    auto& s = jObj["screen"];
+                    if (s.contains("enabled")) obj.screen.enabled = s["enabled"];
+                    if (s.contains("type")) obj.screen.type = static_cast<ScreenType>(s["type"].get<int>());
+                    if (s.contains("filePath")) obj.screen.filePath = s["filePath"];
+                    if (s.contains("targetCameraIndex")) obj.screen.targetCameraIndex = s["targetCameraIndex"];
+                    if (s.contains("isVideoPlaying")) obj.screen.isVideoPlaying = s["isVideoPlaying"];
+                    if (s.contains("brightness")) obj.screen.brightness = s["brightness"];
+                    if (s.contains("videoLoop")) obj.screen.videoLoop = s["videoLoop"];
+                    if (s.contains("videoPaused")) obj.screen.videoPaused = s["videoPaused"];
+                    if (s.contains("videoPlaybackSpeed")) obj.screen.videoPlaybackSpeed = s["videoPlaybackSpeed"];
+                    if (s.contains("videoVolume")) obj.screen.videoVolume = s["videoVolume"];
+                    if (s.contains("videoKeepAspect")) obj.screen.videoKeepAspect = s["videoKeepAspect"];
                 }
                 
                 AddObject(std::move(obj));

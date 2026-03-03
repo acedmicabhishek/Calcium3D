@@ -11,8 +11,9 @@
 #include <memory>
 
 enum class ColliderShape { Box, Sphere };
-enum class MeshType { None, Cube, Sphere, Plane, Model };
+enum class MeshType { None, Cube, Sphere, Plane, Model, Camera };
 enum class AudioType { Directional, Ambience };
+enum class ScreenType { None, Image, Video, CameraFeed };
 
 
 struct AcousticMaterial {
@@ -49,6 +50,37 @@ struct AudioComponent {
     
     void* pSource = nullptr;
     void* pEchoSource = nullptr; 
+};
+
+struct CameraComponent {
+    bool enabled = false;
+    float fov = 45.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 1000.0f;
+    
+    unsigned int fbo = 0;
+    unsigned int renderTexture = 0;
+    unsigned int depthBuffer = 0;
+    int resolutionX = 1024;
+    int resolutionY = 1024;
+};
+
+struct ScreenComponent {
+    bool enabled = false;
+    ScreenType type = ScreenType::None;
+    std::string filePath = ""; 
+    int targetCameraIndex = -1; 
+    unsigned int textureID = 0;
+    bool isVideoPlaying = false;
+    float videoTime = 0.0f;
+    std::shared_ptr<void> videoPlayerHandle;
+    float brightness = 1.0f;
+    
+    bool videoLoop = true;
+    bool videoPaused = true;
+    float videoPlaybackSpeed = 1.0f;
+    float videoVolume = 1.0f;
+    bool videoKeepAspect = true;
 };
 
 struct GameObject {
@@ -89,6 +121,12 @@ struct GameObject {
     bool hasAudio = false;
     AudioComponent audio;
     
+    bool hasCamera = false;
+    CameraComponent camera;
+    
+    bool hasScreen = false;
+    ScreenComponent screen;
+    
     
     glm::vec3 prevPosition = glm::vec3(0.0f);
     
@@ -106,7 +144,8 @@ struct GameObject {
         : mesh(std::move(m)), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f), name(n),
           shape(ColliderShape::Box), collisionRadius(0.5f), isActive(true),
           useGravity(false), isStatic(false), mass(1.0f), friction(0.5f), restitution(0.5f), enableCollision(true),
-          centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f), angularVelocity(0.0f), torque(0.0f) {
+          centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f), angularVelocity(0.0f), torque(0.0f),
+          hasAudio(false), hasCamera(false), hasScreen(false) {
               
         if (!mesh.vertices.empty()) {
             glm::vec3 minExtent = mesh.vertices[0].position;

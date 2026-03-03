@@ -179,6 +179,7 @@ private:
     bool uiEditMode = false;
     int selectedUIElement = -1;
     int m_PreviewState = 0;
+    std::string m_PlayModeActiveScreen;
     std::string m_SelectedContentFile = ""; 
 
     void DrawMenuBar(Scene& scene);

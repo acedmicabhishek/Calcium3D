@@ -33,6 +33,10 @@ void UIManager::RenderElement(const UIElement& element, glm::vec2 canvasSize, gl
             if (element.actionType == "PlayAudio") {
                 Logger::AddLog("[UI] Button Click: %s -> Script: PlayAudio, Target: %s", 
                                element.name.c_str(), element.targetAudioObject.c_str());
+            } else if (element.actionType == "PlayVideo" || element.actionType == "PauseVideo" || element.actionType == "ToggleVideo") {
+                Logger::AddLog("[UI] Button Click: %s -> Script: %s, Target: %s", 
+                               element.name.c_str(), element.actionType.c_str(), 
+                               element.targetVideoObject.empty() ? "(First Video Fallback)" : element.targetVideoObject.c_str());
             } else {
                 Logger::AddLog("[UI] Button Click: %s -> Script: %s, Target: %s", 
                                element.name.c_str(), element.actionType.c_str(), element.targetState.c_str());
@@ -63,6 +67,41 @@ void UIManager::RenderElement(const UIElement& element, glm::vec2 canvasSize, gl
                             }
                             break;
                         }
+                    }
+                }
+            } else if (element.actionType == "PlayVideo" || element.actionType == "PauseVideo" || element.actionType == "ToggleVideo") {
+                if (Scene* scene = Application::Get().GetScene()) {
+                    GameObject* target = nullptr;
+                    
+                    
+                    if (!element.targetVideoObject.empty()) {
+                        for (auto& obj : scene->GetObjects()) {
+                            if (obj.name == element.targetVideoObject && obj.hasScreen && obj.screen.type == ScreenType::Video) {
+                                target = &obj;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    
+                    if (!target) {
+                        for (auto& obj : scene->GetObjects()) {
+                            if (obj.hasScreen && obj.screen.type == ScreenType::Video) {
+                                target = &obj;
+                                Logger::AddLog("[UI] Target empty or not found. Falling back to first video: %s", target->name.c_str());
+                                break;
+                            }
+                        }
+                    }
+
+                    if (target) {
+                        if (element.actionType == "PlayVideo") target->screen.videoPaused = false;
+                        else if (element.actionType == "PauseVideo") target->screen.videoPaused = true;
+                        else if (element.actionType == "ToggleVideo") target->screen.videoPaused = !target->screen.videoPaused;
+                        
+                        Logger::AddLog("[UI] %s video for target: %s", (target->screen.videoPaused ? "Pausing" : "Playing"), target->name.c_str());
+                    } else {
+                        Logger::AddLog("[UI] WARNING: No video objects found in scene to %s!", element.actionType.c_str());
                     }
                 }
             }

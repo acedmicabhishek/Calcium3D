@@ -48,10 +48,10 @@ void Camera::Inputs(GLFWwindow* window, float deltaTime)
 		}
 	}
 	else {
-		if (!m_cameraEnabled) {
-			InputManager::SetCursorMode(GLFW_CURSOR_DISABLED);
-			m_cameraEnabled = true;
-			firstClick = true;
+		
+		if (m_cameraEnabled) {
+			InputManager::SetCursorMode(GLFW_CURSOR_NORMAL);
+			m_cameraEnabled = false;
 		}
 	}
 #else

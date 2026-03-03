@@ -6,6 +6,8 @@ bool HitboxGraphics::ShowHitboxes = false;
 unsigned int HitboxGraphics::m_VAO = 0;
 unsigned int HitboxGraphics::m_VBO = 0;
 unsigned int HitboxGraphics::m_EBO = 0;
+unsigned int HitboxGraphics::m_DynVAO = 0;
+unsigned int HitboxGraphics::m_DynVBO = 0;
 
 void HitboxGraphics::Init() {
     if (m_VAO != 0) return;
@@ -42,6 +44,16 @@ void HitboxGraphics::Init() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    glGenVertexArrays(1, &m_DynVAO);
+    glGenBuffers(1, &m_DynVBO);
+    glBindVertexArray(m_DynVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_DynVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * 24, nullptr, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
@@ -92,7 +104,42 @@ void HitboxGraphics::Render(Scene& scene, Camera& camera) {
             glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
         }
     }
+    glBindVertexArray(0);
 
+    
+    glBindVertexArray(m_DynVAO);
+    for (auto& obj : scene.GetObjects()) {
+        if (!obj.isActive) continue;
+        if (obj.hasCamera && obj.camera.enabled) {
+            float fov = glm::radians(obj.camera.fov);
+            float nearP = obj.camera.nearPlane;
+            float farP = glm::min(obj.camera.farPlane, 20.0f);
+            float aspect = (float)obj.camera.resolutionX / (float)obj.camera.resolutionY;
+            float nearH = 2.0f * glm::tan(fov * 0.5f) * nearP;
+            float nearW = nearH * aspect;
+            float farH = 2.0f * glm::tan(fov * 0.5f) * farP;
+            float farW = farH * aspect;
+
+            glm::vec3 ntl(-nearW/2, nearH/2, -nearP), ntr(nearW/2, nearH/2, -nearP);
+            glm::vec3 nbl(-nearW/2, -nearH/2, -nearP), nbr(nearW/2, -nearH/2, -nearP);
+            glm::vec3 ftl(-farW/2, farH/2, -farP), ftr(farW/2, farH/2, -farP);
+            glm::vec3 fbl(-farW/2, -farH/2, -farP), fbr(farW/2, -farH/2, -farP);
+
+            std::vector<glm::vec3> lines = {
+                ntl,ntr, ntr,nbr, nbr,nbl, nbl,ntl, 
+                ftl,ftr, ftr,fbr, fbr,fbl, fbl,ftl, 
+                ntl,ftl, ntr,ftr, nbl,fbl, nbr,fbr  
+            };
+
+            glBindBuffer(GL_ARRAY_BUFFER, m_DynVBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * lines.size(), lines.data());
+
+            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), obj.position) * glm::mat4_cast(obj.rotation);
+            shader.setMat4("model", modelMat);
+            shader.setVec3("color", glm::vec3(0.8f, 0.8f, 1.0f)); 
+            glDrawArrays(GL_LINES, 0, 24);
+        }
+    }
     glBindVertexArray(0);
 }
 
@@ -100,4 +147,6 @@ void HitboxGraphics::Cleanup() {
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
     glDeleteBuffers(1, &m_EBO);
+    glDeleteVertexArrays(1, &m_DynVAO);
+    glDeleteBuffers(1, &m_DynVBO);
 }

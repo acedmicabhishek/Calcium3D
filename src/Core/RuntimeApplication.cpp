@@ -495,6 +495,12 @@ void RuntimeApplication::OnRender()
     m_RenderContext.msaaSkyPass = true;
     m_RenderContext.msaaGeometryPass = true;
     
+    ProcessSceneCameras();
+    
+    glfwGetFramebufferSize(m_Window, &winW, &winH);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, winW, winH);
+
     m_RenderPipeline->Execute(m_RenderContext);
 
     

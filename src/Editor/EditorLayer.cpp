@@ -1,6 +1,7 @@
 #include "EditorLayer.h"
+#include "PlayMode.h"
 #include "../AudioEngine/AudioEngine.h"
-#include "Editor.h" 
+#include "Editor.h"
 #include "Logger.h"
 #include "ObjectFactory.h"
 #include "ResourceManager.h"
@@ -617,10 +618,43 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 ImGui::EndMenu();
             }
             
-             if (ImGui::BeginMenu("Cameras")) {
-                 ImGui::MenuItem("Camera", NULL, false, false); 
-                 ImGui::EndMenu();
-             }
+            if (ImGui::BeginMenu("Cameras")) {
+                if (ImGui::MenuItem("Scene Camera")) {
+                    GameObject cam(ObjectFactory::createCameraMesh(), "Camera");
+                    cam.hasCamera = true;
+                    cam.camera.enabled = true;
+                    cam.meshType = MeshType::Camera;
+                    scene.AddObject(std::move(cam));
+                    selectedCube = (int)scene.GetObjects().size() - 1;
+                    isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
+                    Logger::AddLog("Created Camera Object");
+                }
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::MenuItem("2D Image Object")) {
+                GameObject img(ObjectFactory::createPlane(), "Image Object");
+                img.hasScreen = true;
+                img.screen.enabled = true;
+                img.screen.type = ScreenType::Image;
+                img.meshType = MeshType::Plane;
+                scene.AddObject(std::move(img));
+                selectedCube = (int)scene.GetObjects().size() - 1;
+                isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
+                Logger::AddLog("Created 2D Image Object");
+            }
+
+            if (ImGui::MenuItem("Video Display Object")) {
+                GameObject vid(ObjectFactory::createPlane(), "Video Object");
+                vid.hasScreen = true;
+                vid.screen.enabled = true;
+                vid.screen.type = ScreenType::Video;
+                vid.meshType = MeshType::Plane;
+                scene.AddObject(std::move(vid));
+                selectedCube = (int)scene.GetObjects().size() - 1;
+                isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
+                Logger::AddLog("Created Video Object");
+            }
             ImGui::EndMenu();
         }
 
@@ -847,6 +881,30 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                     child.parentIndex = index;
                     scene.AddObject(std::move(child));
                 }
+                if (ImGui::MenuItem("Create Camera Child")) {
+                    GameObject child(ObjectFactory::createCameraMesh(), "Camera");
+                    child.hasCamera = true;
+                    child.camera.enabled = true;
+                    child.meshType = MeshType::Camera;
+                    child.parentIndex = index;
+                    scene.AddObject(std::move(child));
+                }
+                if (ImGui::MenuItem("Create 2D Image Child")) {
+                    GameObject child(ObjectFactory::createPlane(), "Image Object");
+                    child.hasScreen = true;
+                    child.screen.enabled = true;
+                    child.screen.type = ScreenType::Image;
+                    child.parentIndex = index;
+                    scene.AddObject(std::move(child));
+                }
+                if (ImGui::MenuItem("Create Video Child")) {
+                    GameObject child(ObjectFactory::createPlane(), "Video Object");
+                    child.hasScreen = true;
+                    child.screen.enabled = true;
+                    child.screen.type = ScreenType::Video;
+                    child.parentIndex = index;
+                    scene.AddObject(std::move(child));
+                }
                 ImGui::EndPopup();
             }
             
@@ -930,6 +988,38 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                 objects[payloadIndex].parentIndex = -1;
             }
             ImGui::EndDragDropTarget();
+        }
+
+        if (ImGui::BeginPopupContextWindow("HierarchyPopup", ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
+            if (ImGui::MenuItem("Create Empty Object")) {
+                std::vector<Vertex> rawVerts;
+                std::vector<GLuint> rawIndices;
+                Mesh groupMesh(rawVerts, rawIndices, {});
+                GameObject obj(std::move(groupMesh), "Empty Object");
+                scene.AddObject(std::move(obj));
+            }
+            if (ImGui::MenuItem("Create Camera")) {
+                GameObject cam(ObjectFactory::createCameraMesh(), "Camera");
+                cam.hasCamera = true;
+                cam.camera.enabled = true;
+                cam.meshType = MeshType::Camera;
+                scene.AddObject(std::move(cam));
+            }
+            if (ImGui::MenuItem("Create 2D Image Object")) {
+                GameObject img(ObjectFactory::createPlane(), "Image Object");
+                img.hasScreen = true;
+                img.screen.enabled = true;
+                img.screen.type = ScreenType::Image;
+                scene.AddObject(std::move(img));
+            }
+            if (ImGui::MenuItem("Create Video Object")) {
+                GameObject vid(ObjectFactory::createPlane(), "Video Object");
+                vid.hasScreen = true;
+                vid.screen.enabled = true;
+                vid.screen.type = ScreenType::Video;
+                scene.AddObject(std::move(vid));
+            }
+            ImGui::EndPopup();
         }
     }
     
@@ -1119,31 +1209,36 @@ void EditorLayer::DrawInspector(Scene& scene) {
             if (obj.hasAudio) {
                 ImGui::Indent();
                 
-                ImGui::Text("Audio File:");
-                std::string audioLabel = obj.audio.filePath.empty() 
-                    ? "[ Drop audio here ]##audiodrop" 
-                    : std::filesystem::path(obj.audio.filePath).filename().string() + "##audiodrop";
-                
-                ImGui::Button(audioLabel.c_str(), ImVec2(-40, 0));
-                if (ImGui::BeginDragDropTarget()) {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AUDIO_FILE")) {
-                        std::string audioPath((const char*)payload->Data, payload->DataSize - 1);
-                        obj.audio.filePath = audioPath;
-                        Logger::AddLog("Assigned audio file: %s", audioPath.c_str());
+                bool isVideoOverrides = (obj.hasScreen && obj.screen.type == ScreenType::Video);
+                if (!isVideoOverrides) {
+                    ImGui::Text("Audio File:");
+                    std::string audioLabel = obj.audio.filePath.empty() 
+                        ? "[ Drop audio here ]##audiodrop" 
+                        : std::filesystem::path(obj.audio.filePath).filename().string() + "##audiodrop";
+                    
+                    ImGui::Button(audioLabel.c_str(), ImVec2(-40, 0));
+                    if (ImGui::BeginDragDropTarget()) {
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AUDIO_FILE")) {
+                            std::string audioPath((const char*)payload->Data, payload->DataSize - 1);
+                            obj.audio.filePath = audioPath;
+                            Logger::AddLog("Assigned audio file: %s", audioPath.c_str());
+                        }
+                        ImGui::EndDragDropTarget();
                     }
-                    ImGui::EndDragDropTarget();
-                }
-                if (!obj.audio.filePath.empty()) {
-                    ImGui::SameLine();
-                    if (ImGui::Button("X##ClearAudio")) {
-                        obj.audio.filePath = "";
+                    if (!obj.audio.filePath.empty()) {
+                        ImGui::SameLine();
+                        if (ImGui::Button("X##ClearAudio")) {
+                            obj.audio.filePath = "";
+                        }
                     }
-                }
 
-                ImGui::SliderFloat("Volume", &obj.audio.volume, 0.0f, 1.0f);
-                ImGui::SliderFloat("Pitch", &obj.audio.pitch, 0.1f, 2.0f);
-                ImGui::Checkbox("Looping", &obj.audio.looping);
-                ImGui::Checkbox("Play On Awake", &obj.audio.playOnAwake);
+                    ImGui::SliderFloat("Volume", &obj.audio.volume, 0.0f, 1.0f);
+                    ImGui::SliderFloat("Pitch", &obj.audio.pitch, 0.1f, 2.0f);
+                    ImGui::Checkbox("Looping", &obj.audio.looping);
+                    ImGui::Checkbox("Play On Awake", &obj.audio.playOnAwake);
+                } else {
+                    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[ Base audio controlled by Video Component ]");
+                }
 
                 const char* audioTypes[] = { "Directional", "Ambience" };
                 int currentAudioType = (int)obj.audio.type;
@@ -1332,6 +1427,120 @@ void EditorLayer::DrawInspector(Scene& scene) {
                             Logger::AddLog("Attached '%s' to '%s'", sName.c_str(), obj.name.c_str());
                         }
                     }
+                    }
+                }
+            }
+
+            
+            ImGui::Separator();
+            ImGui::Checkbox("Has Camera", &obj.hasCamera);
+            if (obj.hasCamera) {
+                if (ImGui::CollapsingHeader("Camera Component", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Enabled##Cam", &obj.camera.enabled);
+                    ImGui::DragFloat("FOV", &obj.camera.fov, 1.0f, 10.0f, 120.0f);
+                    ImGui::DragFloat("Near", &obj.camera.nearPlane, 0.01f, 0.01f, 1.0f);
+                    ImGui::DragFloat("Far", &obj.camera.farPlane, 1.0f, 1.0f, 5000.0f);
+                    
+                    int res[2] = { obj.camera.resolutionX, obj.camera.resolutionY };
+                    if (ImGui::DragInt2("Resolution", res, 1, 64, 4096)) {
+                        obj.camera.resolutionX = res[0];
+                        obj.camera.resolutionY = res[1];
+                    }
+                    
+                    if (obj.camera.renderTexture != 0) {
+                        ImGui::Text("Render Texture ID: %d", obj.camera.renderTexture);
+                        ImGui::Image((void*)(intptr_t)obj.camera.renderTexture, ImVec2(200, 200), ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+                    }
+                }
+            }
+            
+            ImGui::Separator();
+            ImGui::Checkbox("Has Screen", &obj.hasScreen);
+            if (obj.hasScreen) {
+                if (ImGui::CollapsingHeader("Screen Component", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Enabled##Screen", &obj.screen.enabled);
+                    ImGui::DragFloat("Brightness", &obj.screen.brightness, 0.1f, 0.0f, 100.0f);
+
+                    const char* typeOptions[] = { "None", "Image", "Video", "CameraFeed" };
+                    int typeIdx = static_cast<int>(obj.screen.type);
+                    if (ImGui::Combo("Source Type", &typeIdx, typeOptions, 4)) {
+                        obj.screen.type = static_cast<ScreenType>(typeIdx);
+                    }
+                    
+                    ImGui::Spacing();
+                    
+                    if (obj.screen.type == ScreenType::Image || obj.screen.type == ScreenType::Video) {
+                        char buf[512];
+                        strcpy(buf, obj.screen.filePath.c_str());
+                        if (ImGui::InputText((obj.screen.type == ScreenType::Video ? "Video Path" : "Image Path"), buf, sizeof(buf))) {
+                            obj.screen.filePath = buf;
+                        }
+                    } else if (obj.screen.type == ScreenType::CameraFeed) {
+                        auto& allObjects = scene.GetObjects();
+                        std::string currentCamName = "None";
+                        if (obj.screen.targetCameraIndex >= 0 && obj.screen.targetCameraIndex < (int)allObjects.size()) {
+                            currentCamName = allObjects[obj.screen.targetCameraIndex].name;
+                        }
+                        ImGui::Text("Target Camera: %s", currentCamName.c_str());
+                    }
+
+                    ImGui::Button("[ Drop File or Camera from Hierarchy Here ]", ImVec2(-1, 0));
+                    if (ImGui::BeginDragDropTarget()) {
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                            const char* path = (const char*)payload->Data;
+                            obj.screen.filePath = path;
+                            std::string ext = std::filesystem::path(path).extension().string();
+                            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                            if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov") 
+                                obj.screen.type = ScreenType::Video;
+                            else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga")
+                                obj.screen.type = ScreenType::Image;
+                            Logger::AddLog("Screen: Assigned file %s", path);
+                        }
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_OBJ")) {
+                            int camIdx = *(int*)payload->Data;
+                            auto& allObjects = scene.GetObjects();
+                            if (camIdx >= 0 && camIdx < (int)allObjects.size() && allObjects[camIdx].hasCamera) {
+                                obj.screen.targetCameraIndex = camIdx;
+                                obj.screen.type = ScreenType::CameraFeed;
+                                Logger::AddLog("Screen: Assigned Camera Feed from %s", allObjects[camIdx].name.c_str());
+                            }
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    if (obj.screen.type == ScreenType::Video) {
+                        if (ImGui::TreeNode("Playback Settings")) {
+                            ImGui::Checkbox("Loop##Vid", &obj.screen.videoLoop);
+                            ImGui::SameLine();
+                            ImGui::Checkbox("Start Paused", &obj.screen.videoPaused);
+                            ImGui::Checkbox("Retain Aspect Ratio", &obj.screen.videoKeepAspect);
+                            
+                            ImGui::DragFloat("Speed", &obj.screen.videoPlaybackSpeed, 0.05f, 0.1f, 10.0f);
+                            ImGui::SliderFloat("Volume##Video", &obj.screen.videoVolume, 0.0f, 1.0f);
+                            ImGui::TreePop();
+                        }
+                    } else if (obj.screen.type == ScreenType::CameraFeed) {
+                        auto& allObjects = scene.GetObjects();
+                        std::vector<const char*> camNames;
+                        std::vector<int> camIndices;
+                        for(int i=0; i<(int)allObjects.size(); i++) {
+                            if(allObjects[i].hasCamera) {
+                                camNames.push_back(allObjects[i].name.c_str());
+                                camIndices.push_back(i);
+                            }
+                        }
+                        if(!camNames.empty()) {
+                            int currentCamIdx = -1;
+                            for(int i=0; i<(int)camIndices.size(); i++) {
+                                if(camIndices[i] == obj.screen.targetCameraIndex) { currentCamIdx = i; break; }
+                            }
+                            if (ImGui::Combo("Select Camera", &currentCamIdx, camNames.data(), camNames.size())) {
+                                obj.screen.targetCameraIndex = camIndices[currentCamIdx];
+                            }
+                        } else {
+                            ImGui::TextDisabled("No cameras in scene.");
+                        }
                     }
                 }
             }
@@ -1787,20 +1996,62 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
     ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
     
     
+    bool showSplit = (selectedCube != -1 && selectedCube < scene.GetObjects().size() && 
+                      scene.GetObjects()[selectedCube].hasCamera && 
+                      scene.GetObjects()[selectedCube].camera.enabled);
+
     viewportWidth = (int)viewportPanelSize.x;
     viewportHeight = (int)viewportPanelSize.y;
-    
-    if (viewportTextureID != 0 && viewportPanelSize.x > 0 && viewportPanelSize.y > 0) {
-        
-        ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-        ImGui::Image(
-            (ImTextureID)(intptr_t)viewportTextureID,
-            viewportPanelSize,
-            ImVec2(0, 1),  
-            ImVec2(1, 0)   
-        );
 
+    if (showSplit) {
+        float splitRatio = 0.65f;
+        viewportWidth = (int)(viewportPanelSize.x * splitRatio - 4.0f);
+    }
+
+    if (viewportTextureID != 0 && viewportWidth > 0 && viewportHeight > 0) {
+        ImVec2 cursorPos = ImGui::GetCursorScreenPos();
         
+        if (showSplit) {
+            float splitRatio = 0.65f;
+            ImVec2 mainSize(viewportWidth, viewportHeight);
+            ImVec2 camSize(viewportPanelSize.x * (1.0f - splitRatio), viewportPanelSize.y);
+            
+            ImGui::Image((ImTextureID)(intptr_t)viewportTextureID, mainSize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::SameLine();
+            
+            auto& camObj = scene.GetObjects()[selectedCube].camera;
+            unsigned int camTex = camObj.renderTexture;
+            ImGui::BeginChild("CamPreviewSplit", camSize, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            ImGui::TextColored(ImVec4(1,1,0,1), "Camera Preview");
+            
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            float aspect = (float)camObj.resolutionX / (float)camObj.resolutionY;
+            float availAspect = avail.x / avail.y;
+            ImVec2 imgSize;
+            if (aspect > availAspect) {
+                imgSize.x = avail.x;
+                imgSize.y = avail.x / aspect;
+            } else {
+                imgSize.y = avail.y;
+                imgSize.x = avail.y * aspect;
+            }
+            
+            ImVec2 offset;
+            offset.x = (avail.x - imgSize.x) * 0.5f;
+            offset.y = (avail.y - imgSize.y) * 0.5f;
+            ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPosX() + offset.x, ImGui::GetCursorPosY() + offset.y));
+
+            ImGui::Image((ImTextureID)(intptr_t)camTex, imgSize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::EndChild();
+        } else {
+            ImGui::Image(
+                (ImTextureID)(intptr_t)viewportTextureID,
+                ImVec2(viewportWidth, viewportHeight),
+                ImVec2(0, 1),  
+                ImVec2(1, 0)   
+            );
+        }
+
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MODEL_FILE")) {
                 std::string modelPath((const char*)payload->Data, payload->DataSize - 1);
@@ -1846,7 +2097,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         }
         
         
-        if ((ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) && 
+        if (Editor::isEditMode && (ImGui::IsWindowFocused() || ImGui::IsWindowHovered()) && 
             !ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
             if (ImGui::IsKeyPressed(ImGuiKey_W)) gizmoOp = 0; 
             if (ImGui::IsKeyPressed(ImGuiKey_E)) gizmoOp = 1; 
@@ -1854,7 +2105,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         }
         
         
-        if (uiEditMode) {
+        if (uiEditMode && Editor::isEditMode) {
             std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
 
             auto& elements = UICreationEngine::GetElements();
@@ -1944,24 +2195,33 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
 
         
         
-        
-        
-        
-        
-        
-        std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
-
+        std::string activeScreenName;
+        if (!Editor::isEditMode) {
+            
+            if (m_PlayModeActiveScreen.empty()) {
+                m_PlayModeActiveScreen = GameStateManager::GetStateName(m_PreviewState);
+            }
+            activeScreenName = m_PlayModeActiveScreen;
+        } else {
+            activeScreenName = GameStateManager::GetStateName(m_PreviewState);
+        }
         std::vector<UIElement> filteredElements;
         auto& allElements = UICreationEngine::GetElements();
         for(const auto& el : allElements) {
             if (el.screenName == activeScreenName) filteredElements.push_back(el);
         }
-        UIManager::Render(filteredElements, glm::vec2(viewportWidth, viewportHeight), glm::vec2(cursorPos.x, cursorPos.y));
+        
+        if (!Editor::isEditMode) {
+            PlayMode::RenderAndHandleClicks(filteredElements, viewportWidth, viewportHeight, cursorPos, m_PlayModeActiveScreen);
+        } else {
+            
+            UIManager::Render(filteredElements, glm::vec2(viewportWidth, viewportHeight), glm::vec2(cursorPos.x, cursorPos.y));
+        }
         
         bool gizmoUsing = ImGuizmo::IsUsing();
         bool gizmoOver = ImGuizmo::IsOver();
         
-        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) 
+        if (Editor::isEditMode && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) 
             && !gizmoUsing && !gizmoOver) {
             
             ImVec2 mousePos = ImGui::GetMousePos();
@@ -1969,8 +2229,8 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             float my = mousePos.y - cursorPos.y;
             
             
-            float ndcX = (2.0f * mx) / viewportPanelSize.x - 1.0f;
-            float ndcY = 1.0f - (2.0f * my) / viewportPanelSize.y; 
+            float ndcX = (2.0f * mx) / viewportWidth - 1.0f;
+            float ndcY = 1.0f - (2.0f * my) / viewportHeight; 
             
             
             glm::mat4 invProj = glm::inverse(camera.GetProjectionMatrix());
@@ -2013,8 +2273,8 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 glm::vec4 clip = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(lightPos, 1.0f);
                 if (clip.w > 0.0f) {
                      glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                     float screenX = (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
-                     float screenY = (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
+                     float screenX = (ndc.x + 1.0f) * 0.5f * viewportWidth;
+                     float screenY = (1.0f - ndc.y) * 0.5f * viewportHeight;
                      
                      float dx = mx - screenX;
                      float dy = my - screenY;
@@ -2053,8 +2313,8 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 glm::vec4 clip = camera.GetProjectionMatrix() * camera.GetViewMatrix() * glm::vec4(lightPos, 1.0f);
                 if (clip.w > 0.0f) {
                      glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                     float screenX = cursorPos.x + (ndc.x + 1.0f) * 0.5f * viewportPanelSize.x;
-                     float screenY = cursorPos.y + (1.0f - ndc.y) * 0.5f * viewportPanelSize.y;
+                     float screenX = cursorPos.x + (ndc.x + 1.0f) * 0.5f * viewportWidth;
+                     float screenY = cursorPos.y + (1.0f - ndc.y) * 0.5f * viewportHeight;
                      
                      ImDrawList* drawList = ImGui::GetWindowDrawList();
                      drawList->AddCircleFilled(ImVec2(screenX, screenY), 8.0f, IM_COL32(255, 200, 50, 255));
@@ -2082,7 +2342,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 
                 ImGuizmo::SetOrthographic(false);
                 ImGuizmo::SetDrawlist();
-                ImGuizmo::SetRect(cursorPos.x, cursorPos.y, viewportPanelSize.x, viewportPanelSize.y);
+                ImGuizmo::SetRect(cursorPos.x, cursorPos.y, viewportWidth, viewportHeight);
                 
                 ImGuizmo::OPERATION op = ImGuizmo::TRANSLATE;
                 if (gizmoOp == 1) op = ImGuizmo::ROTATE;
@@ -2114,7 +2374,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                  
                  ImGuizmo::SetOrthographic(false);
                  ImGuizmo::SetDrawlist();
-                 ImGuizmo::SetRect(cursorPos.x, cursorPos.y, viewportPanelSize.x, viewportPanelSize.y);
+                 ImGuizmo::SetRect(cursorPos.x, cursorPos.y, viewportWidth, viewportHeight);
                  
                  ImGuizmo::OPERATION op = ImGuizmo::TRANSLATE;
                  ImGuizmo::MODE mode = ImGuizmo::WORLD;
@@ -2550,6 +2810,16 @@ void EditorLayer::DrawContentBrowserGrid() {
                 }
             }
             
+            bool isVideoFile = (ext == ".mp4" || ext == ".avi" || ext == ".mkv" || ext == ".mov");
+            if (!entry.is_directory() && (isImage || isVideoFile)) {
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                    std::string path = entry.path().string();
+                    ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", path.c_str(), path.size() + 1);
+                    ImGui::Text("File: %s", filename.c_str());
+                    ImGui::EndDragDropSource();
+                }
+            }
+            
             
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 if (entry.is_directory()) {
@@ -2785,12 +3055,12 @@ void EditorLayer::DrawUIEditor() {
             ImGui::Separator();
             ImGui::Text("Button Scripting");
             
-            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState", "PlayAudio" };
+            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState", "PlayAudio", "ToggleVideo", "PlayVideo", "PauseVideo" };
             int currentActionIdx = 0;
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 8; i++) {
                 if (el.actionType == actionOptions[i]) currentActionIdx = i;
             }
-            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, 5)) {
+            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, 8)) {
                 el.actionType = actionOptions[currentActionIdx];
             }
             
@@ -2831,11 +3101,37 @@ void EditorLayer::DrawUIEditor() {
                             el.targetAudioObject = audioNames[currentAudioIdx];
                         }
                     } else {
-                        ImGui::TextDisabled("No audio objects in scene.");
+                        ImGui::TextDisabled("No objects with Audio component found.");
+                    }
+                }
+            } else if (el.actionType == "ToggleVideo" || el.actionType == "PlayVideo" || el.actionType == "PauseVideo") {
+                if (Scene* scene = Application::Get().GetScene()) {
+                    auto& objects = scene->GetObjects();
+                    std::vector<const char*> videoNames;
+                    int currentVideoIdx = -1;
+                    int videoIndex = 0;
+                    for (int i = 0; i < (int)objects.size(); i++) {
+                        if (objects[i].hasScreen && objects[i].screen.type == ScreenType::Video) {
+                            if (el.targetVideoObject == objects[i].name) currentVideoIdx = videoIndex;
+                            videoNames.push_back(objects[i].name.c_str());
+                            videoIndex++;
+                        }
+                    }
+                    if (!videoNames.empty()) {
+                        if (currentVideoIdx == -1) {
+                            currentVideoIdx = 0;
+                            el.targetVideoObject = videoNames[0];
+                        }
+                        if (ImGui::Combo("Target Video", &currentVideoIdx, videoNames.data(), (int)videoNames.size())) {
+                            el.targetVideoObject = videoNames[currentVideoIdx];
+                        }
+                    } else {
+                        ImGui::TextDisabled("No objects with Video screen found.");
                     }
                 }
             }
         }
+
         
         ImGui::Separator();
         if (ImGui::Button("Delete Element")) {

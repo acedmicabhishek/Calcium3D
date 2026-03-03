@@ -34,28 +34,33 @@ Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::v
 }
 
 
-void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale)
+void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale, unsigned int textureOverride)
 {
 	shader.use();
 	vao.Bind();
-	unsigned int numDiffuse = 0;
-	unsigned int numSpecular = 0;
-    
-	for (unsigned int i = 0; i < textures.size(); i++)
-	{
-		std::string num;
-		std::string type = textures[i].type;
-		if (type == "diffuse")
-		{
-			num = std::to_string(numDiffuse++);
-		}
-		else if (type == "specular")
-		{
-			num = std::to_string(numSpecular++);
-		}
-		textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
-		textures[i].Bind();
-	}
+    unsigned int numDiffuse = 0;
+    unsigned int numSpecular = 0;
+	if (textureOverride != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureOverride);
+        shader.setInt("diffuse0", 0);
+	} else {
+        for (unsigned int i = 0; i < textures.size(); i++)
+        {
+            std::string num;
+            std::string type = textures[i].type;
+            if (type == "diffuse")
+            {
+                num = std::to_string(numDiffuse++);
+            }
+            else if (type == "specular")
+            {
+                num = std::to_string(numSpecular++);
+            }
+            textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
+            textures[i].Bind();
+        }
+    }
 	glUniform3f(glGetUniformLocation(shader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	glUniform3f(glGetUniformLocation(shader.ID, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	camera.Matrix(camera.FOV, camera.nearPlane, camera.farPlane, shader, "camMatrix");
@@ -74,28 +79,34 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 	vao.Unbind();
 }
 
-void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model)
+void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned int textureOverride)
 {
 	shader.use();
 	vao.Bind();
-	unsigned int numDiffuse = 0;
-	unsigned int numSpecular = 0;
-    
-	for (unsigned int i = 0; i < textures.size(); i++)
-	{
-		std::string num;
-		std::string type = textures[i].type;
-		if (type == "diffuse")
-		{
-			num = std::to_string(numDiffuse++);
-		}
-		else if (type == "specular")
-		{
-			num = std::to_string(numSpecular++);
-		}
-		textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
-		textures[i].Bind();
-	}
+    unsigned int numDiffuse = 0;
+    unsigned int numSpecular = 0;
+	if (textureOverride != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureOverride);
+        shader.setBool("material.useTexture", true);
+        shader.setInt("diffuse0", 0);
+	} else {
+        for (unsigned int i = 0; i < textures.size(); i++)
+        {
+            std::string num;
+            std::string type = textures[i].type;
+            if (type == "diffuse")
+            {
+                num = std::to_string(numDiffuse++);
+            }
+            else if (type == "specular")
+            {
+                num = std::to_string(numSpecular++);
+            }
+            textures[i].texUnit(shader, (type + num).c_str(), textures[i].unit);
+            textures[i].Bind();
+        }
+    }
 	glUniform3f(glGetUniformLocation(shader.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	glUniform3f(glGetUniformLocation(shader.ID, "viewPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	camera.Matrix(camera.FOV, camera.nearPlane, camera.farPlane, shader, "camMatrix");

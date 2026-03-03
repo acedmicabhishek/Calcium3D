@@ -16,6 +16,7 @@ public:
 
 private:
     static unsigned int m_VAO, m_VBO, m_EBO;
+    static unsigned int m_DynVAO, m_DynVBO;
 };
 
 #endif

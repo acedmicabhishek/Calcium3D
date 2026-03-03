@@ -280,3 +280,53 @@ void Application::Shutdown()
     
     m_Initialized = false;
 }
+
+void Application::ProcessSceneCameras() {
+    if (!m_Scene) return;
+    
+    auto& objects = m_Scene->GetObjects();
+    for (auto& obj : objects) {
+        if (obj.hasCamera && obj.camera.enabled) {
+            
+            if (obj.camera.fbo == 0) {
+                glGenFramebuffers(1, &obj.camera.fbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, obj.camera.fbo);
+
+                glGenTextures(1, &obj.camera.renderTexture);
+                glBindTexture(GL_TEXTURE_2D, obj.camera.renderTexture);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, obj.camera.resolutionX, obj.camera.resolutionY, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, obj.camera.renderTexture, 0);
+
+                glGenRenderbuffers(1, &obj.camera.depthBuffer);
+                glBindRenderbuffer(GL_RENDERBUFFER, obj.camera.depthBuffer);
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, obj.camera.resolutionX, obj.camera.resolutionY);
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, obj.camera.depthBuffer);
+            }
+
+            
+            Camera sceneCam(obj.camera.resolutionX, obj.camera.resolutionY, obj.position);
+            sceneCam.Orientation = obj.rotation * glm::vec3(0,0,-1);
+            sceneCam.Up = obj.rotation * glm::vec3(0,1,0);
+            sceneCam.FOV = obj.camera.fov;
+            sceneCam.nearPlane = obj.camera.nearPlane;
+            sceneCam.farPlane = obj.camera.farPlane;
+
+            
+            glBindFramebuffer(GL_FRAMEBUFFER, obj.camera.fbo);
+            glViewport(0, 0, obj.camera.resolutionX, obj.camera.resolutionY);
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            RenderContext camCtx = m_RenderContext; 
+            camCtx.mainFBO = obj.camera.fbo;
+            camCtx.width = obj.camera.resolutionX;
+            camCtx.height = obj.camera.resolutionY;
+            camCtx.camera = &sceneCam;
+            camCtx.renderEditorObjects = false;
+            
+            m_RenderPipeline->Execute(camCtx);
+        }
+    }
+}

@@ -13,8 +13,8 @@ find_package(OpenGL REQUIRED) #1
 find_package(PkgConfig REQUIRED) #2
 pkg_check_modules(GLFW REQUIRED glfw3) #3
 pkg_check_modules(GLEW REQUIRED glew) #4
+pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale libswresample)
 find_package(nlohmann_json 3 REQUIRED) #5
-# find_package(tinyobjloader REQUIRED) #6
 
 # Set sources
 set(SOURCES
@@ -57,6 +57,7 @@ set(SOURCES
     src/Renderer/VBO.cpp
     src/Renderer/EBO.cpp
     src/Renderer/tinyobj_impl.cpp
+    src/Renderer/VideoPlayer.cpp
     
     src/Renderer/Passes/GeometryPass.cpp
     src/Renderer/Passes/ShadowPass.cpp
@@ -75,6 +76,7 @@ set(SOURCES
     # Editor
     src/Editor/Editor.cpp
     src/Editor/EditorLayer.cpp
+    src/Editor/PlayMode.cpp
     src/Editor/Gizmo.cpp
     
     # Model Import
@@ -129,6 +131,7 @@ target_link_libraries(calcium3d
     ${OPENGL_LIBRARIES}
     ${GLFW_LIBRARIES}
     ${GLEW_LIBRARIES}
+    ${FFMPEG_LIBRARIES}
     nlohmann_json::nlohmann_json
     # tinyobjloader
 )
@@ -137,6 +140,7 @@ target_link_libraries(calcium3d
 target_include_directories(calcium3d PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
+    ${FFMPEG_INCLUDE_DIRS}
     # ${TINYOBJLOADER_INCLUDE_DIRS}
 )
 
@@ -178,6 +182,7 @@ set(TESTBUILD_SOURCES
     src/Renderer/VBO.cpp
     src/Renderer/EBO.cpp
     src/Renderer/tinyobj_impl.cpp
+    src/Renderer/VideoPlayer.cpp
     
     src/Renderer/Passes/GeometryPass.cpp
     src/Renderer/Passes/ShadowPass.cpp
@@ -235,12 +240,14 @@ target_link_libraries(calcium3d_testbuild
     ${OPENGL_LIBRARIES}
     ${GLFW_LIBRARIES}
     ${GLEW_LIBRARIES}
+    ${FFMPEG_LIBRARIES}
     nlohmann_json::nlohmann_json
 )
 
 target_include_directories(calcium3d_testbuild PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
+    ${FFMPEG_INCLUDE_DIRS}
 )
 
 target_link_directories(calcium3d_testbuild PRIVATE

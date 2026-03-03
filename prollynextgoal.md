@@ -1,15 +1,4 @@
 
-camera create obj
-
-2d image and video object
-
-
-
-more viewports
-more framebuffer for diff camera
-
-animation engine , gonna be ass
-
 mutithreading with disable functionality
 
 

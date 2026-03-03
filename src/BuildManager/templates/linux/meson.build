@@ -16,6 +16,10 @@ m_dep = cpp.find_library('m', required : false)
 thread_dep = dependency('threads')
 glm_dep = dependency('glm', required : false)
 json_dep = dependency('nlohmann_json', required : false)
+avutil_dep = dependency('libavutil', required : true)
+avcodec_dep = dependency('libavcodec', required : true)
+avformat_dep = dependency('libavformat', required : true)
+swscale_dep = dependency('libswscale', required : true)
 
 # Standalone Runtime Define
 add_project_arguments('-DC3D_RUNTIME', language : 'cpp')
@@ -56,6 +60,7 @@ sources = files(
   'src/Renderer/Camera.cpp',
   'src/Renderer/EBO.cpp',
   'src/Renderer/Mesh.cpp',
+  'src/Renderer/VideoPlayer.cpp',
   'src/Renderer/Model.cpp',
   'src/Renderer/Passes/GeometryPass.cpp',
   'src/Renderer/Passes/ShadowPass.cpp',
@@ -97,7 +102,7 @@ sources = files(
 executable('calcium3d_player',
   sources,
   include_directories : inc_dirs,
-  dependencies : [glfw_dep, gl_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep],
+  dependencies : [glfw_dep, gl_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep, avutil_dep, avcodec_dep, avformat_dep, swscale_dep],
   cpp_args: ['-static-libgcc', '-static-libstdc++'],
   link_args: ['-static-libgcc', '-static-libstdc++'],
   install : true
