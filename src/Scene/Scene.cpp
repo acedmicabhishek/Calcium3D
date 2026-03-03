@@ -57,6 +57,7 @@ void Scene::RemoveObject(int index) {
                 obj.parentIndex--;
             }
         }
+        
     }
 }
 

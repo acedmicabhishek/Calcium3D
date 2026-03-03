@@ -1,12 +1,6 @@
-
-mutithreading with disable functionality
-
-
 animation engine
 
 performace profiling in bars
-
-save game state
 
 
 

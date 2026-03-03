@@ -13,6 +13,7 @@
 #include "../Physics/HitboxGraphics.h"
 #include "../UI/UICreationEngine.h"
 #include "../UI/Screens/GameplayScreen.h"
+#include "ThreadManager.h"
 
 struct WindowData {
     Camera* camera;
@@ -69,9 +70,54 @@ bool EditorApplication::Init()
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to load standalone config: %s", e.what());
         }
+    } else {
+        LoadGlobalSettings();
     }
 
     return true;
+}
+
+void EditorApplication::SaveGlobalSettings() {
+    nlohmann::json settings;
+    settings["last_project"] = m_ProjectRoot;
+    settings["dark_theme"] = m_EditorLayer->darkTheme;
+    settings["multithreading"] = ThreadManager::IsEnabled();
+    settings["auto_save"] = m_EditorLayer->autoSave;
+
+    std::ofstream file("editor_settings.json");
+    if (file.is_open()) {
+        file << settings.dump(4);
+    }
+}
+
+void EditorApplication::LoadGlobalSettings() {
+    if (!std::filesystem::exists("editor_settings.json")) return;
+
+    try {
+        std::ifstream file("editor_settings.json");
+        nlohmann::json settings = nlohmann::json::parse(file);
+
+        if (settings.contains("dark_theme")) {
+            m_EditorLayer->darkTheme = settings["dark_theme"].get<bool>();
+            if (m_EditorLayer->darkTheme) m_EditorLayer->ApplyDarkTheme();
+            else m_EditorLayer->ApplyLightTheme();
+        }
+
+        if (settings.contains("multithreading")) {
+            ThreadManager::SetEnabled(settings["multithreading"].get<bool>());
+        }
+
+        if (settings.contains("auto_save")) {
+            m_EditorLayer->autoSave = settings["auto_save"].get<bool>();
+        }
+
+        if (settings.contains("last_project")) {
+            std::string lastProj = settings["last_project"].get<std::string>();
+            if (!lastProj.empty() && std::filesystem::exists(lastProj)) {
+                OpenProject(lastProj);
+            }
+        }
+    } catch (...) {}
 }
 
 void EditorApplication::SaveProject() {
@@ -92,11 +138,23 @@ void EditorApplication::SaveProject() {
     
     config["start_state"] = (int)Application::Get().m_StartGameState;
     
+    
+    config["camera"]["position"] = {m_Camera->Position.x, m_Camera->Position.y, m_Camera->Position.z};
+    config["camera"]["yaw"] = m_Camera->yaw;
+    config["camera"]["pitch"] = m_Camera->pitch;
+
+    
+    config["ui"]["showSceneHierarchy"] = m_EditorLayer->showSceneHierarchy;
+    config["ui"]["showInspector"] = m_EditorLayer->showInspector;
+    config["ui"]["showConsole"] = m_EditorLayer->showConsole;
+    config["ui"]["showContentBrowser"] = m_EditorLayer->showContentBrowser;
+    
     std::string configPath = m_ProjectRoot + "/project.c3dproj";
     std::ofstream file(configPath);
     if (file.is_open()) {
         file << config.dump(4);
         Logger::AddLog("Saved Project Configuration: %s", configPath.c_str());
+        SaveGlobalSettings();
     } else {
         Logger::AddLog("[ERROR] Failed to save Project Configuration: %s", configPath.c_str());
     }
@@ -141,6 +199,25 @@ void EditorApplication::OpenProject(const std::string& path) {
             
             if (config.contains("start_state")) {
                 Application::Get().m_StartGameState = (GameState)config["start_state"].get<int>();
+            }
+
+            
+            if (config.contains("camera")) {
+                auto& cam = config["camera"];
+                if (cam.contains("position")) {
+                    m_Camera->Position = glm::vec3(cam["position"][0], cam["position"][1], cam["position"][2]);
+                }
+                if (cam.contains("yaw")) m_Camera->yaw = cam["yaw"].get<float>();
+                if (cam.contains("pitch")) m_Camera->pitch = cam["pitch"].get<float>();
+            }
+
+            
+            if (config.contains("ui")) {
+                auto& ui = config["ui"];
+                if (ui.contains("showSceneHierarchy")) m_EditorLayer->showSceneHierarchy = ui["showSceneHierarchy"].get<bool>();
+                if (ui.contains("showInspector")) m_EditorLayer->showInspector = ui["showInspector"].get<bool>();
+                if (ui.contains("showConsole")) m_EditorLayer->showConsole = ui["showConsole"].get<bool>();
+                if (ui.contains("showContentBrowser")) m_EditorLayer->showContentBrowser = ui["showContentBrowser"].get<bool>();
             }
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to parse project.c3dproj: %s", e.what());
@@ -398,6 +475,7 @@ void EditorApplication::PostRender() {
 }
 
 void EditorApplication::Shutdown() {
+    SaveProject();
     m_EditorLayer->Shutdown();
     Application::Shutdown();
 }

@@ -137,6 +137,11 @@ public:
     
     bool darkTheme = true; 
     bool fixedLayout = false; 
+    bool autoSave = true;
+
+    void ApplyDarkTheme();
+    void ApplyLightTheme();
+    void TriggerAutoSave(Scene& scene);
 
     
     void SetContentPath(const std::string& path) { 
@@ -175,6 +180,7 @@ private:
     std::string m_ProjectRoot = "";
     std::string m_CurrentContentPath = "";
     std::string m_SelectedFolderPath = "";
+    bool m_GizmoUsingLastFrame = false;
     
     bool uiEditMode = false;
     int selectedUIElement = -1;

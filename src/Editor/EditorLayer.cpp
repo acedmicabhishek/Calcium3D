@@ -42,7 +42,7 @@ EditorLayer::~EditorLayer() {
 
 
 
-static void ApplyProfessionalDarkTheme() {
+void EditorLayer::ApplyDarkTheme() {
     ImGuiStyle& style = ImGui::GetStyle();
     ImVec4* colors = style.Colors;
 
@@ -156,7 +156,7 @@ static void ApplyProfessionalDarkTheme() {
 
 
 
-static void ApplyProfessionalLightTheme() {
+void EditorLayer::ApplyLightTheme() {
     ImGuiStyle& style = ImGui::GetStyle();
     ImVec4* colors = style.Colors;
 
@@ -253,6 +253,25 @@ static void ApplyProfessionalLightTheme() {
     colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
 }
 
+void EditorLayer::TriggerAutoSave(Scene& scene) {
+    if (!autoSave || m_ProjectRoot.empty()) return;
+
+    std::filesystem::path currentScenePath = scene.GetFilepath();
+    if (currentScenePath.empty()) {
+        currentScenePath = std::filesystem::path(m_ProjectRoot) / "Scenes" / "main.scene";
+        scene.SetFilepath(currentScenePath.string());
+    }
+    
+    scene.Save(currentScenePath.string());
+    
+    
+    std::string uiLayoutPath = m_ProjectRoot + "/ui_layout.json";
+    UICreationEngine::SaveLayout(uiLayoutPath);
+    
+    auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+    if (edApp) edApp->SaveProject();
+}
+
 void EditorLayer::Init(GLFWwindow* window) {
     m_Window = window;
 
@@ -265,7 +284,7 @@ void EditorLayer::Init(GLFWwindow* window) {
     
 
     
-    ApplyProfessionalDarkTheme();
+    this->ApplyDarkTheme();
 
     
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -556,6 +575,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     GameObject obj(std::move(cubeMesh), "Cube");
                     obj.meshType = MeshType::Cube;
                     scene.AddObject(std::move(obj));
+                    TriggerAutoSave(scene);
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Cube");
@@ -566,6 +586,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     obj.shape = ColliderShape::Sphere;
                     obj.meshType = MeshType::Sphere;
                     scene.AddObject(std::move(obj));
+                    TriggerAutoSave(scene);
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Sphere");
@@ -577,6 +598,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     GameObject obj(std::move(emptyMesh), "Empty Object");
                     obj.meshType = MeshType::None;
                     scene.AddObject(std::move(obj));
+                    TriggerAutoSave(scene);
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Empty Object");
@@ -586,6 +608,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     GameObject obj(std::move(planeMesh), "Plane");
                     obj.meshType = MeshType::Plane;
                     scene.AddObject(std::move(obj));
+                    TriggerAutoSave(scene);
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Plane");
@@ -626,6 +649,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                     cam.camera.enabled = true;
                     cam.meshType = MeshType::Camera;
                     scene.AddObject(std::move(cam));
+                    TriggerAutoSave(scene);
                     selectedCube = (int)scene.GetObjects().size() - 1;
                     isLightSelected = false; selectedPointLightIndex = -1; selectedMesh = -1;
                     Logger::AddLog("Created Camera Object");
@@ -1054,8 +1078,8 @@ void EditorLayer::DrawInspector(Scene& scene) {
         if (selectedCube < objects.size()) {
             GameObject& obj = objects[selectedCube];
             ImGui::Text("Type: GameObject");
-            ImGui::InputText("Name", &obj.name[0], obj.name.capacity() + 1); 
-            ImGui::Checkbox("Is Active", &obj.isActive);
+            if (ImGui::InputText("Name", &obj.name[0], obj.name.capacity() + 1)) TriggerAutoSave(scene); 
+            if (ImGui::Checkbox("Is Active", &obj.isActive)) TriggerAutoSave(scene);
             
             
             ImGui::Separator();
@@ -1065,6 +1089,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
             float pos[3] = { obj.position.x, obj.position.y, obj.position.z };
             if (ImGui::DragFloat3("Position", pos, 0.1f)) {
                 obj.position = glm::vec3(pos[0], pos[1], pos[2]);
+                if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene);
             }
             
             
@@ -1072,23 +1097,25 @@ void EditorLayer::DrawInspector(Scene& scene) {
             float rot[3] = { euler.x, euler.y, euler.z };
             if (ImGui::DragFloat3("Rotation", rot, 1.0f)) {
                  obj.rotation = glm::quat(glm::radians(glm::vec3(rot[0], rot[1], rot[2])));
+                 if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene);
             }
             
             
             float scale[3] = { obj.scale.x, obj.scale.y, obj.scale.z };
             if (ImGui::DragFloat3("Scale", scale, 0.1f)) {
                 obj.scale = glm::vec3(scale[0], scale[1], scale[2]);
+                if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene);
             }
             
             if (obj.meshType != MeshType::None) {
                 ImGui::Separator();
                 ImGui::Text("Material");
-                ImGui::ColorEdit3("Albedo", &obj.material.albedo[0]);
-                ImGui::SliderFloat("Metallic", &obj.material.metallic, 0.0f, 1.0f);
-                ImGui::SliderFloat("Roughness", &obj.material.roughness, 0.0f, 1.0f);
-                ImGui::SliderFloat("AO", &obj.material.ao, 0.0f, 1.0f);
-                ImGui::DragFloat("Shininess", &obj.material.shininess, 1.0f, 1.0f, 256.0f);
-                ImGui::Checkbox("Use Texture", &obj.material.useTexture);
+                if (ImGui::ColorEdit3("Albedo", &obj.material.albedo[0])) TriggerAutoSave(scene);
+                if (ImGui::SliderFloat("Metallic", &obj.material.metallic, 0.0f, 1.0f)) { if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene); }
+                if (ImGui::SliderFloat("Roughness", &obj.material.roughness, 0.0f, 1.0f)) { if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene); }
+                if (ImGui::SliderFloat("AO", &obj.material.ao, 0.0f, 1.0f)) { if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene); }
+                if (ImGui::DragFloat("Shininess", &obj.material.shininess, 1.0f, 1.0f, 256.0f)) { if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene); }
+                if (ImGui::Checkbox("Use Texture", &obj.material.useTexture)) TriggerAutoSave(scene);
 
                 
                 ImGui::Text("Diffuse Texture:");
@@ -1558,6 +1585,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
             ImGui::Separator();
             if (ImGui::Button("Delete Object")) {
                 scene.RemoveObject(selectedCube);
+                TriggerAutoSave(scene);
                 selectedCube = -1;
             }
         }
@@ -1862,15 +1890,21 @@ void EditorLayer::DrawSettings(Camera& camera) {
         if (ImGui::Combo("Theme", &currentTheme, themes, IM_ARRAYSIZE(themes))) {
             darkTheme = (currentTheme == 0);
             if (darkTheme) {
-                ApplyProfessionalDarkTheme();
+                this->ApplyDarkTheme();
             } else {
-                ApplyProfessionalLightTheme();
+                this->ApplyLightTheme();
             }
+            static_cast<EditorApplication*>(&Application::Get())->SaveGlobalSettings();
         }
         
         bool mtEnabled = ThreadManager::IsEnabled();
         if (ImGui::Checkbox("Multithreading", &mtEnabled)) {
             ThreadManager::SetEnabled(mtEnabled);
+            static_cast<EditorApplication*>(&Application::Get())->SaveGlobalSettings();
+        }
+
+        if (ImGui::Checkbox("Auto Save", &autoSave)) {
+            static_cast<EditorApplication*>(&Application::Get())->SaveGlobalSettings();
         }
         
         ImGui::Separator();
@@ -2225,6 +2259,11 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         }
         
         bool gizmoUsing = ImGuizmo::IsUsing();
+        if (m_GizmoUsingLastFrame && !gizmoUsing) {
+             TriggerAutoSave(scene);
+        }
+        m_GizmoUsingLastFrame = gizmoUsing;
+        
         bool gizmoOver = ImGuizmo::IsOver();
         
         if (Editor::isEditMode && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) 
@@ -2993,6 +3032,7 @@ void EditorLayer::DrawUIEditor() {
         btn.text = "Click Me";
         btn.screenName = activeScreenName;
         UICreationEngine::AddElement(btn);
+        TriggerAutoSave(*Application::Get().GetScene());
     }
     ImGui::SameLine();
     if (ImGui::Button("Add Text")) {
@@ -3002,6 +3042,7 @@ void EditorLayer::DrawUIEditor() {
         txt.text = "Hello UI";
         txt.screenName = activeScreenName;
         UICreationEngine::AddElement(txt);
+        TriggerAutoSave(*Application::Get().GetScene());
     }
 
     ImGui::Separator();
@@ -3142,6 +3183,7 @@ void EditorLayer::DrawUIEditor() {
         ImGui::Separator();
         if (ImGui::Button("Delete Element")) {
             elements.erase(elements.begin() + selectedUIElement);
+            TriggerAutoSave(*Application::Get().GetScene());
             selectedUIElement = -1;
         }
     }

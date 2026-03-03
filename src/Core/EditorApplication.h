@@ -18,6 +18,8 @@ public:
     void OpenProject(const std::string& path) override;
     void CreateProject(const std::string& path) override;
     void SaveProject();
+    void SaveGlobalSettings();
+    void LoadGlobalSettings();
     bool Init() override;
 
     bool IsPlayMode() const { return m_PlayMode; }
