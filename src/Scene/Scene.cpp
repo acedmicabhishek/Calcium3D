@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include <algorithm>
 #include <unordered_map>
+#include "../Core/ThreadManager.h"
 
 Scene::Scene() {
     
@@ -20,10 +21,22 @@ void Scene::Update(float dt) {
 
     physicsEngine.Update(dt, m_Objects);
     
-    for (auto& obj : m_Objects) {
-        for (auto& script : obj.behaviors) {
-            if (script && script->enabled) {
-                script->OnUpdate(dt);
+    
+    if (ThreadManager::IsEnabled()) {
+        ThreadManager::ParallelFor(0, (int)m_Objects.size(), [&](int i) {
+            auto& obj = m_Objects[i];
+            for (auto& script : obj.behaviors) {
+                if (script && script->enabled) {
+                    script->OnUpdate(dt);
+                }
+            }
+        });
+    } else {
+        for (auto& obj : m_Objects) {
+            for (auto& script : obj.behaviors) {
+                if (script && script->enabled) {
+                    script->OnUpdate(dt);
+                }
             }
         }
     }

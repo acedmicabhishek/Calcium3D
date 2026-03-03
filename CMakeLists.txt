@@ -15,6 +15,7 @@ pkg_check_modules(GLFW REQUIRED glfw3) #3
 pkg_check_modules(GLEW REQUIRED glew) #4
 pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale libswresample)
 find_package(nlohmann_json 3 REQUIRED) #5
+find_package(Threads REQUIRED)
 
 # Set sources
 set(SOURCES
@@ -23,6 +24,7 @@ set(SOURCES
     src/Core/Application.cpp
     src/Core/State.cpp
     src/Core/RuntimeApplication.cpp
+    src/Core/ThreadManager.cpp
     src/Core/Console.cpp
     src/Core/EditorApplication.cpp
     src/Core/InputManager.cpp
@@ -133,7 +135,7 @@ target_link_libraries(calcium3d
     ${GLEW_LIBRARIES}
     ${FFMPEG_LIBRARIES}
     nlohmann_json::nlohmann_json
-    # tinyobjloader
+    Threads::Threads
 )
 
 # Include pkg-config flags (in case needed)
@@ -157,6 +159,7 @@ set(TESTBUILD_SOURCES
     src/Core/Application.cpp
     src/Core/State.cpp
     src/Core/RuntimeApplication.cpp
+    src/Core/ThreadManager.cpp
     src/Core/Console.cpp
     src/Core/InputManager.cpp
     src/Core/Logger.cpp
@@ -242,6 +245,7 @@ target_link_libraries(calcium3d_testbuild
     ${GLEW_LIBRARIES}
     ${FFMPEG_LIBRARIES}
     nlohmann_json::nlohmann_json
+    Threads::Threads
 )
 
 target_include_directories(calcium3d_testbuild PRIVATE

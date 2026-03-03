@@ -1,4 +1,5 @@
 #include "PhysicsEngine.h"
+#include "../Core/ThreadManager.h"
 #include "../Scene/Scene.h"
 #include <algorithm>
 
@@ -204,8 +205,9 @@ void PhysicsEngine::Update(float deltaTime, std::vector<GameObject>& objects) {
 
     for (int step = 0; step < SubSteps; ++step) {
         
-        for (auto& obj : objects) {
-            if (!obj.isActive || obj.isStatic) continue;
+        auto integrateFunc = [&](int i) {
+            auto& obj = objects[i];
+            if (!obj.isActive || obj.isStatic) return;
 
             
             if (GlobalGravityEnabled && obj.useGravity) {
@@ -258,6 +260,12 @@ void PhysicsEngine::Update(float deltaTime, std::vector<GameObject>& objects) {
                     obj.rotation = glm::normalize(deltaRot * obj.rotation);
                 }
             }
+        };
+
+        if (ThreadManager::IsEnabled()) {
+            ThreadManager::ParallelFor(0, (int)objects.size(), integrateFunc);
+        } else {
+            for (int i = 0; i < (int)objects.size(); ++i) integrateFunc(i);
         }
 
         

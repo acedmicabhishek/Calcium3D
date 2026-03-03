@@ -1,5 +1,6 @@
 #include "EditorLayer.h"
 #include "PlayMode.h"
+#include "ThreadManager.h"
 #include "../AudioEngine/AudioEngine.h"
 #include "Editor.h"
 #include "Logger.h"
@@ -1865,6 +1866,11 @@ void EditorLayer::DrawSettings(Camera& camera) {
             } else {
                 ApplyProfessionalLightTheme();
             }
+        }
+        
+        bool mtEnabled = ThreadManager::IsEnabled();
+        if (ImGui::Checkbox("Multithreading", &mtEnabled)) {
+            ThreadManager::SetEnabled(mtEnabled);
         }
         
         ImGui::Separator();

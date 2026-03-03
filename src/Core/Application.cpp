@@ -23,6 +23,7 @@
 #include "../UI/UIManager.h"
 #include "../UI/UICreationEngine.h"
 #include "../AudioEngine/AudioEngine.h"
+#include "ThreadManager.h"
 
 Application* Application::s_Instance = nullptr;
 
@@ -65,7 +66,8 @@ void Application::ChangeState(int newState) {
 
 bool Application::Init()
 {
-    
+    ThreadManager::Init();
+    if (m_Initialized) return true;
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW\n";
         return false;
@@ -277,6 +279,7 @@ void Application::Shutdown()
     AudioEngine::Shutdown();
     glfwDestroyWindow(m_Window);
     glfwTerminate();
+    ThreadManager::Shutdown();
     
     m_Initialized = false;
 }
