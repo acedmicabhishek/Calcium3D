@@ -5,6 +5,8 @@
 #include "Camera.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include "../Tools/Profiler/Profiler.h"
+#include "../Tools/Profiler/GpuProfiler.h"
 
 GeometryPass::GeometryPass()
 {
@@ -19,7 +21,8 @@ void GeometryPass::Init()
 
 void GeometryPass::Execute(const RenderContext& context)
 {
-    
+    PROFILE_SCOPE("GeometryPass");
+    GPU_PROFILE_SCOPE("GeometryPass");
     if (context.msaaSamples > 0) {
         if (context.msaaGeometryPass)
             glEnable(GL_MULTISAMPLE);

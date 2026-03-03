@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include "../Core/ThreadManager.h"
 #include "../AniEngine/AniEngine.h"
+#include "../Tools/Profiler/Profiler.h"
 
 Scene::Scene() {
     
@@ -20,10 +21,13 @@ void Scene::Update(float dt, float time) {
         }
     }
 
-    physicsEngine.Update(dt, time, m_Objects);
-    
+    {
+        PROFILE_SCOPE("Physics");
+        physicsEngine.Update(dt, time, m_Objects);
+    }
     
     if (ThreadManager::IsEnabled()) {
+        PROFILE_SCOPE("Scripts");
         ThreadManager::ParallelFor(0, (int)m_Objects.size(), [&](int i) {
             auto& obj = m_Objects[i];
             for (auto& script : obj.behaviors) {
@@ -34,6 +38,7 @@ void Scene::Update(float dt, float time) {
             AniEngine::Update(obj, dt);
         });
     } else {
+        PROFILE_SCOPE("Scripts");
         for (auto& obj : m_Objects) {
             for (auto& script : obj.behaviors) {
                 if (script && script->enabled) {

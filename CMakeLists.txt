@@ -81,6 +81,11 @@ set(SOURCES
     src/Editor/PlayMode.cpp
     src/Editor/Gizmo.cpp
     
+    # Tools
+    src/Tools/Profiler/Profiler.cpp
+    src/Tools/Profiler/ProfilerUI.cpp
+    src/Tools/Profiler/GpuProfiler.cpp
+    
     # Model Import
     src/ModelImport/ModelImporter.cpp
     include/ufbx/ufbx_impl.c
@@ -132,6 +137,7 @@ target_include_directories(calcium3d PUBLIC
     src/AniEngine
     src
     include/ufbx
+    src/Tools/Profiler
 )
 
 # Link libraries

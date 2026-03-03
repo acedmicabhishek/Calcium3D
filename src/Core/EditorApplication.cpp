@@ -13,6 +13,8 @@
 #include "../UI/UICreationEngine.h"
 #include "../UI/Screens/GameplayScreen.h"
 #include "ThreadManager.h"
+#include "../Tools/Profiler/Profiler.h"
+#include "../Tools/Profiler/GpuProfiler.h"
 
 struct WindowData {
     Camera* camera;
@@ -308,7 +310,6 @@ void EditorApplication::TogglePlayMode() {
 
 void EditorApplication::OnUpdate(float deltaTime)
 {
-    
     static bool f7Pressed = false;
     if (glfwGetKey(m_Window, GLFW_KEY_F7) == GLFW_PRESS) {
         if (!f7Pressed) {
@@ -325,12 +326,31 @@ void EditorApplication::OnUpdate(float deltaTime)
         if (m_EditorLayer->timeOfDay < 0.0f) m_EditorLayer->timeOfDay += 24.0f;
     }
 
-    if (Editor::isEditMode || m_EditorLayer->m_MasterControl) {
-         m_Camera->Inputs(m_Window, deltaTime, m_EditorLayer->m_MasterControl);
+    {
+        PROFILE_SCOPE("Camera");
+        if (Editor::isEditMode || m_EditorLayer->m_MasterControl) {
+             m_Camera->Inputs(m_Window, deltaTime, m_EditorLayer->m_MasterControl);
+        }
     }
     
     if (!Editor::isEditMode) {
+        PROFILE_SCOPE("Scripts+Physics");
         m_Scene->Update(deltaTime, (float)glfwGetTime());
+    }
+
+    
+    if (m_EditorLayer->m_FocusRequested && Editor::isEditMode) {
+        m_EditorLayer->m_FocusRequested = false;
+        glm::vec3 target = m_EditorLayer->m_FocusTarget;
+        
+        glm::vec3 offset = glm::vec3(0.0f, 2.5f, 5.0f);
+        m_Camera->Position    = target + offset;
+        
+        glm::vec3 dir = glm::normalize(target - m_Camera->Position);
+        m_Camera->Orientation = dir;
+        
+        m_Camera->pitch = glm::degrees(asin(dir.y));
+        m_Camera->yaw   = glm::degrees(atan2(dir.z, dir.x));
     }
 
     m_ShowSkybox = m_EditorLayer->showSkybox;
@@ -344,6 +364,11 @@ void EditorApplication::OnUpdate(float deltaTime)
 
 void EditorApplication::OnRender()
 {
+    
+    GpuProfiler::Get().SetEnabled(Profiler::Get().IsEnabled());
+    GpuProfiler::Get().SetPaused(Profiler::Get().IsPaused());
+    Profiler::Get().BeginFrame();
+    GpuProfiler::Get().BeginFrame();   
     m_EditorLayer->Begin();
 
     if (m_EditorLayer->viewportWidth > 0 && m_EditorLayer->viewportHeight > 0 &&
@@ -442,7 +467,10 @@ void EditorApplication::RenderEditor(float deltaTime) {
     glViewport(0, 0, m_ViewportWidth, m_ViewportHeight);
 
     m_RenderContext.renderEditorObjects = true;
-    m_RenderPipeline->Execute(m_RenderContext);
+    {
+        PROFILE_SCOPE("RenderPipeline");
+        m_RenderPipeline->Execute(m_RenderContext);
+    }
     HitboxGraphics::Render(*m_Scene, *m_Camera);
 
     if (m_EditorLayer->msaaSamples > 0 && m_MSAAFBO != 0) {
@@ -463,11 +491,21 @@ void EditorApplication::RenderEditor(float deltaTime) {
 
     m_EditorLayer->viewportTextureID = m_ViewportTexture;
 
-    m_EditorLayer->Render(*m_Scene, *m_Camera, deltaTime);
+    {
+        PROFILE_SCOPE("UI");
+        m_EditorLayer->Render(*m_Scene, *m_Camera, deltaTime);
+    }
 }
 
 void EditorApplication::PostRender() {
     m_EditorLayer->End();
+    GpuProfiler::Get().EndFrame();   
+    
+    static double s_LastTime = glfwGetTime();
+    double now = glfwGetTime();
+    float dt = (float)(now - s_LastTime);
+    s_LastTime = now;
+    Profiler::Get().EndFrame(dt * 1000.0f);
 }
 
 void EditorApplication::Shutdown() {

@@ -325,6 +325,7 @@ void EditorLayer::SetupDockLayout() {
     ImGui::DockBuilderDockWindow("Content Browser", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Animator", dock_bottom_id);
+    ImGui::DockBuilderDockWindow("Profiler##C3D", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
 
     ImGui::DockBuilderFinish(dockspace_id);
@@ -436,6 +437,7 @@ void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
     
     if (showContentBrowser) DrawContentBrowser();
     if (showAnimator) DrawAnimator(scene);
+    if (showProfiler) ProfilerUI::Draw(&showProfiler);
     
     
     if (!m_EditingShaderPath.empty()) DrawShaderEditor();
@@ -580,7 +582,9 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::MenuItem("Console", NULL, &showConsole);
             ImGui::MenuItem("Content Browser", NULL, &showContentBrowser);
             ImGui::MenuItem("Animator", NULL, &showAnimator);
-            ImGui::MenuItem("Settings", NULL, &showMetrics); 
+            ImGui::MenuItem("Settings", NULL, &showMetrics);
+            ImGui::Separator();
+            ImGui::MenuItem("Profiler", NULL, &showProfiler);
             ImGui::EndMenu();
         }
         
@@ -892,6 +896,13 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                 isLightSelected = false;
                 selectedPointLightIndex = -1;
                 Logger::AddLog("Selected %s", objects[index].name.c_str());
+
+                
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                    m_FocusRequested = true;
+                    m_FocusTarget = objects[index].position;
+                    Logger::AddLog("[Focus] Focusing on %s", objects[index].name.c_str());
+                }
             } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
                 if (!selectedObjects.count(index)) {
                      selectedObjects.clear();
@@ -1879,7 +1890,6 @@ void EditorLayer::DrawSettings(Camera& camera) {
         
         ImGui::Checkbox("Use Gradient Sky", &showGradientSky);
         
-        ImGui::Checkbox("Water", &showWater);
         ImGui::Checkbox("Clouds", &showClouds);
     }
     

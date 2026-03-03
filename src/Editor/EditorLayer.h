@@ -24,6 +24,8 @@
 #include "Shader.h"  
 #include "../AniEngine/AnimatorUI.h"
 #include "../AniEngine/RiggingUI.h"
+#include "../Tools/Profiler/Profiler.h"
+#include "../Tools/Profiler/ProfilerUI.h"
 
 class EditorLayer {
 public:
@@ -47,6 +49,7 @@ public:
     bool showConsole = true;
     bool showContentBrowser = true;
     bool showAnimator = true;
+    bool showProfiler = false;
     
     
     unsigned int viewportTextureID = 0;
@@ -146,6 +149,10 @@ public:
     bool fixedLayout = false; 
     bool autoSave = true;
     bool m_MasterControl = false;
+
+    
+    bool m_FocusRequested = false;
+    glm::vec3 m_FocusTarget = glm::vec3(0.0f);
 
     void ApplyDarkTheme();
     void ApplyLightTheme();

@@ -9,6 +9,8 @@
 #include <iostream>
 #include <glm/gtc/type_ptr.hpp>
 #include <stb/stb_image.h>
+#include "../Tools/Profiler/Profiler.h"
+#include "../Tools/Profiler/GpuProfiler.h"
 
 SkyPass::SkyPass()
 {
@@ -140,6 +142,8 @@ void SkyPass::Reload() {
 
 void SkyPass::Execute(const RenderContext& context)
 {
+    PROFILE_SCOPE("SkyPass");
+    GPU_PROFILE_SCOPE("SkyPass");
     bool showGradient = context.showGradientSky;
     bool showCubemap = context.showSkybox && !context.showGradientSky;
     

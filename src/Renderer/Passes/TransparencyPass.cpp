@@ -8,6 +8,8 @@
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "../Tools/Profiler/Profiler.h"
+#include "../Tools/Profiler/GpuProfiler.h"
 
 TransparencyPass::TransparencyPass()
 {
@@ -21,6 +23,8 @@ void TransparencyPass::Init()
 
 void TransparencyPass::Execute(const RenderContext& context)
 {
+    PROFILE_SCOPE("TransparencyPass");
+    GPU_PROFILE_SCOPE("TransparencyPass");
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     

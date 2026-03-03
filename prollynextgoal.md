@@ -1,8 +1,5 @@
 animation engine // im not qualified enough to do this rn, maybe just a break will do it
-
-performace profiling in bars
-
-
+VL optimisation 
 
 
 Scene Management — Multi-scene workflow, prefabs, scene transitions
