@@ -34,6 +34,7 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
 
     for (size_t i = 0; i < objects.size(); ++i) {
         auto& object = objects[i];
+        if (!object.isActive) continue;
         
         Shader* activeShader = &shader;
         bool usingCustom = false;

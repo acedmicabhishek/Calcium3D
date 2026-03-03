@@ -40,6 +40,7 @@ bool RuntimeApplication::Init()
     ImGui_ImplOpenGL3_Init("#version 330");
 
     m_Console = std::make_unique<Console>();
+    Logger::SetRuntimeConsole(m_Console.get());
     m_Console->Init();
 
     LoadProjectConfig();
@@ -138,45 +139,80 @@ void RuntimeApplication::LoadProjectConfig() {
                     std::string name = item.value().get<std::string>();
                     GameStateManager::RegisterState(id, name);
                     
-                    if (name.find("Start Screen") != std::string::npos || name.find("Start Menu") != std::string::npos) {
-                        AddScreen(id, std::make_unique<StartScreen>());
+                    if (name.find("Start Screen") != std::string::npos || name.find("StartScreen") != std::string::npos || name.find("Start Menu") != std::string::npos) {
+                        StateManager::RegisterState<StartScreen>(name);
                     } else if (name.find("Gameplay") != std::string::npos || name.find("Main") != std::string::npos || name.find("Custom") != std::string::npos || id == 1) {
-                        AddScreen(id, std::make_unique<GameplayScreen>());
+                        StateManager::RegisterState<GameplayScreen>(name);
                     } else {
-                        
-                        AddScreen(id, std::make_unique<GameplayScreen>());
+                        StateManager::RegisterState<GameplayScreen>(name);
                     }
                 }
+                
+                
+                auto registered = StateManager::GetRegisteredStateNames();
+                Logger::AddLog("[State] Total registered state types: %d", (int)registered.size());
+                for(const auto& r : registered) Logger::AddLog("  - Native Logic Registered: '%s'", r.c_str());
             }
 
             if (config.contains("start_state")) {
-                int startState = config["start_state"].get<int>();
-                ChangeState(startState);
+                m_StartGameState = (GameState)config["start_state"].get<int>();
             } else {
-                ChangeState((int)GameState::GAMEPLAY);
+                m_StartGameState = GameState::START_SCREEN;
             }
             
-            
-            for (auto& pair : m_Screens) {
-                if (pair.second) pair.second->Init();
+            if (config.contains("disable_state_warning")) {
+                m_DisableStateWarning = config["disable_state_warning"].get<bool>();
             }
-            
-            
-            m_ActiveScreen = m_Screens[GameStateManager::GetState()].get();
-            
+
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to load standalone config: %s", e.what());
-            ChangeState((int)GameState::GAMEPLAY);
+            m_StartGameState = GameState::START_SCREEN;
         }
     } else {
         Logger::AddLog("[WARNING] project.json not found!");
-        ChangeState((int)GameState::GAMEPLAY);
+        m_StartGameState = GameState::START_SCREEN;
     }
 
     
+    StateManager::ChangeState(m_StartGameState);
+
+    
+    if (!m_DisableStateWarning) {
+        auto& allStates = GameStateManager::GetAllStates();
+        if (allStates.empty()) {
+            m_ShowStateWarning = true;
+            Logger::AddLog("[WARNING] No game states are registered! Showing fallback screen.");
+        } else {
+            bool startStateFound = false;
+            for (auto const& [id, name] : allStates) {
+                if (id == (int)m_StartGameState) { startStateFound = true; break; }
+            }
+            if (!startStateFound) {
+                m_ShowStateWarning = true;
+                Logger::AddLog("[WARNING] Start state ID %d not found in registered states! Showing fallback screen.", (int)m_StartGameState);
+            }
+        }
+
+        
+        if (!sceneLoaded || m_Scene->GetObjects().empty()) {
+            m_ShowStateWarning = true;
+            Logger::AddLog("[WARNING] Scene failed to load — states may be misconfigured. Showing fallback screen.");
+        }
+
+        
+        std::string uiCheck = m_ProjectRoot + "/ui_layout.json";
+        if (!std::filesystem::exists(uiCheck)) {
+            m_ShowStateWarning = true;
+            Logger::AddLog("[WARNING] ui_layout.json not found — states may be misconfigured.");
+        }
+    }
+
     if (!sceneLoaded || m_Scene->GetObjects().empty()) {
         Logger::AddLog("Loading default demo scene...");
         CreateDefaultScene();
+        m_IsDemoScene = true;
+        m_CursorCaptured = false; 
+        PhysicsEngine::GlobalPhysicsEnabled = false; 
     }
 
     
@@ -195,77 +231,208 @@ void RuntimeApplication::CreateDefaultScene() {
     Mesh planeMesh = ObjectFactory::createPlane();
     GameObject ground(std::move(planeMesh), "Ground");
     ground.position = glm::vec3(0.0f, -1.0f, 0.0f);
-    ground.scale = glm::vec3(20.0f, 1.0f, 20.0f);
+    ground.scale = glm::vec3(60.0f, 1.0f, 60.0f);
     ground.isStatic = true;
     m_Scene->AddObject(std::move(ground));
 
     
-    Mesh cubeMesh1 = ObjectFactory::createCube();
-    GameObject cube1(std::move(cubeMesh1), "Cube");
-    cube1.position = glm::vec3(0.0f, 0.0f, 0.0f);
-    cube1.scale = glm::vec3(1.0f);
-    m_Scene->AddObject(std::move(cube1));
-
-    
-    Mesh cubeMesh2 = ObjectFactory::createCube();
-    GameObject cube2(std::move(cubeMesh2), "Cube 2");
-    cube2.position = glm::vec3(3.0f, 0.0f, -2.0f);
-    cube2.scale = glm::vec3(0.7f);
-    m_Scene->AddObject(std::move(cube2));
-
-    
-    Mesh sphereMesh = ObjectFactory::createSphere(32, 16);
-    GameObject sphere(std::move(sphereMesh), "Sphere");
-    sphere.position = glm::vec3(-2.5f, 0.5f, -1.0f);
-    sphere.scale = glm::vec3(1.0f);
-    sphere.shape = ColliderShape::Sphere;
-    m_Scene->AddObject(std::move(sphere));
-
-    
-    Mesh cubeMesh3 = ObjectFactory::createCube();
-    GameObject pillar(std::move(cubeMesh3), "Pillar");
-    pillar.position = glm::vec3(-5.0f, 1.0f, 3.0f);
-    pillar.scale = glm::vec3(0.5f, 3.0f, 0.5f);
-    pillar.isStatic = true;
-    m_Scene->AddObject(std::move(pillar));
-
-    
-    Scene::PointLight* light = m_Scene->CreatePointLight();
-    if (light) {
-        light->position = glm::vec3(2.0f, 4.0f, 1.0f);
-        light->color = glm::vec4(1.0f, 0.9f, 0.7f, 1.0f);
-        light->intensity = 8.0f;
-        light->enabled = true;
-        light->constant = 1.0f;
-        light->linear = 0.09f;
-        light->quadratic = 0.032f;
+    for (int i = 0; i < 8; i++) {
+        float angle = (float)i / 8.0f * 6.283185f;
+        float r = 10.0f;
+        Mesh cm = ObjectFactory::createCube();
+        std::string name = "OrbitCube_" + std::to_string(i);
+        GameObject obj(std::move(cm), name);
+        obj.position = glm::vec3(cos(angle) * r, 1.0f, sin(angle) * r);
+        obj.scale = glm::vec3(0.7f);
+        obj.isStatic = true;
+        m_Scene->AddObject(std::move(obj));
     }
 
     
-    Scene::PointLight* light2 = m_Scene->CreatePointLight();
-    if (light2) {
-        light2->position = glm::vec3(-3.0f, 3.0f, -2.0f);
-        light2->color = glm::vec4(0.4f, 0.6f, 1.0f, 1.0f);
-        light2->intensity = 5.0f;
-        light2->enabled = true;
-        light2->constant = 1.0f;
-        light2->linear = 0.09f;
-        light2->quadratic = 0.032f;
+    for (int i = 0; i < 3; i++) {
+        Mesh sm = ObjectFactory::createSphere(32, 16);
+        std::string name = "FloatSphere_" + std::to_string(i);
+        GameObject obj(std::move(sm), name);
+        float a = (float)i / 3.0f * 6.283185f;
+        obj.position = glm::vec3(cos(a) * 4.0f, 3.0f + i * 3.0f, sin(a) * 4.0f);
+        obj.scale = glm::vec3(0.6f + i * 0.2f);
+        obj.isStatic = true;
+        m_Scene->AddObject(std::move(obj));
     }
 
-    Logger::AddLog("Default scene created: ground, 3 cubes, 1 sphere, 2 lights");
+    
+    {
+        Mesh cm = ObjectFactory::createCube();
+        GameObject obj(std::move(cm), "CenterCube");
+        obj.position = glm::vec3(0.0f, 3.0f, 0.0f);
+        obj.scale = glm::vec3(1.0f);
+        obj.isStatic = true;
+        m_Scene->AddObject(std::move(obj));
+    }
+
+    
+    for (int i = 0; i < 4; i++) {
+        Mesh cm = ObjectFactory::createCube();
+        std::string name = "Pillar_" + std::to_string(i);
+        GameObject obj(std::move(cm), name);
+        float x = (i < 2) ? -15.0f : 15.0f;
+        float z = (i % 2 == 0) ? -15.0f : 15.0f;
+        obj.position = glm::vec3(x, 2.5f, z);
+        obj.scale = glm::vec3(0.5f, 6.0f, 0.5f);
+        obj.isStatic = true;
+        m_Scene->AddObject(std::move(obj));
+    }
+
+    
+    const glm::vec4 lightColors[] = {
+        glm::vec4(1.0f, 0.3f, 0.2f, 1.0f),
+        glm::vec4(0.2f, 1.0f, 0.4f, 1.0f),
+        glm::vec4(0.3f, 0.5f, 1.0f, 1.0f)
+    };
+    for (int i = 0; i < 3; i++) {
+        Scene::PointLight* light = m_Scene->CreatePointLight();
+        if (light) {
+            float a = (float)i / 3.0f * 6.283185f;
+            light->position = glm::vec3(cos(a) * 8.0f, 4.0f, sin(a) * 8.0f);
+            light->color = lightColors[i];
+            light->intensity = 3.0f;
+            light->enabled = true;
+            light->constant = 1.0f;
+            light->linear = 0.09f;
+            light->quadratic = 0.032f;
+        }
+    }
+
+    
+    if (m_Camera) {
+        m_Camera->Position = glm::vec3(0.0f, 6.0f, 20.0f);
+        m_Camera->Orientation = glm::normalize(glm::vec3(0.0f, -0.25f, -1.0f));
+        m_Camera->yaw = -90.0f;
+        m_Camera->pitch = -14.0f;
+    }
+
+    Logger::AddLog("Demo scene created: ground, 8 orbit cubes, 3 spheres, center cube, 4 pillars, 3 lights");
 }
 
 void RuntimeApplication::OnUpdate(float deltaTime)
 {
     m_LastDeltaTime = deltaTime;
     
-    
     if (m_Scene) {
         m_Scene->Update(deltaTime);
     }
 
     
+    if (m_IsDemoScene && m_Window) {
+        if (glfwGetKey(m_Window, GLFW_KEY_ESCAPE) == GLFW_PRESS && !m_EscWasPressed) {
+            glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            m_CursorCaptured = false;
+            if (m_Camera) m_Camera->m_cameraEnabled = false;
+        }
+        m_EscWasPressed = (glfwGetKey(m_Window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+
+        if (!m_CursorCaptured && glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            m_CursorCaptured = true;
+            if (m_Camera) {
+                m_Camera->m_cameraEnabled = true;
+                m_Camera->firstClick = true;
+                glfwSetCursorPos(m_Window, m_Camera->width / 2, m_Camera->height / 2);
+            }
+        }
+    }
+
+    
+    if (m_IsDemoScene && m_Camera && m_Window && m_CursorCaptured) {
+        float camSpeed = 8.0f * deltaTime;
+        glm::vec3 forward = m_Camera->Orientation;
+        glm::vec3 right = glm::normalize(glm::cross(forward, m_Camera->Up));
+        if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS)
+            m_Camera->Position += camSpeed * forward;
+        if (glfwGetKey(m_Window, GLFW_KEY_S) == GLFW_PRESS)
+            m_Camera->Position -= camSpeed * forward;
+        if (glfwGetKey(m_Window, GLFW_KEY_A) == GLFW_PRESS)
+            m_Camera->Position -= camSpeed * right;
+        if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS)
+            m_Camera->Position += camSpeed * right;
+        if (glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS)
+            m_Camera->Position += camSpeed * m_Camera->Up;
+        if (glfwGetKey(m_Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            m_Camera->Position -= camSpeed * m_Camera->Up;
+
+        
+        double mx, my;
+        glfwGetCursorPos(m_Window, &mx, &my);
+        float centerX = m_Camera->width / 2.0f;
+        float centerY = m_Camera->height / 2.0f;
+        float rotY = m_Camera->sensitivity * (float)(mx - centerX) / m_Camera->width;
+        float rotX = m_Camera->sensitivity * (float)(my - centerY) / m_Camera->height;
+        m_Camera->yaw += rotY;
+        m_Camera->pitch -= rotX;
+        if (m_Camera->pitch > 89.0f) m_Camera->pitch = 89.0f;
+        if (m_Camera->pitch < -89.0f) m_Camera->pitch = -89.0f;
+        glm::vec3 dir;
+        dir.x = cos(glm::radians(m_Camera->yaw)) * cos(glm::radians(m_Camera->pitch));
+        dir.y = sin(glm::radians(m_Camera->pitch));
+        dir.z = sin(glm::radians(m_Camera->yaw)) * cos(glm::radians(m_Camera->pitch));
+        m_Camera->Orientation = glm::normalize(dir);
+        glfwSetCursorPos(m_Window, centerX, centerY);
+    }
+
+    
+    if (InputManager::IsKeyJustPressed(GLFW_KEY_F1)) {
+        m_ShowStateWarning = !m_ShowStateWarning;
+    }
+
+    
+    if (m_IsDemoScene && m_Scene) {
+        m_DemoTime += deltaTime;
+        auto& objects = m_Scene->GetObjects();
+        for (auto& obj : objects) {
+            
+            if (obj.name.rfind("OrbitCube_", 0) == 0) {
+                int idx = std::stoi(obj.name.substr(10));
+                float baseAngle = (float)idx / 8.0f * 6.283185f;
+                float angle = baseAngle + m_DemoTime * 0.4f;
+                float r = 10.0f + sin(m_DemoTime * 1.5f + idx) * 0.8f;
+                obj.position.x = cos(angle) * r;
+                obj.position.z = sin(angle) * r;
+                obj.position.y = 1.0f + sin(m_DemoTime * 2.0f + idx * 0.7f) * 0.6f;
+                
+                float yAngle = glm::radians(m_DemoTime * 60.0f);
+                obj.rotation = glm::angleAxis(yAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+            }
+            
+            else if (obj.name.rfind("FloatSphere_", 0) == 0) {
+                int idx = std::stoi(obj.name.substr(12));
+                float a = (float)idx / 3.0f * 6.283185f + m_DemoTime * 0.5f;
+                obj.position.x = cos(a) * 4.0f;
+                obj.position.z = sin(a) * 4.0f;
+                obj.position.y = 3.0f + idx * 3.0f + sin(m_DemoTime * 1.2f + idx) * 1.2f;
+                float s = 0.6f + idx * 0.2f + sin(m_DemoTime * 1.0f) * 0.08f;
+                obj.scale = glm::vec3(s);
+            }
+            
+            else if (obj.name == "CenterCube") {
+                float rx = glm::radians(m_DemoTime * 35.0f);
+                float ry = glm::radians(m_DemoTime * 50.0f);
+                float rz = glm::radians(m_DemoTime * 25.0f);
+                obj.rotation = glm::angleAxis(ry, glm::vec3(0,1,0))
+                             * glm::angleAxis(rx, glm::vec3(1,0,0))
+                             * glm::angleAxis(rz, glm::vec3(0,0,1));
+                obj.position.y = 3.0f + sin(m_DemoTime * 1.0f) * 0.8f;
+            }
+        }
+        
+        auto& lights = m_Scene->GetPointLights();
+        for (int i = 0; i < (int)lights.size() && i < 3; i++) {
+            float a = (float)i / 3.0f * 6.283185f + m_DemoTime * 0.6f;
+            lights[i].position.x = cos(a) * 8.0f;
+            lights[i].position.z = sin(a) * 8.0f;
+            lights[i].position.y = 4.0f + sin(m_DemoTime * 1.5f + i) * 2.0f;
+        }
+    }
+
     if (InputManager::IsKeyJustPressed(GLFW_KEY_GRAVE_ACCENT)) {
         m_Console->Toggle();
     }
@@ -334,6 +501,99 @@ void RuntimeApplication::OnRender()
 }
 
 void RuntimeApplication::PostRender() {
+    
+    if (m_ShowStateWarning) {
+        ImGuiIO& io = ImGui::GetIO();
+        float winW = 460.0f, winH = 300.0f;
+        ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - winW) * 0.5f,
+                                       (io.DisplaySize.y - winH) * 0.5f),
+                                ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(winW, winH));
+        ImGui::SetNextWindowBgAlpha(0.88f);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.05f, 0.05f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 0.3f, 0.2f, 0.8f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+        ImGui::Begin("##StateWarning", nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoCollapse);
+
+        
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.2f, 1.0f));
+        ImGui::SetWindowFontScale(2.0f);
+        float titleW = ImGui::CalcTextSize("!! FALLBACK SCREEN !!").x;
+        ImGui::SetCursorPosX((winW - titleW) * 0.5f);
+        ImGui::Text("!! FALLBACK SCREEN !!");
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.85f, 0.4f, 1.0f));
+        ImGui::TextWrapped(
+            "States are badly configured.\n\n"
+            "The engine could not find valid game states or scene for this build. "
+            "Please ensure you have at least one state registered in the "
+            "State Manager and the Start State is set correctly.\n\n"
+            "Follow the documentation to configure states properly.");
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+        ImGui::Text("Tip: Settings > State Manager in the Editor.");
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.8f, 0.25f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.35f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.7f, 0.2f, 0.15f, 1.0f));
+        float btnW = 180.0f;
+        ImGui::SetCursorPosX((winW - btnW) * 0.5f);
+        if (ImGui::Button("Hide Warning (F1)", ImVec2(btnW, 32))) {
+            m_ShowStateWarning = false;
+        }
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.45f, 0.45f, 1.0f));
+        float hintW = ImGui::CalcTextSize("Press F1 to toggle this warning | WASD to move camera").x;
+        ImGui::SetCursorPosX((winW - hintW) * 0.5f);
+        ImGui::Text("Press F1 to toggle this warning | WASD to move camera");
+        ImGui::PopStyleColor();
+
+        ImGui::End();
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(2); 
+    }
+    
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 150, 8), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(140, 0));
+        ImGui::SetNextWindowBgAlpha(0.4f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 4));
+        ImGui::Begin("##FPS", nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoInputs);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 1.0f, 0.5f, 1.0f));
+        ImGui::Text("%.1f FPS", io.Framerate);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+        ImGui::Text("%.1fms", 1000.0f / io.Framerate);
+        ImGui::PopStyleColor();
+        ImGui::End();
+        ImGui::PopStyleVar(2);
+    }
+
     m_Console->Render(m_Camera.get(), m_RenderContext);
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

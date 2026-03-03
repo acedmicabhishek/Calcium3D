@@ -27,7 +27,7 @@ void Camera::Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shade
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, uniform), 1, GL_FALSE, glm::value_ptr(projection * view));
 }
 
-void Camera::Inputs(GLFWwindow* window)
+void Camera::Inputs(GLFWwindow* window, float deltaTime)
 {
 
 #ifndef C3D_RUNTIME
@@ -66,38 +66,33 @@ void Camera::Inputs(GLFWwindow* window)
 		return;
 	}
 
-	
+	float currentSpeed = speed * deltaTime * 60.0f; 
+	float sprintMultiplier = (InputManager::IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) ? 4.0f : 1.0f;
+	float moveSpeed = currentSpeed * sprintMultiplier;
+
 	if (InputManager::IsKeyPressed(GLFW_KEY_W))
 	{
-		Position += speed * Orientation;
+		Position += moveSpeed * Orientation;
 	}
 	if (InputManager::IsKeyPressed(GLFW_KEY_A))
 	{
-		Position += speed * -glm::normalize(glm::cross(Orientation, Up));
+		Position += moveSpeed * -glm::normalize(glm::cross(Orientation, Up));
 	}
 	if (InputManager::IsKeyPressed(GLFW_KEY_S))
 	{
-		Position += speed * -Orientation;
+		Position += moveSpeed * -Orientation;
 	}
 	if (InputManager::IsKeyPressed(GLFW_KEY_D))
 	{
-		Position += speed * glm::normalize(glm::cross(Orientation, Up));
+		Position += moveSpeed * glm::normalize(glm::cross(Orientation, Up));
 	}
 	if (InputManager::IsKeyPressed(GLFW_KEY_SPACE))
 	{
-		Position += speed * Up;
+		Position += moveSpeed * Up;
 	}
 	if (InputManager::IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
 	{
-		Position += speed * -Up;
-	}
-	if (InputManager::IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
-	{
-		speed = 0.4f;
-	}
-	else 
-	{
-		speed = 0.1f;
+		Position += moveSpeed * -Up;
 	}
 
 

@@ -199,9 +199,16 @@ bool BuildManager::CopyProjectData(const fs::path& projectRoot, const fs::path& 
     copyIfExists("Scripts");
 
     
-    if (fs::exists(projectRoot / "ui_layout.json")) {
-        fs::copy_file(projectRoot / "ui_layout.json", destination / "ui_layout.json", fs::copy_options::overwrite_existing);
-    }
+    auto copyFileIfExists = [&](const std::string& filename) {
+        fs::path src = projectRoot / filename;
+        if (fs::exists(src)) {
+            fs::copy_file(src, destination / filename, fs::copy_options::overwrite_existing);
+            Logger::AddLog("  Copied %s to build folder.", filename.c_str());
+        }
+    };
+
+    copyFileIfExists("ui_layout.json");
+    copyFileIfExists("states.json");
     
     return true;
 }
@@ -247,8 +254,13 @@ bool BuildManager::GenerateConfigFile(const BuildSettings& settings) {
     config["start_scene"] = settings.StartScene;
     config["start_state"] = settings.StartGameState;
     config["is_standalone"] = true;
+    config["disable_state_warning"] = settings.DisableStateWarning;
     
-    config["game_states"] = settings.CustomGameStates;
+    nlohmann::json gameStatesObj = nlohmann::json::object();
+    for (const auto& [id, name] : settings.CustomGameStates) {
+        gameStatesObj[std::to_string(id)] = name;
+    }
+    config["game_states"] = gameStatesObj;
     
     if (!settings.EnvironmentSettings.empty()) {
         config["environment"] = settings.EnvironmentSettings;

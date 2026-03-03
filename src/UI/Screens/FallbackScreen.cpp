@@ -3,21 +3,20 @@
 #include <imgui.h>
 #include <string>
 
-FallbackScreen::FallbackScreen(int stateId)
-    : m_StateId(stateId)
-{
+FallbackScreen::FallbackScreen() {
+    m_StateId = GameStateManager::GetState(); 
 }
 
 void FallbackScreen::Init() {
-    m_ScreenName = "FallbackScreen_" + std::to_string(m_StateId);
+    m_StateName = "FallbackScreen_" + std::to_string(m_StateId);
 }
 
 void FallbackScreen::Update(float deltaTime) {
 }
 
 void FallbackScreen::Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
-    bool isCurrentState = (GameStateManager::GetState() == m_StateId);
-    if (!isCurrentState) return; 
+    bool isCurrentState = true; 
+    if (!isCurrentState) return;
 
     float panelW = 480.0f;
     float panelH = 320.0f;
@@ -145,7 +144,7 @@ void FallbackScreen::Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
             nextState = allStates.begin()->first;
         }
         if (nextState >= 0) {
-            GameStateManager::SetState(nextState);
+            GameStateManager::ChangeState(nextState);
         }
     }
 
@@ -156,7 +155,7 @@ void FallbackScreen::Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.10f, 0.30f, 0.55f, 1.0f));
 
     if (ImGui::Button("Go to Gameplay", ImVec2(btnW, btnH))) {
-        GameStateManager::SetState(GameState::GAMEPLAY);
+        GameStateManager::ChangeState(GameState::GAMEPLAY);
     }
 
     ImGui::PopStyleColor(3);

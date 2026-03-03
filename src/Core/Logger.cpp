@@ -5,9 +5,17 @@
 
 #ifndef C3D_RUNTIME
 #include <imgui.h>
+#include <imgui.h>
 #endif
 
+#include "Console.h"
+
 std::vector<std::string> Logger::buffer;
+Console* Logger::s_RuntimeConsole = nullptr;
+
+void Logger::SetRuntimeConsole(Console* console) {
+    s_RuntimeConsole = console;
+}
 
 void Logger::AddLog(const char* fmt, ...) {
     char buf[1024];
@@ -25,6 +33,10 @@ void Logger::AddLog(const char* fmt, ...) {
     
     if (buffer.size() > 100) {
         buffer.erase(buffer.begin());
+    }
+
+    if (s_RuntimeConsole) {
+        s_RuntimeConsole->AddEngineLog(buf);
     }
 }
 

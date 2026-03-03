@@ -13,8 +13,7 @@
 #include "InputManager.h"
 #include "RenderContext.h"
 #include "RenderPipeline.h"
-#include "GameState.h"
-#include "../UI/Screens/Screen.h"
+#include "StateManager.h"
 #include <map>
 
 struct ApplicationSpecification {
@@ -31,8 +30,6 @@ public:
     virtual void Run();
     void Close();
     virtual bool Init();
-
-    Screen* GetActiveScreen() const { return m_ActiveScreen; }
     
     static Application& Get() { return *s_Instance; }
     static Application* GetInstance() { return s_Instance; }
@@ -48,7 +45,6 @@ public:
     std::string GetProjectName() const;
 
 public:
-    void AddScreen(int stateId, std::unique_ptr<Screen> screen);
     Scene* GetScene() { return m_Scene.get(); }
     Camera* GetCamera() { return m_Camera.get(); }
 
@@ -76,10 +72,6 @@ protected:
     std::unique_ptr<class Water> m_Water;
     std::unique_ptr<class Cloud2D> m_Cloud2D;
     std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
-    
-    
-    std::map<int, std::unique_ptr<Screen>> m_Screens; 
-    Screen* m_ActiveScreen = nullptr;
     
     bool m_ShowSkybox = true;
     bool m_ShowGradientSky = false;

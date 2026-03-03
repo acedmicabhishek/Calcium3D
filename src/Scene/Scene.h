@@ -25,6 +25,7 @@ struct GameObject {
     
     int parentIndex = -1;
     bool isFolded = false; 
+    bool isActive = true;
     
     bool useGravity = false;
     bool isStatic = false;
@@ -56,7 +57,7 @@ struct GameObject {
     
     GameObject(Mesh m, const std::string& n = "Object") 
         : mesh(std::move(m)), position(0.0f), rotation(1.0f, 0.0f, 0.0f, 0.0f), scale(1.0f), name(n),
-          shape(ColliderShape::Box), collisionRadius(0.5f),
+          shape(ColliderShape::Box), collisionRadius(0.5f), isActive(true),
           useGravity(false), isStatic(false), mass(1.0f), friction(0.5f), restitution(0.5f), enableCollision(true),
           centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f), angularVelocity(0.0f), torque(0.0f) {
               

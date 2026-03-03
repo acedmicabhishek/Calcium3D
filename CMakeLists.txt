@@ -21,6 +21,7 @@ set(SOURCES
     # Core
     src/Core/main.cpp
     src/Core/Application.cpp
+    src/Core/State.cpp
     src/Core/RuntimeApplication.cpp
     src/Core/Console.cpp
     src/Core/EditorApplication.cpp
@@ -33,7 +34,7 @@ set(SOURCES
     # UI
     src/UI/UIManager.cpp
     src/UI/UICreationEngine.cpp
-    src/UI/Screens/Screen.cpp
+    src/UI/Screens/StartScreen.cpp
     src/UI/Screens/StartScreen.cpp
     src/UI/Screens/GameplayScreen.cpp
     src/UI/Screens/GameScreen.cpp
@@ -146,6 +147,7 @@ set(TESTBUILD_SOURCES
     # Core
     src/Core/main.cpp
     src/Core/Application.cpp
+    src/Core/State.cpp
     src/Core/RuntimeApplication.cpp
     src/Core/Console.cpp
     src/Core/InputManager.cpp
@@ -156,7 +158,6 @@ set(TESTBUILD_SOURCES
     # UI
     src/UI/UIManager.cpp
     src/UI/UICreationEngine.cpp
-    src/UI/Screens/Screen.cpp
     src/UI/Screens/StartScreen.cpp
     src/UI/Screens/GameplayScreen.cpp
     src/UI/Screens/GameScreen.cpp

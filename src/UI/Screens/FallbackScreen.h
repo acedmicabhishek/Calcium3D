@@ -1,11 +1,11 @@
 #ifndef FALLBACK_SCREEN_H
 #define FALLBACK_SCREEN_H
 
-#include "Screen.h"
+#include "../../Core/State.h"
 
-class FallbackScreen : public Screen {
+class FallbackScreen : public State {
 public:
-    FallbackScreen(int stateId);
+    FallbackScreen();
     void Init() override;
     void Update(float deltaTime) override;
     void Render(glm::vec2 canvasSize, glm::vec2 baseScreenPos = {0,0}) override;

@@ -1,9 +1,9 @@
 #ifndef GAMEPLAY_SCREEN_H
 #define GAMEPLAY_SCREEN_H
 
-#include "Screen.h"
+#include "../../Core/State.h"
 
-class GameplayScreen : public Screen {
+class GameplayScreen : public State {
 public:
     void Init() override;
     void Update(float deltaTime) override;

@@ -1,9 +1,9 @@
 #ifndef START_SCREEN_H
 #define START_SCREEN_H
 
-#include "Screen.h"
+#include "../../Core/State.h"
 
-class StartScreen : public Screen {
+class StartScreen : public State {
 public:
     void Init() override;
     void Update(float deltaTime) override;

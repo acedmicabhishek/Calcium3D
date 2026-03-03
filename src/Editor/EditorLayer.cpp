@@ -274,6 +274,9 @@ void EditorLayer::Init(GLFWwindow* window) {
 
 void EditorLayer::Shutdown() {
     if (!m_Initialized) return;
+
+    
+    if (m_BuildThread.joinable()) m_BuildThread.join();
     
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -517,76 +520,16 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
         ImGui::PopStyleColor(3);
         
         ImGui::Separator();
-        if (ImGui::BeginMenu("Build")) {
-            if (ImGui::MenuItem("Build Settings...")) {
-                ImGui::OpenPopup("Build Settings");
+        if (ImGui::MenuItem("Build")) {
+            m_ShowBuildModal = true;
+            m_BuildInProgress = false;
+            m_BuildDone = false;
+            m_BuildProgress = 0.0f;
+            m_BuildPlatform = 0;
+            {
+                std::lock_guard<std::mutex> lock(m_BuildMsgMutex);
+                m_BuildStageMsg = "Ready. Select a platform and press Build.";
             }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Build (Linux)")) {
-                
-                auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
-                if (edApp && edApp->IsPlayMode()) {
-                    edApp->ExitPlayMode();
-                }
-
-                BuildManager::BuildSettings settings;
-                settings.ProjectRoot = Application::Get().GetProjectRoot();
-                settings.OutputPath = (std::filesystem::path(settings.ProjectRoot) / "Build" / "Linux").string();
-                
-                
-                std::filesystem::path currentScenePath = Application::Get().GetScene()->GetFilepath();
-                if (currentScenePath.empty()) {
-                    currentScenePath = std::filesystem::path(settings.ProjectRoot) / "Scenes" / "main.scene";
-                    Application::Get().GetScene()->SetFilepath(currentScenePath.string());
-                }
-                Application::Get().GetScene()->Save(currentScenePath.string());
-                
-                settings.StartScene = currentScenePath.filename().string();
-                settings.StartGameState = (int)Application::Get().m_StartGameState;
-                settings.CustomGameStates = GameStateManager::GetAllStates();
-                
-                
-                nlohmann::json envSetup;
-                envSetup["showSkybox"] = showSkybox;
-                envSetup["showGradientSky"] = showGradientSky;
-                envSetup["showWater"] = showWater;
-                envSetup["showClouds"] = showClouds;
-                envSetup["cloudMode"] = cloudMode;
-                envSetup["waterHeight"] = waterHeight;
-                envSetup["cloudHeight"] = cloud2dHeight;
-                envSetup["cloudDensity"] = cloudDensity;
-                envSetup["cloudCover"] = cloudCover;
-                envSetup["waveSpeed"] = waveSpeed;
-                envSetup["waveStrength"] = waveStrength;
-                envSetup["waterColor"] = {waterColor.x, waterColor.y, waterColor.z};
-                
-                envSetup["timeOfDay"] = timeOfDay;
-                envSetup["sunEnabled"] = sunEnabled;
-                envSetup["sunIntensity"] = sunIntensity;
-                envSetup["sunColor"] = {sunColor.r, sunColor.g, sunColor.b, sunColor.a};
-                envSetup["sunBloom"] = sunBloom;
-                
-                envSetup["moonEnabled"] = moonEnabled;
-                envSetup["moonIntensity"] = moonIntensity;
-                envSetup["moonColor"] = {moonColor.r, moonColor.g, moonColor.b, moonColor.a};
-                envSetup["moonBloom"] = moonBloom;
-                
-                envSetup["globalTilingFactor"] = globalTilingFactor;
-                
-                Camera* cam = Application::Get().GetCamera();
-                if (cam) {
-                    envSetup["camera"]["position"] = {cam->Position.x, cam->Position.y, cam->Position.z};
-                    envSetup["camera"]["orientation"] = {cam->Orientation.x, cam->Orientation.y, cam->Orientation.z};
-                    envSetup["camera"]["yaw"] = cam->yaw;
-                    envSetup["camera"]["pitch"] = cam->pitch;
-                    envSetup["camera"]["fov"] = cam->FOV;
-                }
-                settings.EnvironmentSettings = envSetup;
-                
-                Logger::AddLog("Auto-saved scene to %s before building.", currentScenePath.c_str());
-                BuildManager::Build(settings);
-            }
-            ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Help")) {
@@ -713,6 +656,8 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
         if (ImGui::Button("Cancel", ImVec2(120, 40))) { ImGui::CloseCurrentPopup(); }
         ImGui::EndPopup();
     }
+
+    DrawBuildModal(scene);
 }
 
 
@@ -1005,6 +950,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
             GameObject& obj = objects[selectedCube];
             ImGui::Text("Type: GameObject");
             ImGui::InputText("Name", &obj.name[0], obj.name.capacity() + 1); 
+            ImGui::Checkbox("Is Active", &obj.isActive);
             
             
             ImGui::Separator();
@@ -1607,49 +1553,7 @@ void EditorLayer::DrawSettings(Camera& camera) {
             ImGui::TextDisabled("Drag panels to rearrange.");
         }
 
-        ImGui::Separator();
-        ImGui::Separator();
-        ImGui::Text("Load Hierarchy (Start State)");
-        auto& allStates = GameStateManager::GetAllStates();
-        std::vector<const char*> stateNames;
-        std::vector<int> stateIds;
-        for (auto const& [id, name] : allStates) {
-            stateNames.push_back(name.c_str());
-            stateIds.push_back(id);
-        }
 
-        int currentStart = (int)Application::Get().m_StartGameState;
-        int startIndex = 0;
-        for(int i=0; i < stateIds.size(); i++) if(stateIds[i] == currentStart) startIndex = i;
-
-        if (ImGui::Combo("Start State", &startIndex, stateNames.data(), (int)stateNames.size())) {
-            Application::Get().m_StartGameState = (GameState)stateIds[startIndex];
-        }
-
-        ImGui::Separator();
-        ImGui::Text("Editor Preview State (Live Filter)");
-        
-        int previewIndex = 0;
-        for(int i=0; i < stateIds.size(); i++) if(stateIds[i] == m_PreviewState) previewIndex = i;
-
-        if (ImGui::Combo("Preview State", &previewIndex, stateNames.data(), (int)stateNames.size())) {
-            m_PreviewState = stateIds[previewIndex];
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Filters the viewport UI to only show elements for this state.");
-        
-        ImGui::Separator();
-        ImGui::Text("Create New State");
-        static char newStateName[128] = "";
-        ImGui::InputText("##NewStateName", newStateName, 128);
-        ImGui::SameLine();
-        if (ImGui::Button("Add State") && strlen(newStateName) > 0) {
-            int nextId = 0;
-            for(auto const& [id, name] : allStates) if(id >= nextId) nextId = id + 1;
-            GameStateManager::RegisterState(nextId, newStateName);
-            
-            Application::Get().AddScreen(nextId, std::make_unique<StartScreen>());
-            memset(newStateName, 0, 128);
-        }
 
         std::string activeScreenName = GameStateManager::GetStateName(m_PreviewState);
         
@@ -1664,8 +1568,94 @@ void EditorLayer::DrawSettings(Camera& camera) {
         DrawUIEditor();
     }
     
+
+    if (ImGui::CollapsingHeader("State Manager")) {
+    
+    ImGui::Text("Load Hierarchy (Start State)");
+    auto& allStates = GameStateManager::GetAllStates();
+    std::vector<const char*> stateNames;
+    std::vector<int> stateIds;
+    for (auto const& [id, name] : allStates) {
+        stateNames.push_back(name.c_str());
+        stateIds.push_back(id);
+    }
+
+    int currentStart = (int)Application::Get().m_StartGameState;
+    int startIndex = 0;
+    for(int i=0; i < stateIds.size(); i++) if(stateIds[i] == currentStart) startIndex = i;
+
+    if (ImGui::Combo("Start State", &startIndex, stateNames.data(), (int)stateNames.size())) {
+        Application::Get().m_StartGameState = (GameState)stateIds[startIndex];
+    }
+
     ImGui::Separator();
-    ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::Text("Editor Preview State (Live Filter)");
+    
+    int previewIndex = 0;
+    for(int i=0; i < stateIds.size(); i++) if(stateIds[i] == m_PreviewState) previewIndex = i;
+
+    if (ImGui::Combo("Preview State", &previewIndex, stateNames.data(), (int)stateNames.size())) {
+        m_PreviewState = stateIds[previewIndex];
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Filters the viewport UI to only show elements for this state.");
+    
+    if (ImGui::Button("Save Camera & Objects to State")) {
+        std::string stateName = GameStateManager::GetStateName(m_PreviewState);
+        nlohmann::json statesJson = nlohmann::json::object();
+        std::string statesFile = (std::filesystem::path(m_ProjectRoot) / "states.json").string();
+        
+        if (std::filesystem::exists(statesFile)) {
+            std::ifstream i(statesFile);
+            if (i.is_open()) {
+                auto parsed = nlohmann::json::parse(i, nullptr, false);
+                if (!parsed.is_discarded() && parsed.is_object()) {
+                    statesJson = parsed;
+                }
+                i.close();
+            }
+        }
+
+        nlohmann::json stateData;
+        stateData["camera"]["position"] = {camera.Position.x, camera.Position.y, camera.Position.z};
+        stateData["camera"]["orientation"] = {camera.Orientation.x, camera.Orientation.y, camera.Orientation.z};
+        stateData["camera"]["yaw"] = camera.yaw;
+        stateData["camera"]["pitch"] = camera.pitch;
+        stateData["camera"]["fov"] = camera.FOV;
+
+        nlohmann::json activeObjects = nlohmann::json::array();
+        auto& objects = Application::Get().GetScene()->GetObjects();
+        for (auto& obj : objects) {
+            if (obj.isActive) activeObjects.push_back(obj.name);
+        }
+        stateData["activeObjects"] = activeObjects;
+
+        statesJson[stateName] = stateData;
+
+        std::ofstream o(statesFile);
+        if (o.is_open()) {
+            o << statesJson.dump(4);
+            o.close();
+            Logger::AddLog("Saved Camera & Active Objects config for state '%s'", stateName.c_str());
+        } else {
+            Logger::AddLog("[ERROR] Failed to save states.json config.");
+        }
+    }
+    
+    ImGui::Separator();
+    ImGui::Text("Create New State");
+    static char newStateName[128] = "";
+    ImGui::InputText("##NewStateName", newStateName, 128);
+    ImGui::SameLine();
+    if (ImGui::Button("Add State") && strlen(newStateName) > 0) {
+        int nextId = 0;
+        for(auto const& [id, name] : allStates) if(id >= nextId) nextId = id + 1;
+        GameStateManager::RegisterState(nextId, newStateName);
+        
+        StateManager::RegisterState<StartScreen>(newStateName);
+        memset(newStateName, 0, 128);
+    }
+    } 
+
     ImGui::End();
 }
 
@@ -2578,12 +2568,17 @@ void EditorLayer::DrawUIEditor() {
         strncpy(textBuf, el.text.c_str(), 255);
         if (ImGui::InputText("Text", textBuf, 256)) el.text = textBuf;
 
-        const char* screenOptions[] = { "StartScreen", "GameScreen", "HUD", "PauseMenu" };
+        auto& allStates = GameStateManager::GetAllStates();
+        std::vector<const char*> screenOptions;
+        for (auto const& [id, name] : allStates) {
+            screenOptions.push_back(name.c_str());
+        }
+
         int currentScreenIdx = 0;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < screenOptions.size(); i++) {
             if (el.screenName == screenOptions[i]) currentScreenIdx = i;
         }
-        if (ImGui::Combo("Screen", &currentScreenIdx, screenOptions, 4)) {
+        if (ImGui::Combo("Screen", &currentScreenIdx, screenOptions.data(), (int)screenOptions.size())) {
             el.screenName = screenOptions[currentScreenIdx];
         }
 
@@ -2598,6 +2593,38 @@ void EditorLayer::DrawUIEditor() {
 
         ImGui::ColorEdit4("Color", &el.color.r);
         
+        if (el.type == UIElementType::BUTTON) {
+            ImGui::Separator();
+            ImGui::Text("Button Scripting");
+            
+            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState" };
+            int currentActionIdx = 0;
+            for (int i = 0; i < 4; i++) {
+                if (el.actionType == actionOptions[i]) currentActionIdx = i;
+            }
+            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, 4)) {
+                el.actionType = actionOptions[currentActionIdx];
+            }
+            
+            if (el.actionType == "ChangeState" || el.actionType == "PushState") {
+                auto states = GameStateManager::GetRegisteredStateNames();
+                if (!states.empty()) {
+                    int currentStateIdx = 0;
+                    for (size_t i = 0; i < states.size(); i++) {
+                        if (el.targetState == states[i]) currentStateIdx = i;
+                    }
+                    
+                    std::vector<const char*> stateNamesCstrs;
+                    for (const auto& s : states) stateNamesCstrs.push_back(s.c_str());
+                    
+                    if (ImGui::Combo("Target State", &currentStateIdx, stateNamesCstrs.data(), stateNamesCstrs.size())) {
+                        el.targetState = states[currentStateIdx];
+                    }
+                }
+            }
+        }
+        
+        ImGui::Separator();
         if (ImGui::Button("Delete Element")) {
             elements.erase(elements.begin() + selectedUIElement);
             selectedUIElement = -1;
@@ -2606,10 +2633,277 @@ void EditorLayer::DrawUIEditor() {
 
     ImGui::Separator();
     if (ImGui::Button("Save UI Layout")) {
-        UICreationEngine::SaveLayout("ui_layout.json");
+        std::string projRoot = Application::Get().GetProjectRoot();
+        if (projRoot.empty()) projRoot = ".";
+        std::string layoutPath = (std::filesystem::path(projRoot) / "ui_layout.json").string();
+        UICreationEngine::SaveLayout(layoutPath);
+        Logger::AddLog("Saved UI Layout to: %s", layoutPath.c_str());
     }
     ImGui::SameLine();
     if (ImGui::Button("Load UI Layout")) {
-        UICreationEngine::LoadLayout("ui_layout.json");
+        std::string projRoot = Application::Get().GetProjectRoot();
+        if (projRoot.empty()) projRoot = ".";
+        std::string layoutPath = (std::filesystem::path(projRoot) / "ui_layout.json").string();
+        UICreationEngine::LoadLayout(layoutPath);
     }
 }
+
+
+
+
+
+
+void EditorLayer::DrawBuildModal(Scene& scene) {
+    if (!m_ShowBuildModal) return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    float winW = 520.0f, winH = 460.0f;
+    ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - winW) * 0.5f,
+                                   (io.DisplaySize.y - winH) * 0.5f),
+                            ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(winW, winH), ImGuiCond_Appearing);
+    ImGui::SetNextWindowBgAlpha(0.97f);
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar;
+    bool open = true;
+    if (!ImGui::Begin("  Build Window", &open, flags)) {
+        ImGui::End();
+        if (!open) m_ShowBuildModal = false;
+        return;
+    }
+    if (!open) { m_ShowBuildModal = false; ImGui::End(); return; }
+
+    
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.85f, 1.0f, 1.0f));
+    ImGui::Text(" Calcium3D — Build System");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(winW - 180);
+    ImGui::TextDisabled("Project: %s", Application::Get().GetProjectName().c_str());
+    ImGui::Separator();
+
+    bool building = m_BuildInProgress;
+    if (building) ImGui::BeginDisabled();
+
+    
+    ImGui::Spacing();
+    ImGui::Text("Target Platform");
+    ImGui::Spacing();
+    const char* platforms[] = { "Linux x86_64", "Windows x64", "Android" };
+    const ImVec4 platformColors[3] = {
+        ImVec4(0.2f, 0.75f, 0.35f, 1.0f),   
+        ImVec4(0.3f, 0.55f, 0.9f,  1.0f),   
+        ImVec4(0.85f, 0.55f, 0.1f, 1.0f),   
+    };
+    for (int i = 0; i < 3; i++) {
+        bool selected = (m_BuildPlatform == i);
+        if (selected) {
+            ImGui::PushStyleColor(ImGuiCol_Button,        platformColors[i]);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, platformColors[i]);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  platformColors[i]);
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.22f, 0.22f, 0.22f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.32f, 0.32f, 0.32f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.18f, 0.18f, 0.18f, 1.0f));
+        }
+        if (ImGui::Button(platforms[i], ImVec2(155, 34))) m_BuildPlatform = i;
+        ImGui::PopStyleColor(3);
+        if (i < 2) ImGui::SameLine();
+    }
+
+    
+    if (m_BuildPlatform == 1 || m_BuildPlatform == 2) {
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.6f, 0.15f, 1.0f));
+        ImGui::TextWrapped("  This build of the engine does not support %s yet."
+                           " Only Linux x86_64 is available in this release.",
+                           platforms[m_BuildPlatform]);
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    
+    bool linuxSelected = (m_BuildPlatform == 0);
+    if (!linuxSelected) ImGui::BeginDisabled();
+
+    ImGui::Spacing();
+    ImGui::Text("Output Path");
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputText("##outpath", m_BuildOutputPath, sizeof(m_BuildOutputPath));
+
+    ImGui::Spacing();
+    ImGui::Text("Start Scene");
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputText("##startscene", m_BuildStartScene, sizeof(m_BuildStartScene));
+
+    ImGui::Spacing();
+    ImGui::Text("Start State");
+    auto& allStates = GameStateManager::GetAllStates();
+    std::vector<const char*> stateNames;
+    std::vector<int> stateIds;
+    for (auto const& [id, name] : allStates) {
+        stateNames.push_back(name.c_str());
+        stateIds.push_back(id);
+    }
+    int currentStart = (int)Application::Get().m_StartGameState;
+    int startIndex = 0;
+    for (int i = 0; i < (int)stateIds.size(); i++)
+        if (stateIds[i] == currentStart) startIndex = i;
+    ImGui::SetNextItemWidth(-1);
+    if (!stateNames.empty())
+        if (ImGui::Combo("##startstate", &startIndex, stateNames.data(), (int)stateNames.size()))
+            Application::Get().m_StartGameState = (GameState)stateIds[startIndex];
+
+    ImGui::Spacing();
+    ImGui::Checkbox("Disable state warning in build", &m_DisableStateWarning);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("When enabled, the fallback warning screen will not\nappear in the standalone build even if states are misconfigured.");
+
+    if (!linuxSelected) ImGui::EndDisabled();
+
+    if (building) ImGui::EndDisabled();
+
+    
+    ImGui::Spacing();
+    float progress = m_BuildProgress.load();
+    std::string stageMsg;
+    {
+        std::lock_guard<std::mutex> lock(m_BuildMsgMutex);
+        stageMsg = m_BuildStageMsg;
+    }
+    if (m_BuildInProgress || m_BuildDone) {
+        ImVec4 barColor;
+        if (m_BuildDone)
+            barColor = m_BuildSuccess ? ImVec4(0.2f, 0.8f, 0.3f, 1.0f)
+                                      : ImVec4(0.85f, 0.2f, 0.2f, 1.0f);
+        else
+            barColor = ImVec4(0.2f, 0.55f, 1.0f, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barColor);
+        char overlay[64];
+        snprintf(overlay, sizeof(overlay),
+                 m_BuildDone ? (m_BuildSuccess ? "Done!" : "Failed") : "Building... %.0f%%",
+                 progress * 100.0f);
+        ImGui::ProgressBar(progress, ImVec2(-1, 22), overlay);
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75f, 0.85f, 0.75f, 1.0f));
+        ImGui::TextWrapped("%s", stageMsg.c_str());
+        ImGui::PopStyleColor();
+    }
+
+    
+    ImGui::Spacing();
+    float buttonY = winH - 55.0f;
+    ImGui::SetCursorPosY(buttonY);
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    bool canBuild = !m_BuildInProgress && linuxSelected && !Application::Get().GetProjectRoot().empty();
+
+    if (!canBuild) ImGui::BeginDisabled();
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.15f, 0.5f, 0.9f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.6f, 1.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.1f,  0.4f, 0.8f, 1.0f));
+    bool clicked = ImGui::Button("  Build  ", ImVec2(120, 34));
+    ImGui::PopStyleColor(3);
+    if (!canBuild) ImGui::EndDisabled();
+
+    if (clicked && linuxSelected) {
+        std::string projRoot   = Application::Get().GetProjectRoot();
+        std::string outputPath = m_BuildOutputPath;
+        int startState         = (int)Application::Get().m_StartGameState;
+        auto customStates      = GameStateManager::GetAllStates();
+
+        auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
+        if (edApp && edApp->IsPlayMode()) edApp->ExitPlayMode();
+
+        std::filesystem::path scenePath = Application::Get().GetScene()->GetFilepath();
+        if (scenePath.empty() || scenePath.filename() == "calcium3d_playmode_backup.scene")
+            scenePath = std::filesystem::path(projRoot) / "Scenes" / "main.scene";
+        Application::Get().GetScene()->Save(scenePath.string());
+        UICreationEngine::SaveLayout((std::filesystem::path(projRoot) / "ui_layout.json").string());
+
+        nlohmann::json envSetup;
+        envSetup["showSkybox"]         = showSkybox;
+        envSetup["showGradientSky"]    = showGradientSky;
+        envSetup["showWater"]          = showWater;
+        envSetup["showClouds"]         = showClouds;
+        envSetup["cloudMode"]          = cloudMode;
+        envSetup["waterHeight"]        = waterHeight;
+        envSetup["cloudHeight"]        = cloud2dHeight;
+        envSetup["cloudDensity"]       = cloudDensity;
+        envSetup["cloudCover"]         = cloudCover;
+        envSetup["waveSpeed"]          = waveSpeed;
+        envSetup["waveStrength"]       = waveStrength;
+        envSetup["waterColor"]         = {waterColor.x, waterColor.y, waterColor.z};
+        envSetup["timeOfDay"]          = timeOfDay;
+        envSetup["sunEnabled"]         = sunEnabled;
+        envSetup["sunIntensity"]       = sunIntensity;
+        envSetup["sunColor"]           = {sunColor.r, sunColor.g, sunColor.b, sunColor.a};
+        envSetup["sunBloom"]           = sunBloom;
+        envSetup["moonEnabled"]        = moonEnabled;
+        envSetup["moonIntensity"]      = moonIntensity;
+        envSetup["moonColor"]          = {moonColor.r, moonColor.g, moonColor.b, moonColor.a};
+        envSetup["moonBloom"]          = moonBloom;
+        envSetup["globalTilingFactor"] = globalTilingFactor;
+        Camera* cam = Application::Get().GetCamera();
+        if (cam) {
+            envSetup["camera"]["position"]    = nlohmann::json::array({cam->Position.x, cam->Position.y, cam->Position.z});
+            envSetup["camera"]["orientation"] = nlohmann::json::array({cam->Orientation.x, cam->Orientation.y, cam->Orientation.z});
+            envSetup["camera"]["yaw"]   = cam->yaw;
+            envSetup["camera"]["pitch"] = cam->pitch;
+            envSetup["camera"]["fov"]   = cam->FOV;
+        }
+
+        BuildManager::BuildSettings settings;
+        settings.ProjectRoot         = projRoot;
+        settings.StartScene          = scenePath.filename().string();
+        settings.StartGameState      = startState;
+        settings.CustomGameStates    = customStates;
+        settings.EnvironmentSettings = envSetup;
+        settings.DisableStateWarning = m_DisableStateWarning;
+        settings.OutputPath = (std::filesystem::path(outputPath).is_absolute()
+            ? std::filesystem::path(outputPath)
+            : std::filesystem::path(projRoot) / outputPath).string();
+
+        m_BuildInProgress = true;
+        m_BuildDone       = false;
+        m_BuildSuccess    = false;
+        m_BuildProgress   = 0.0f;
+        { std::lock_guard<std::mutex> lock(m_BuildMsgMutex); m_BuildStageMsg = "Preparing build..."; }
+
+        if (m_BuildThread.joinable()) m_BuildThread.join();
+        m_BuildThread = std::thread([this, settings]() mutable {
+            auto setMsg = [this](const std::string& msg) {
+                std::lock_guard<std::mutex> lock(m_BuildMsgMutex);
+                m_BuildStageMsg = msg;
+                Logger::AddLog("[Build] %s", msg.c_str());
+            };
+            setMsg("Creating directory structure...");   m_BuildProgress = 0.05f;
+            setMsg("Copying project data...");            m_BuildProgress = 0.20f;
+            setMsg("Copying engine internals...");        m_BuildProgress = 0.35f;
+            setMsg("Writing meson.build...");             m_BuildProgress = 0.45f;
+            setMsg("Running meson setup...");             m_BuildProgress = 0.55f;
+            setMsg("Compiling — this may take a minute..."); m_BuildProgress = 0.65f;
+            bool ok = BuildManager::Build(settings);
+            m_BuildProgress   = 1.0f;
+            m_BuildSuccess    = ok;
+            m_BuildDone       = true;
+            m_BuildInProgress = false;
+            setMsg(ok ? "\xe2\x9c\x93 Build succeeded! Output: " + settings.OutputPath
+                      : "\xe2\x9c\x97 Build failed \xe2\x80\x94 check Console for details.");
+        });
+    }
+
+    ImGui::SameLine();
+    if (m_BuildInProgress) ImGui::BeginDisabled();
+    if (ImGui::Button("Close", ImVec2(80, 34))) {
+        if (m_BuildThread.joinable()) m_BuildThread.join();
+        m_ShowBuildModal = false;
+    }
+    if (m_BuildInProgress) ImGui::EndDisabled();
+
+    ImGui::End();
+}
+

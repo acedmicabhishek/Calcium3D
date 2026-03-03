@@ -9,9 +9,9 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "../Physics/HitboxGraphics.h"
+#include "../UI/UICreationEngine.h"
 
 struct WindowData {
     Camera* camera;
@@ -89,6 +89,8 @@ void EditorApplication::SaveProject() {
         config["last_scene"] = "";
     }
     
+    config["start_state"] = (int)Application::Get().m_StartGameState;
+    
     std::string configPath = m_ProjectRoot + "/project.c3dproj";
     std::ofstream file(configPath);
     if (file.is_open()) {
@@ -103,7 +105,21 @@ void EditorApplication::OpenProject(const std::string& path) {
     m_ProjectRoot = path;
     m_State = AppState::Editor;
     m_EditorLayer->SetContentPath(path);
+    
+    m_Scene->Clear();
+    UICreationEngine::Clear();
+    m_EditorLayer->selectedCube = -1;
+    m_EditorLayer->selectedMesh = -1;
+    m_EditorLayer->isLightSelected = false;
+    m_EditorLayer->selectedPointLightIndex = -1;
+
     Logger::AddLog("Opened Project: %s", path.c_str());
+
+    std::string uiLayoutPath = path + "/ui_layout.json";
+    if (std::filesystem::exists(uiLayoutPath)) {
+        UICreationEngine::LoadLayout(uiLayoutPath);
+        Logger::AddLog("Restored UI layout from %s", uiLayoutPath.c_str());
+    }
     
     std::string configPath = path + "/project.c3dproj";
     if (std::filesystem::exists(configPath)) {
@@ -120,6 +136,10 @@ void EditorApplication::OpenProject(const std::string& path) {
                         Logger::AddLog("Restored last active scene: %s", lastScene.c_str());
                     }
                 }
+            }
+            
+            if (config.contains("start_state")) {
+                Application::Get().m_StartGameState = (GameState)config["start_state"].get<int>();
             }
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to parse project.c3dproj: %s", e.what());
@@ -139,6 +159,7 @@ void EditorApplication::CreateProject(const std::string& path) {
             
             nlohmann::json config;
             config["last_scene"] = "";
+            config["start_state"] = 0;
             std::ofstream file(path + "/project.c3dproj");
             if (file.is_open()) {
                 file << config.dump(4);
@@ -171,7 +192,7 @@ void EditorApplication::EnterPlayMode() {
     }
 
     
-    GameStateManager::SetState(m_EditorLayer->m_PreviewState);
+    GameStateManager::ChangeState(m_EditorLayer->m_PreviewState);
     
     Logger::AddLog("▶ Entered Play Mode");
 }
@@ -225,7 +246,7 @@ void EditorApplication::OnUpdate(float deltaTime)
     }
 
     if (Editor::isEditMode) {
-         m_Camera->Inputs(m_Window);
+         m_Camera->Inputs(m_Window, deltaTime);
     } else {
         
         

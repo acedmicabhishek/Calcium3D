@@ -3,6 +3,7 @@
 #include "../Renderer/RenderContext.h"
 #include "../Physics/PhysicsEngine.h"
 #include "../Physics/HitboxGraphics.h"
+#include "StateManager.h"
 #include <imgui.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -38,6 +39,12 @@ void Console::AddLog(const char* fmt, ...) {
     m_ScrollToBottom = true;
 }
 
+void Console::AddEngineLog(const std::string& msg) {
+    if (m_EngineLoggingEnabled) {
+        AddLog("[ENGINE] %s", msg.c_str());
+    }
+}
+
 void Console::ExecuteCommand(const std::string& cmd) {
     AddLog("> %s", cmd.c_str());
 
@@ -68,6 +75,31 @@ void Console::ExecuteCommand(const std::string& cmd) {
         AddLog("  /water [on|off]     — Toggle water");
         AddLog("  /clouds [on|off]    — Toggle clouds");
         AddLog("  /fov <value>        — Set camera FOV");
+        AddLog("  /dynamicsky [on|off]— Toggle dynamic sky mode");
+        AddLog("  /enable logging     — Toggle internal Engine event logs");
+    }
+    else if (parsed == "enable logging") {
+        m_EngineLoggingEnabled = !m_EngineLoggingEnabled;
+        AddLog("  Engine Logging: %s", m_EngineLoggingEnabled ? "ON" : "OFF");
+        if (m_EngineLoggingEnabled) {
+            AddLog("  Current Target App State: %s", StateManager::GetCurrentStateName().c_str());
+            AddLog("  State Registrations: ");
+            for (auto& s : StateManager::GetRegisteredStateNames()) {
+                AddLog("    - %s", s.c_str());
+            }
+        }
+    }
+    else if (parsed.rfind("log ", 0) == 0) {
+        std::string arg = parsed.substr(4);
+        if (arg == "true" || arg == "on") {
+            m_ActivePanel = SettingsPanel::Logging;
+            m_EngineLoggingEnabled = true;
+            AddLog("  Opened Logging Screen & Enabled Diagnostics");
+        } else if (arg == "false" || arg == "off") {
+            if (m_ActivePanel == SettingsPanel::Logging) m_ActivePanel = SettingsPanel::None;
+            m_EngineLoggingEnabled = false;
+            AddLog("  Closed Logging Screen & Disabled Diagnostics");
+        }
     }
     else if (parsed == "settingscamera") {
         m_ActivePanel = SettingsPanel::Camera;
@@ -152,6 +184,20 @@ void Console::ExecuteCommand(const std::string& cmd) {
         
         std::string arg = (parsed.size() > 4) ? parsed.substr(4) : "";
         AddLog("  Use /settingsCamera panel to adjust FOV interactively");
+    }
+    else if (parsed.rfind("dynamicsky", 0) == 0) {
+        std::string arg = (parsed.size() > 11) ? parsed.substr(11) : "";
+        if (arg == "on") {
+            m_ShowGradientSky = true;
+            m_ShowSkybox = false;
+        } else if (arg == "off") {
+            m_ShowGradientSky = false;
+            m_ShowSkybox = true;
+        } else {
+            m_ShowGradientSky = !m_ShowGradientSky;
+            m_ShowSkybox = !m_ShowGradientSky;
+        }
+        AddLog("  Dynamic Sky: %s", m_ShowGradientSky ? "ON" : "OFF");
     }
     else {
         AddLog("  [ERROR] Unknown command: '%s'. Type /help for available commands.", cmd.c_str());
@@ -288,6 +334,9 @@ void Console::Render(Camera* camera, RenderContext& ctx) {
                 break;
             case SettingsPanel::Environment:
                 RenderEnvironmentSettings(ctx);
+                break;
+            case SettingsPanel::Logging:
+                RenderLoggingScreen();
                 break;
             default:
                 break;
@@ -506,5 +555,41 @@ void Console::RenderEnvironmentSettings(RenderContext& ctx) {
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Clouds disabled. Enable via /clouds on");
     }
 
+    ImGui::End();
+}
+
+void Console::RenderLoggingScreen() {
+    bool open = true;
+    ImGui::Begin("Logging & Diagnostics Overlay", &open);
+    if (!open) { m_ActivePanel = SettingsPanel::None; ImGui::End(); return; }
+
+    ImGui::TextColored(ImVec4(0.45f, 0.90f, 0.50f, 1.0f), "Live Game State Telemetry");
+    ImGui::Separator();
+    
+    ImGui::Text("Active Target State: ");
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "%s", StateManager::GetCurrentStateName().c_str());
+
+    ImGui::Text("Target ID Pointer: ");
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "%d", StateManager::GetState());
+    
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.45f, 0.90f, 0.50f, 1.0f), "Sub-State Registrations");
+    
+    for (const auto& mapping : StateManager::GetAllStates()) {
+        ImGui::Text("ID [%d] - ", mapping.first);
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.6f, 0.8f, 0.9f, 1.0f), "%s", mapping.second.c_str());
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.45f, 0.90f, 0.50f, 1.0f), "Available Native Interfaces");
+    for (const auto& instance : StateManager::GetRegisteredStateNames()) {
+        ImGui::BulletText("%s", instance.c_str());
+    }
+    
     ImGui::End();
 }

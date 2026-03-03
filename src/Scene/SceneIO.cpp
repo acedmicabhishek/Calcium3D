@@ -48,6 +48,7 @@ void Scene::Save(const std::string& path) {
         jObj["meshType"] = static_cast<int>(obj.meshType);
         jObj["parentIndex"] = obj.parentIndex;
         jObj["isFolded"] = obj.isFolded;
+        jObj["isActive"] = obj.isActive;
         
         data["objects"].push_back(jObj);
     }
@@ -208,6 +209,7 @@ void Scene::Load(const std::string& path) {
                 
                 if (jObj.contains("parentIndex")) obj.parentIndex = jObj["parentIndex"];
                 if (jObj.contains("isFolded")) obj.isFolded = jObj["isFolded"];
+                if (jObj.contains("isActive")) obj.isActive = jObj["isActive"];
                 
                 AddObject(std::move(obj));
                 delete objPtr;

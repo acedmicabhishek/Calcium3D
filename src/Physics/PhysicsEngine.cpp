@@ -205,7 +205,7 @@ void PhysicsEngine::Update(float deltaTime, std::vector<GameObject>& objects) {
     for (int step = 0; step < SubSteps; ++step) {
         
         for (auto& obj : objects) {
-            if (obj.isStatic) continue;
+            if (!obj.isActive || obj.isStatic) continue;
 
             
             if (GlobalGravityEnabled && obj.useGravity) {
@@ -263,13 +263,13 @@ void PhysicsEngine::Update(float deltaTime, std::vector<GameObject>& objects) {
         
         for (size_t i = 0; i < objects.size(); ++i) {
             auto& objA = objects[i];
-            if (!objA.enableCollision) continue;
+            if (!objA.isActive || !objA.enableCollision) continue;
 
             OBB obbA = GetGameObjectOBB(objA);
 
             for (size_t j = i + 1; j < objects.size(); ++j) {
                 auto& objB = objects[j];
-                if (!objB.enableCollision) continue;
+                if (!objB.isActive || !objB.enableCollision) continue;
                 
                 OBB obbB = GetGameObjectOBB(objB);
 

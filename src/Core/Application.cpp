@@ -36,9 +36,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-        
     
 }
 
@@ -60,13 +57,10 @@ Application::~Application()
 }
 
 void Application::ChangeState(int newState) {
-    GameStateManager::SetState(newState);
+    GameStateManager::ChangeState(newState);
 }
 
-void Application::AddScreen(int stateId, std::unique_ptr<Screen> screen) {
-    m_Screens[stateId] = std::move(screen);
-    if (m_Screens[stateId]) m_Screens[stateId]->Init();
-}
+
 
 bool Application::Init()
 {
@@ -133,20 +127,14 @@ bool Application::Init()
 
     UICreationEngine::LoadLayout("ui_layout.json");
     
-    m_Screens[0] = std::make_unique<FallbackScreen>(0);
-    m_Screens[1] = std::make_unique<FallbackScreen>(1);
-    m_Screens[2] = std::make_unique<FallbackScreen>(2);
-    m_Screens[3] = std::make_unique<FallbackScreen>(3);
-    m_Screens[4] = std::make_unique<FallbackScreen>(4); 
+    GameStateManager::RegisterState<FallbackScreen>("Start Screen");
+    GameStateManager::RegisterState<FallbackScreen>("Gameplay");
+    GameStateManager::RegisterState<FallbackScreen>("Exit");
+    GameStateManager::RegisterState<FallbackScreen>("Pause");
+    GameStateManager::RegisterState<FallbackScreen>("Settings");
     
-    for (auto& pair : m_Screens) {
-        if (pair.second) pair.second->Init();
-    }
+    GameStateManager::ChangeState((int)m_StartGameState);
 
-    GameStateManager::SetState((int)m_StartGameState);
-    m_ActiveScreen = m_Screens[(int)m_StartGameState].get();
-
-    
     Texture defaultDiffuse = ResourceManager::LoadTexture("defaultDiffuse", "../Resource/default/texture/DefaultTex.png", "diffuse", 0);
     Texture defaultSpecular = ResourceManager::LoadTexture("defaultSpecular", "../Resource/default/texture/DefaultTex.png", "specular", 1);
 
@@ -209,17 +197,12 @@ void Application::Run()
         
         
 
-        
-        int currentState = GameStateManager::GetState();
-        m_ActiveScreen = m_Screens[currentState].get();
-
-        m_RenderContext.time = currentFrame;
         m_RenderContext.deltaTime = deltaTime;
 
         glfwPollEvents();
         InputManager::Update();
 
-        if (m_ActiveScreen) m_ActiveScreen->Update(deltaTime);
+        GameStateManager::Update(deltaTime);
         
         OnUpdate(deltaTime);
         
@@ -231,12 +214,10 @@ void Application::Run()
 
         
         #ifdef C3D_RUNTIME
-        if (m_ActiveScreen) {
-            int w, h;
-            glfwGetFramebufferSize(m_Window, &w, &h);
-            ImVec2 mainPos = ImGui::GetMainViewport()->Pos;
-            m_ActiveScreen->Render(glm::vec2(w, h), glm::vec2(mainPos.x, mainPos.y));
-        }
+        int w, h;
+        glfwGetFramebufferSize(m_Window, &w, &h);
+        ImVec2 mainPos = ImGui::GetMainViewport()->Pos;
+        GameStateManager::Render(glm::vec2(w, h), glm::vec2(mainPos.x, mainPos.y));
         #endif
 
         PostRender();

@@ -13,9 +13,10 @@ public:
         std::string ProjectRoot;
         std::string TargetPlatform = "Linux";
         std::string StartScene = "main.scene";
-        int StartGameState = 1; 
+        int StartGameState = 0; 
         std::map<int, std::string> CustomGameStates;
         nlohmann::json EnvironmentSettings;
+        bool DisableStateWarning = false;
     };
 
     static bool Build(const BuildSettings& settings);

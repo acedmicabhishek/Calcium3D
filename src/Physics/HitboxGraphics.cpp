@@ -57,6 +57,7 @@ void HitboxGraphics::Render(Scene& scene, Camera& camera) {
     glBindVertexArray(m_VAO);
 
     for (auto& obj : scene.GetObjects()) {
+        if (!obj.isActive) continue;
         
         glm::mat4 modelOBB = glm::translate(glm::mat4(1.0f), obj.position) * 
                              glm::mat4_cast(obj.rotation) * 

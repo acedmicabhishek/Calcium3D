@@ -20,6 +20,7 @@ public:
     void Render(Camera* camera, RenderContext& ctx);
 
     bool IsOpen() const { return m_Open; }
+    void AddEngineLog(const std::string& msg);
 
     
     void SetSkyboxEnabled(bool v) { m_ShowSkybox = v; }
@@ -47,8 +48,10 @@ private:
     void RenderRenderingSettings(RenderContext& ctx);
     void RenderPhysicsSettings();
     void RenderEnvironmentSettings(RenderContext& ctx);
+    void RenderLoggingScreen();
 
     bool m_Open = false;
+    bool m_EngineLoggingEnabled = false;
 
     
     std::vector<std::string> m_Log;
@@ -57,7 +60,7 @@ private:
     bool m_ReclaimFocus = false;
 
     
-    enum class SettingsPanel { None, Camera, Rendering, Physics, Environment };
+    enum class SettingsPanel { None, Camera, Rendering, Physics, Environment, Logging };
     SettingsPanel m_ActivePanel = SettingsPanel::None;
 
     

@@ -29,6 +29,9 @@ struct UIElement {
     std::string text = "New Text";
     
     
+    std::string actionType = "None"; 
+    std::string targetState = "";
+    
     std::function<void()> onClick;
 
     nlohmann::json Serialize() const {
@@ -43,6 +46,8 @@ struct UIElement {
         j["pivot"] = { pivot.x, pivot.y };
         j["color"] = { color.r, color.g, color.b, color.a };
         j["text"] = text;
+        j["actionType"] = actionType;
+        j["targetState"] = targetState;
         return j;
     }
 
@@ -57,6 +62,8 @@ struct UIElement {
         if (j.contains("pivot")) pivot = { j["pivot"][0], j["pivot"][1] };
         if (j.contains("color")) color = { j["color"][0], j["color"][1], j["color"][2], j["color"][3] };
         if (j.contains("text")) text = j["text"];
+        if (j.contains("actionType")) actionType = j["actionType"];
+        if (j.contains("targetState")) targetState = j["targetState"];
     }
 };
 

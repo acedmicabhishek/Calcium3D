@@ -41,6 +41,7 @@ inc_dirs = include_directories(
 
 sources = files(
   'src/Core/Application.cpp',
+  'src/Core/State.cpp',
   'src/Core/RuntimeApplication.cpp',
   'src/Core/Console.cpp',
   'src/Core/InputManager.cpp',
@@ -75,7 +76,6 @@ sources = files(
   'src/Game/game_code.cpp',
   'src/UI/UIManager.cpp',
   'src/UI/UICreationEngine.cpp',
-  'src/UI/Screens/Screen.cpp',
   'src/UI/Screens/StartScreen.cpp',
   'src/UI/Screens/GameplayScreen.cpp',
   'src/UI/Screens/GameScreen.cpp',

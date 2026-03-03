@@ -11,6 +11,9 @@
 #include <vector>
 #include <set>
 #include <filesystem>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 #include "Scene.h"
 #include "Camera.h"
@@ -189,6 +192,21 @@ private:
     void DrawContentBrowserGrid();
     void DrawShaderEditor();
     void SetupDockLayout();
+    void DrawBuildModal(Scene& scene);
+
+    
+    bool m_ShowBuildModal = false;
+    bool m_BuildInProgress = false;
+    bool m_BuildDone = false;
+    bool m_BuildSuccess = false;
+    std::atomic<float> m_BuildProgress{0.0f};
+    std::string m_BuildStageMsg = "";
+    std::mutex m_BuildMsgMutex;
+    std::thread m_BuildThread;
+    char m_BuildOutputPath[256] = "Build/Linux";
+    char m_BuildStartScene[128] = "main.scene";
+    int  m_BuildPlatform = 0; 
+    bool m_DisableStateWarning = false;
 };
 
 #endif
