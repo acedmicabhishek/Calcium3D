@@ -2,6 +2,10 @@
 #include "PlayMode.h"
 #include "ThreadManager.h"
 #include "../AudioEngine/AudioEngine.h"
+#include "../AniEngine/RiggingUI.h"
+#include "../Scene/SceneManager.h"
+#include "../Scene/SceneIO.h"
+#include "../Scene/Builtin/SceneTransitionBehavior.h"
 #include "Editor.h"
 #include "Logger.h"
 #include "ObjectFactory.h"
@@ -492,11 +496,16 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
                 if (edApp) edApp->SetState(EditorApplication::AppState::Home);
             }
             if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
+                
+                auto& app = Application::Get();
+                app.GetScene()->Clear();
+                UICreationEngine::Clear();
                 selectedCube = -1;
                 selectedMesh = -1;
                 isLightSelected = false;
                 selectedPointLightIndex = -1;
-                Logger::AddLog("Cleared all selections");
+                selectedUIElement = -1;
+                Logger::AddLog("New Scene: cleared all objects, flags, and UI elements.");
             }
             if (ImGui::MenuItem("Exit", "Alt+F4")) {
                 glfwSetWindowShouldClose(m_Window, true);
@@ -932,7 +941,7 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                     if (nodeOpen && hasChildren) ImGui::TreePop();
                     return; 
                 }
-                if (ImGui::MenuItem("Delete object tree")) {
+                if (ImGui::MenuItem("Delete")) {
                     scene.RemoveObjectTree(index);
                     selectedObjects.clear();
                     selectedCube = -1;
@@ -940,6 +949,13 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                     ImGui::EndPopup();
                     if (nodeOpen && hasChildren) ImGui::TreePop();
                     return; 
+                }
+                if (ImGui::MenuItem("Save as Prefab")) {
+                    std::string path = m_ProjectRoot + "/Assets/" + objects[index].name + ".prefab";
+                    SceneIO::SavePrefab(objects[index], path);
+                    ImGui::EndPopup();
+                    if (nodeOpen && hasChildren) ImGui::TreePop();
+                    return;
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Create Empty Child")) {
@@ -1422,6 +1438,40 @@ void EditorLayer::DrawInspector(Scene& scene) {
                     break; 
                 }
                 ImGui::PopStyleColor();
+                
+                
+                if (obj.scriptNames[j] == "SceneTransitionBehavior") {
+                    SceneTransitionBehavior* stb = static_cast<SceneTransitionBehavior*>(obj.behaviors[j].get());
+                    ImGui::Indent();
+                    
+                    
+                    char flagBuf[64];
+                    strncpy(flagBuf, stb->targetFlag.c_str(), 64);
+                    if (ImGui::InputText("Target Flag", flagBuf, 64)) stb->targetFlag = flagBuf;
+                    
+                    
+                    char sceneBuf[128];
+                    strncpy(sceneBuf, stb->targetScene.c_str(), 128);
+                    if (ImGui::InputText("Target Scene", sceneBuf, 128)) stb->targetScene = sceneBuf;
+                    
+                    
+                    ImGui::DragFloat("Duration", &stb->duration, 0.1f, 0.0f, 10.0f);
+                    
+                    
+                    const char* transTypes[] = { "None", "FadeBlack", "CameraJump" };
+                    int currentTrans = (int)stb->transitionType;
+                    if (ImGui::Combo("Transition", &currentTrans, transTypes, 3)) {
+                        stb->transitionType = (TransitionType)currentTrans;
+                    }
+                    
+                    ImGui::Checkbox("On Start", &stb->triggerOnStart);
+                    
+                    if (ImGui::Button("Trigger Now")) stb->Trigger();
+                    
+                    ImGui::Unindent();
+                    ImGui::Separator();
+                }
+                
                 ImGui::PopID();
             }
             
@@ -2109,6 +2159,110 @@ void EditorLayer::DrawSettings(Camera& camera) {
     }
     } 
 
+    if (ImGui::CollapsingHeader("Scene Settings")) {
+        Scene& scene = *Application::Get().GetScene();
+
+        
+        ImGui::TextDisabled("Path: %s", scene.GetFilepath().empty() ? "(unsaved)" : scene.GetFilepath().c_str());
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        
+        ImGui::TextColored(ImVec4(0.4f, 0.9f, 1.0f, 1.0f), "  Scene Flags");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%d)", (int)scene.GetFlags().size());
+        ImGui::Spacing();
+
+        
+        static char newFlagName[64] = "MyFlag";
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 130.0f);
+        ImGui::InputText("##newflagname", newFlagName, 64);
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.75f, 0.4f, 1.0f));
+        if (ImGui::Button("+ Add Flag", ImVec2(120, 0))) {
+            std::string flagStr(newFlagName);
+            if (!flagStr.empty()) {
+                scene.AddFlag(flagStr, camera.Position, camera.yaw, camera.pitch);
+                TriggerAutoSave(scene);
+                Logger::AddLog("[Flags] Added flag '%s' at camera position (yaw=%.1f pitch=%.1f)", newFlagName, camera.yaw, camera.pitch);
+            }
+        }
+        ImGui::PopStyleColor(2);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Saves your current camera position as a named flag");
+
+        ImGui::Spacing();
+
+        
+        const auto& flags = scene.GetFlags();
+        if (flags.empty()) {
+            ImGui::TextDisabled("  No flags yet. Add one above.");
+        } else {
+            
+            std::string flagToRemove;
+            std::string flagToTeleport;
+
+            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+            ImGui::BeginChild("##flaglist", ImVec2(0, std::min((int)flags.size() * 48 + 8, 240)), true);
+            for (auto const& [name, pos] : flags) {
+                ImGui::PushID(name.c_str());
+
+                
+                ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "  ⚑");
+                ImGui::SameLine();
+                ImGui::Text("%s", name.c_str());
+                
+                ImGui::SameLine();
+                ImGui::TextDisabled("(%.0f,%.0f,%.0f) y%.0f°", pos.position.x, pos.position.y, pos.position.z, pos.yaw);
+
+                
+                float avail = ImGui::GetContentRegionAvail().x;
+                ImGui::SameLine(avail - 120.0f + ImGui::GetCursorPosX() + ImGui::GetScrollX() - avail);
+                
+                
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.55f, 1.0f, 1.0f));
+                if (ImGui::SmallButton("  Go  ")) flagToTeleport = name;
+                ImGui::PopStyleColor(2);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Move camera to this flag (restores facing direction)");
+
+                ImGui::SameLine();
+
+                
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.2f, 0.2f, 1.0f));
+                if (ImGui::SmallButton(" Del ")) flagToRemove = name;
+                ImGui::PopStyleColor(2);
+
+                ImGui::PopID();
+                ImGui::Separator();
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleVar();
+
+            if (!flagToTeleport.empty()) {
+                
+                SceneManager::Get().JumpToFlag(flagToTeleport);
+                
+                auto fd = scene.GetFlag(flagToTeleport);
+                camera.Position = fd.position;
+                camera.yaw      = fd.yaw;
+                camera.pitch    = fd.pitch;
+                glm::vec3 dir;
+                dir.x = cos(glm::radians(fd.yaw)) * cos(glm::radians(fd.pitch));
+                dir.y = sin(glm::radians(fd.pitch));
+                dir.z = sin(glm::radians(fd.yaw)) * cos(glm::radians(fd.pitch));
+                camera.Orientation = glm::normalize(dir);
+                Logger::AddLog("[Flags] Editor camera jumped to flag: %s", flagToTeleport.c_str());
+            }
+            if (!flagToRemove.empty()) {
+                scene.RemoveFlag(flagToRemove);
+                TriggerAutoSave(scene);
+            }
+        }
+    }
     ImGui::End();
 }
 
@@ -2937,6 +3091,8 @@ void EditorLayer::DrawContentBrowserGrid() {
                 iconColor = ImVec4(0.3f, 0.8f, 0.4f, 1.0f);   
             } else if (ext == ".json") {
                 iconColor = ImVec4(0.9f, 0.6f, 0.2f, 1.0f);   
+            } else if (ext == ".prefab") {
+                iconColor = ImVec4(0.5f, 0.8f, 1.0f, 1.0f);   
             } else if (isImage && thumbID == 0) {
                 iconColor = ImVec4(0.8f, 0.3f, 0.8f, 1.0f);   
             } else if (ModelImporter::IsModelFile(ext)) {
@@ -3033,8 +3189,24 @@ void EditorLayer::DrawContentBrowserGrid() {
                     }
                 } else if (ext == ".scene") {
                     auto& app = Application::Get();
+                    
+                    UICreationEngine::Clear();
+                    selectedCube = -1;
+                    selectedMesh = -1;
+                    isLightSelected = false;
+                    selectedPointLightIndex = -1;
+                    selectedUIElement = -1;
                     app.GetScene()->Load(entry.path().string());
                     Logger::AddLog("Loaded scene: %s", filename.c_str());
+                    
+                    std::string projRoot = app.GetProjectRoot();
+                    if (!projRoot.empty()) {
+                        std::string layoutPath = projRoot + "/ui_layout.json";
+                        if (std::filesystem::exists(layoutPath)) {
+                            UICreationEngine::LoadLayout(layoutPath);
+                            Logger::AddLog("[Scene] Auto-loaded UI layout from %s", layoutPath.c_str());
+                        }
+                    }
                 } else if (ModelImporter::IsModelFile(ext)) {
                     auto result = ModelImporter::Import(entry.path().string());
                     if (result.success) {
@@ -3079,6 +3251,11 @@ void EditorLayer::DrawContentBrowserGrid() {
                     } else {
                         Logger::AddLog("[ERROR] Import failed: %s", result.error.c_str());
                     }
+                } else if (ext == ".prefab") {
+                    GameObject prefab = SceneIO::LoadPrefab(entry.path().string());
+                    auto& app = Application::Get();
+                    app.GetScene()->AddObject(std::move(prefab));
+                    Logger::AddLog("Instantiated Prefab from: %s", filename.c_str());
                 }
             }
             
@@ -3091,8 +3268,23 @@ void EditorLayer::DrawContentBrowserGrid() {
                 }
                 if (ext == ".scene" && ImGui::MenuItem("Load Scene")) {
                     auto& app = Application::Get();
+                    UICreationEngine::Clear();
+                    selectedCube = -1; selectedMesh = -1;
+                    isLightSelected = false; selectedPointLightIndex = -1;
+                    selectedUIElement = -1;
                     app.GetScene()->Load(entry.path().string());
+                    std::string projRoot = app.GetProjectRoot();
+                    if (!projRoot.empty()) {
+                        std::string layoutPath = projRoot + "/ui_layout.json";
+                        if (std::filesystem::exists(layoutPath)) UICreationEngine::LoadLayout(layoutPath);
+                    }
                     Logger::AddLog("Loaded scene: %s", filename.c_str());
+                }
+                if (ext == ".prefab" && ImGui::MenuItem("Instantiate Prefab")) {
+                    GameObject prefab = SceneIO::LoadPrefab(entry.path().string());
+                    auto& app = Application::Get();
+                    app.GetScene()->AddObject(std::move(prefab));
+                    Logger::AddLog("Instantiated Prefab from: %s", filename.c_str());
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Copy")) {
@@ -3259,12 +3451,13 @@ void EditorLayer::DrawUIEditor() {
             ImGui::Separator();
             ImGui::Text("Button Scripting");
             
-            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState", "PlayAudio", "ToggleVideo", "PlayVideo", "PauseVideo" };
+            const char* actionOptions[] = { "None", "ChangeState", "PushState", "PopState", "PlayAudio", "ToggleVideo", "PlayVideo", "PauseVideo", "TransitionToFlag" };
             int currentActionIdx = 0;
-            for (int i = 0; i < 8; i++) {
+            const int numActions = 9;
+            for (int i = 0; i < numActions; i++) {
                 if (el.actionType == actionOptions[i]) currentActionIdx = i;
             }
-            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, 8)) {
+            if (ImGui::Combo("Script Action", &currentActionIdx, actionOptions, numActions)) {
                 el.actionType = actionOptions[currentActionIdx];
             }
             
@@ -3331,6 +3524,36 @@ void EditorLayer::DrawUIEditor() {
                         }
                     } else {
                         ImGui::TextDisabled("No objects with Video screen found.");
+                    }
+                }
+            } else if (el.actionType == "TransitionToFlag" || el.actionType == "JumpToFlag") {
+                if (Scene* scene = Application::Get().GetScene()) {
+                    auto const& flags = scene->GetFlags();
+                    std::vector<const char*> flagNames;
+                    int currentFlagIdx = -1;
+                    int flagCount = 0;
+                    for (auto const& [name, pos] : flags) {
+                        if (el.targetFlag == name) currentFlagIdx = flagCount;
+                        flagNames.push_back(name.c_str());
+                        flagCount++;
+                    }
+                    
+                    if (!flagNames.empty()) {
+                        if (currentFlagIdx == -1) {
+                            currentFlagIdx = 0;
+                            el.targetFlag = flagNames[0];
+                        }
+                        if (ImGui::Combo("Target Flag", &currentFlagIdx, flagNames.data(), (int)flagNames.size())) {
+                            el.targetFlag = flagNames[currentFlagIdx];
+                        }
+                    } else {
+                        ImGui::TextDisabled("No Scene Flags found.");
+                    }
+                    
+                    if (el.actionType == "TransitionToFlag") {
+                        const char* transTypes[] = { "None", "FadeBlack", "CameraJump" };
+                        ImGui::Combo("Transition", &el.transitionType, transTypes, 3);
+                        ImGui::DragFloat("Duration", &el.transitionDuration, 0.1f, 0.0f, 10.0f);
                     }
                 }
             }
@@ -3621,3 +3844,32 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
     ImGui::End();
 }
 
+void EditorLayer::RenderTransitions() {
+    auto& sm = SceneManager::Get();
+    if (!sm.IsTransitioning()) return;
+
+    float progress = sm.GetTransitionProgress();
+    TransitionType type = sm.GetTransitionType();
+
+    if (type == TransitionType::FadeBlack) {
+        
+        float alpha = 0.0f;
+        if (progress <= 0.5f) {
+            alpha = progress * 2.0f; 
+        } else {
+            alpha = (1.0f - progress) * 2.0f; 
+        }
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+        ImGui::Begin("TransitionOverlay", nullptr, 
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | 
+            ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->AddRectFilled(ImVec2(0, 0), ImGui::GetIO().DisplaySize, 
+            IM_COL32(0, 0, 0, (int)(alpha * 255)));
+        
+        ImGui::End();
+    }
+}

@@ -5,6 +5,7 @@
 #include <map>
 #include <functional>
 #include <memory>
+#include <vector>
 #include "Behavior.h"
 
 class BehaviorRegistry {

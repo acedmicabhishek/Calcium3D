@@ -4,6 +4,7 @@
 #include "../Core/InputManager.h"
 #include "../Core/Application.h"
 #include "../AudioEngine/AudioEngine.h"
+#include "../Scene/SceneManager.h"
 
 void UIManager::Render(const std::vector<UIElement>& elements, glm::vec2 canvasSize, glm::vec2 baseScreenPos) {
     for (const auto& el : elements) {
@@ -52,6 +53,8 @@ void UIManager::RenderElement(const UIElement& element, glm::vec2 canvasSize, gl
                 StateManager::PushState(element.targetState);
             } else if (element.actionType == "PopState") {
                 StateManager::PopState();
+            } else if (element.actionType == "TransitionToFlag" && !element.targetFlag.empty()) {
+                SceneManager::Get().TransitionToFlag(element.targetFlag, (TransitionType)element.transitionType, element.transitionDuration);
             } else if (element.actionType == "PlayAudio" && !element.targetAudioObject.empty()) {
                 if (Scene* scene = Application::Get().GetScene()) {
                     for (auto& obj : scene->GetObjects()) {

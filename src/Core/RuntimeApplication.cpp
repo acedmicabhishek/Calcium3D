@@ -16,6 +16,7 @@
 #include "../Core/InputManager.h"
 #include "../UI/Screens/StartScreen.h"
 #include "../UI/Screens/GameplayScreen.h"
+#include "../Scene/SceneManager.h"
 
 RuntimeApplication::RuntimeApplication(const ApplicationSpecification& spec)
     : Application(spec)
@@ -214,6 +215,10 @@ void RuntimeApplication::LoadProjectConfig() {
             }
         }
     }
+
+    
+    SceneManager::Get().SetActiveScene(m_Scene.get());
+    SceneManager::Get().SetMainCamera(m_Camera.get());
 }
 
 void RuntimeApplication::CreateDefaultScene() {
@@ -307,6 +312,8 @@ void RuntimeApplication::CreateDefaultScene() {
 void RuntimeApplication::OnUpdate(float deltaTime)
 {
     m_LastDeltaTime = deltaTime;
+    
+    SceneManager::Get().Update(deltaTime); 
     
     if (m_Scene) {
         m_Scene->Update(deltaTime, (float)glfwGetTime());

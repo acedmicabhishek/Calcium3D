@@ -6,6 +6,7 @@
 #include "../Core/StateManager.h"
 #include "../AudioEngine/AudioEngine.h"
 #include "../Scene/Scene.h"
+#include "../Scene/SceneManager.h"
 
 void PlayMode::RenderAndHandleClicks(
     std::vector<UIElement>& elements,
@@ -99,6 +100,13 @@ void PlayMode::RenderAndHandleClicks(
                             Logger::AddLog("[UI] %s video: %s", el.actionType.c_str(), target->name.c_str());
                         }
                     }
+                } else if (el.actionType == "TransitionToFlag" && !el.targetFlag.empty()) {
+                    SceneManager::Get().TransitionToFlag(
+                        el.targetFlag,
+                        (TransitionType)el.transitionType,
+                        el.transitionDuration
+                    );
+                    Logger::AddLog("[UI] Play Mode: TransitionToFlag -> '%s'", el.targetFlag.c_str());
                 }
             }
         } else if (el.type == UIElementType::TEXT) {

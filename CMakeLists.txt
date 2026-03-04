@@ -73,6 +73,8 @@ set(SOURCES
     src/Scene/Scene.cpp
     src/Scene/ObjectFactory.cpp
     src/Scene/SceneIO.cpp
+    src/Scene/SceneManager.cpp
+    src/Scene/Behavior.cpp
     src/Physics/HitboxGraphics.cpp
     
     # Editor
@@ -211,6 +213,8 @@ set(TESTBUILD_SOURCES
     src/Scene/Scene.cpp
     src/Scene/ObjectFactory.cpp
     src/Scene/SceneIO.cpp
+    src/Scene/SceneManager.cpp
+    src/Scene/Behavior.cpp
     
     # Environment
     src/Environment/2dCloud.cpp

@@ -33,6 +33,9 @@ struct UIElement {
     std::string targetState = "";
     std::string targetAudioObject = "";
     std::string targetVideoObject = "";
+    std::string targetFlag = "";
+    int transitionType = 1; 
+    float transitionDuration = 1.0f;
     
     std::function<void()> onClick;
 
@@ -52,6 +55,9 @@ struct UIElement {
         j["targetState"] = targetState;
         j["targetAudioObject"] = targetAudioObject;
         j["targetVideoObject"] = targetVideoObject;
+        j["targetFlag"] = targetFlag;
+        j["transitionType"] = transitionType;
+        j["transitionDuration"] = transitionDuration;
         return j;
     }
 
@@ -70,6 +76,9 @@ struct UIElement {
         if (j.contains("targetState")) targetState = j["targetState"];
         if (j.contains("targetAudioObject")) targetAudioObject = j["targetAudioObject"];
         if (j.contains("targetVideoObject")) targetVideoObject = j["targetVideoObject"];
+        if (j.contains("targetFlag")) targetFlag = j["targetFlag"];
+        if (j.contains("transitionType")) transitionType = j["transitionType"];
+        if (j.contains("transitionDuration")) transitionDuration = j["transitionDuration"];
     }
 };
 

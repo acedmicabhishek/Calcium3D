@@ -9,6 +9,7 @@
 #include "Behavior.h"
 #include "../Renderer/Material.h"
 #include <memory>
+#include <map>
 #include "../AniEngine/Animation.h"
 
 enum class ColliderShape { Box, Sphere };
@@ -232,10 +233,23 @@ public:
 
     glm::mat4 GetGlobalTransform(int objectIndex) const;
 
+    
+    struct FlagData {
+        glm::vec3 position = glm::vec3(0.0f);
+        float yaw   = -90.0f;
+        float pitch = 0.0f;
+    };
+
+    void AddFlag(const std::string& name, const glm::vec3& position, float yaw = -90.0f, float pitch = 0.0f);
+    void RemoveFlag(const std::string& name);
+    FlagData GetFlag(const std::string& name) const;
+    const std::map<std::string, FlagData>& GetFlags() const { return m_Flags; }
+
 private:
     std::string m_Filepath = "";
     std::vector<GameObject> m_Objects;
     std::vector<PointLight> m_PointLights;
+    std::map<std::string, FlagData> m_Flags;
     
 public:
     PhysicsEngine physicsEngine;

@@ -1,11 +1,10 @@
 #ifndef BEHAVIOR_H
 #define BEHAVIOR_H
 
-#include <glm/glm.hpp>
 #include <string>
+#include "TransitionType.h"
 
 struct GameObject; 
-
 class Behavior {
 public:
     virtual ~Behavior() = default;
@@ -15,6 +14,12 @@ public:
 
     GameObject* gameObject = nullptr;
     bool enabled = true;
+
+    
+    void LoadScene(const std::string& path);
+    void TransitionToScene(const std::string& path, TransitionType type = TransitionType::FadeBlack, float duration = 1.0f);
+    void TransitionToFlag(const std::string& flagName, TransitionType type = TransitionType::FadeBlack, float duration = 1.0f);
+    void JumpToFlag(const std::string& flagName);
 };
 
 #endif

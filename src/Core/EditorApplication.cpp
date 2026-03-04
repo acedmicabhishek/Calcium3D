@@ -15,6 +15,7 @@
 #include "ThreadManager.h"
 #include "../Tools/Profiler/Profiler.h"
 #include "../Tools/Profiler/GpuProfiler.h"
+#include "../Scene/SceneManager.h"
 
 struct WindowData {
     Camera* camera;
@@ -47,6 +48,9 @@ bool EditorApplication::Init()
     windowData.editor = m_EditorLayer.get();
     windowData.app = this;
     glfwSetWindowUserPointer(m_Window, &windowData);
+    
+    SceneManager::Get().SetActiveScene(m_Scene.get());
+    SceneManager::Get().SetMainCamera(m_Camera.get());
     
     ResourceManager::LoadShader("gizmo", "../shaders/editor/gizmo.vert", "../shaders/editor/gizmo.frag");
     ResourceManager::LoadShader("skeletal", "../shaders/passes/geometry/skeletal.vert", "../shaders/passes/geometry/skeletal.frag");
@@ -170,10 +174,13 @@ void EditorApplication::OpenProject(const std::string& path) {
     
     m_Scene->Clear();
     UICreationEngine::Clear();
+    SceneManager::Get().SetActiveScene(m_Scene.get()); 
+    SceneManager::Get().SetMainCamera(m_Camera.get());
     m_EditorLayer->selectedCube = -1;
     m_EditorLayer->selectedMesh = -1;
     m_EditorLayer->isLightSelected = false;
     m_EditorLayer->selectedPointLightIndex = -1;
+    m_EditorLayer->selectedUIElement = -1;
 
     Logger::AddLog("Opened Project: %s", path.c_str());
 
@@ -262,20 +269,23 @@ void EditorApplication::EnterPlayMode() {
     m_PlayModeSceneBackup = "/tmp/calcium3d_playmode_backup.scene";
     m_Scene->Save(m_PlayModeSceneBackup);
     
-    for (auto& obj : m_Scene->GetObjects()) {
+    
+    int objCount = (int)m_Scene->GetObjects().size();
+    for (int i = 0; i < objCount; i++) {
+        auto& obj = m_Scene->GetObjects()[i];
         if (obj.hasAudio && obj.audio.playOnAwake && !obj.audio.filePath.empty()) {
             obj.audio.playing = true;
         }
         for (auto& script : obj.behaviors) {
             if (script) {
-                script->gameObject = &obj;
+                script->gameObject = &m_Scene->GetObjects()[i]; 
                 script->OnStart();
             }
         }
     }
 
     
-    Logger::AddLog("▶ Entered Play Mode");
+    Logger::AddLog("Entered Play Mode");
 }
 
 void EditorApplication::ExitPlayMode() {
@@ -300,7 +310,7 @@ void EditorApplication::ExitPlayMode() {
     m_EditorLayer->selectedPointLightIndex = -1;
     m_EditorLayer->m_PlayModeActiveScreen.clear();
     
-    Logger::AddLog("■ Exited Play Mode — Scene Restored");
+    Logger::AddLog("Exited Play Mode — Scene Restored");
 }
 
 void EditorApplication::TogglePlayMode() {
@@ -325,6 +335,8 @@ void EditorApplication::OnUpdate(float deltaTime)
         if (m_EditorLayer->timeOfDay >= 24.0f) m_EditorLayer->timeOfDay -= 24.0f;
         if (m_EditorLayer->timeOfDay < 0.0f) m_EditorLayer->timeOfDay += 24.0f;
     }
+
+    SceneManager::Get().Update(deltaTime);
 
     {
         PROFILE_SCOPE("Camera");
@@ -495,6 +507,8 @@ void EditorApplication::RenderEditor(float deltaTime) {
         PROFILE_SCOPE("UI");
         m_EditorLayer->Render(*m_Scene, *m_Camera, deltaTime);
     }
+    
+    m_EditorLayer->RenderTransitions();
 }
 
 void EditorApplication::PostRender() {

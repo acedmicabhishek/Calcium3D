@@ -1,7 +1,7 @@
 #include "Mesh.h"
 #include <limits>
 
-Mesh::Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::vector <Texture> textures)
+Mesh::Mesh(const std::vector <Vertex>& vertices, const std::vector <GLuint>& indices, std::vector <Texture> textures)
 {
 	Mesh::vertices = vertices;
 	Mesh::indices = indices;

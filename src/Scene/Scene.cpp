@@ -14,13 +14,6 @@ Scene::~Scene() {
 }
 
 void Scene::Update(float dt, float time) {
-    
-    for (auto& obj : m_Objects) {
-        for (auto& script : obj.behaviors) {
-            if (script) script->gameObject = &obj;
-        }
-    }
-
     {
         PROFILE_SCOPE("Physics");
         physicsEngine.Update(dt, time, m_Objects);
@@ -30,9 +23,12 @@ void Scene::Update(float dt, float time) {
         PROFILE_SCOPE("Scripts");
         ThreadManager::ParallelFor(0, (int)m_Objects.size(), [&](int i) {
             auto& obj = m_Objects[i];
+            
+            
             for (auto& script : obj.behaviors) {
-                if (script && script->enabled) {
-                    script->OnUpdate(dt);
+                if (script) {
+                    script->gameObject = &obj;
+                    if (script->enabled) script->OnUpdate(dt);
                 }
             }
             AniEngine::Update(obj, dt);
@@ -41,8 +37,9 @@ void Scene::Update(float dt, float time) {
         PROFILE_SCOPE("Scripts");
         for (auto& obj : m_Objects) {
             for (auto& script : obj.behaviors) {
-                if (script && script->enabled) {
-                    script->OnUpdate(dt);
+                if (script) {
+                    script->gameObject = &obj;
+                    if (script->enabled) script->OnUpdate(dt);
                 }
             }
             AniEngine::Update(obj, dt);
@@ -145,6 +142,8 @@ void Scene::DuplicateObjectTree(int index, int newParentIndex) {
 void Scene::Clear() {
     m_Objects.clear();
     m_PointLights.clear();
+    m_Flags.clear();
+    m_Filepath = "";
 }
 
 Scene::PointLight* Scene::CreatePointLight() {
@@ -188,4 +187,18 @@ glm::mat4 Scene::GetGlobalTransform(int objectIndex) const {
     }
     
     return local;
+}
+
+void Scene::AddFlag(const std::string& name, const glm::vec3& position, float yaw, float pitch) {
+    m_Flags[name] = { position, yaw, pitch };
+}
+
+void Scene::RemoveFlag(const std::string& name) {
+    m_Flags.erase(name);
+}
+
+Scene::FlagData Scene::GetFlag(const std::string& name) const {
+    auto it = m_Flags.find(name);
+    if (it != m_Flags.end()) return it->second;
+    return {};
 }

@@ -25,7 +25,7 @@ public:
     
     Skeleton skeleton;
 
-    Mesh(std::vector<Vertex>& vertices, std::vector<GLuint>& indices, std::vector<Texture> textures);
+    Mesh(const std::vector<Vertex>& vertices, const std::vector<GLuint>& indices, std::vector<Texture> textures);
 
     void Draw(Shader& shader, Camera& camera, 
               glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), 

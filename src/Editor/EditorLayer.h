@@ -40,6 +40,7 @@ public:
 
     void Render(Scene& scene, Camera& camera, float dt);
     void RenderOverlay(Scene& scene, Camera& camera);
+    void RenderTransitions();
     
     
     bool showDemoWindow = false;
