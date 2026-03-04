@@ -92,6 +92,10 @@ void RuntimeApplication::LoadProjectConfig() {
                 }
                 if (env.contains("sunBloom")) m_RenderContext.sunBloom = env["sunBloom"];
                 
+                if (env.contains("enableShadows")) m_RenderContext.enableShadows = env["enableShadows"];
+                if (env.contains("enablePointShadows")) m_RenderContext.enablePointShadows = env["enablePointShadows"];
+                if (env.contains("shadowBias")) m_RenderContext.shadowBias = env["shadowBias"];
+                
                 if (env.contains("moonEnabled")) m_RenderContext.moonEnabled = env["moonEnabled"];
                 if (env.contains("moonIntensity")) m_RenderContext.moonIntensity = env["moonIntensity"];
                 if (env.contains("moonColor")) {

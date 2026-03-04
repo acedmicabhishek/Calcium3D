@@ -115,6 +115,12 @@ bool Application::Init()
     ResourceManager::LoadShader("volumetric_cloud", "../shaders/passes/transparency/volumetric_cloud.vert", "../shaders/passes/transparency/volumetric_cloud.frag");
     ResourceManager::LoadShader("hitbox", "../shaders/editor/hitbox.vert", "../shaders/editor/hitbox.frag");
     
+    
+    ResourceManager::LoadShader("shadow", "../shaders/passes/shadow/shadow.vert", "../shaders/passes/shadow/shadow.frag");
+    ResourceManager::LoadShader("shadow_skeletal", "../shaders/passes/shadow/shadow_skeletal.vert", "../shaders/passes/shadow/shadow.frag");
+    ResourceManager::LoadShader("point_shadow", "../shaders/passes/shadow/point_shadow.vert", "../shaders/passes/shadow/point_shadow.frag", "../shaders/passes/shadow/point_shadow.geom");
+    ResourceManager::LoadShader("point_shadow_skeletal", "../shaders/passes/shadow/point_shadow_skeletal.vert", "../shaders/passes/shadow/point_shadow.frag", "../shaders/passes/shadow/point_shadow.geom");
+    
     HitboxGraphics::Init();
     
     m_Cloud2D = std::make_unique<Cloud2D>();

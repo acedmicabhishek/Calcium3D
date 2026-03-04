@@ -215,9 +215,11 @@ public:
         float intensity;
         bool enabled;
         
-        float constant;
-        float linear;
-        float quadratic;
+        float constant = 1.0f;
+        float linear = 0.09f;
+        float quadratic = 0.032f;
+        
+        bool castShadows = false;
     };
     
     

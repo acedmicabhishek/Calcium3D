@@ -107,6 +107,11 @@ public:
     bool msaaGeometryPass = true;
     bool msaaTransparencyPass = true;
     float globalTilingFactor = 1.0f;
+    
+    
+    bool enableShadows = true;
+    bool enablePointShadows = false;
+    float shadowBias = 0.005f;
 
     
     float timeOfDay = 0.0f;

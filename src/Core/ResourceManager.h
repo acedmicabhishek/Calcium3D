@@ -9,8 +9,8 @@
 
 class ResourceManager {
 public:
-    static Shader& LoadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile);
-    static Shader& ReloadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile);
+    static Shader& LoadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile, const char* gShaderFile = nullptr);
+    static Shader& ReloadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile, const char* gShaderFile = nullptr);
     static Shader& GetShader(const std::string& name);
     static bool HasShader(const std::string& name);
     

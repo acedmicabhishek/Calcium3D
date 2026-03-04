@@ -18,6 +18,8 @@ out vec2 texCoord;
 out vec3 Normal;
 // Outputs the current position for the Fragment Shader
 out vec3 crntPos;
+// Outputs position in light space for directional shadows
+out vec4 FragPosLightSpace;
 
 // Imports the camera matrix from the main function
 uniform mat4 camMatrix;
@@ -26,6 +28,8 @@ uniform mat4 model;
 // Texture tiling factor
 uniform vec3 tilingFactor;
 
+// Shadow matrix
+uniform mat4 lightSpaceMatrix;
 
 void main()
 {
@@ -33,6 +37,7 @@ void main()
 	crntPos = vec3(model * vec4(aPos, 1.0f));
 	// Outputs the positions/coordinates of all vertices
 	gl_Position = camMatrix * vec4(crntPos, 1.0);
+	FragPosLightSpace = lightSpaceMatrix * vec4(crntPos, 1.0);
 
 	// Assigns the colors from the Vertex Data to "color"
 	color = aColor;

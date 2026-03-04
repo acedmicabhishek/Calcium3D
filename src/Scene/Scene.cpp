@@ -156,6 +156,7 @@ Scene::PointLight* Scene::CreatePointLight() {
     pl.constant = 1.0f;
     pl.linear = 0.09f;
     pl.quadratic = 0.032f;
+    pl.castShadows = false;
     
     m_PointLights.push_back(pl);
     return &m_PointLights.back();

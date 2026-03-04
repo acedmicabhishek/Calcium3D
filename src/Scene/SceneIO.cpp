@@ -449,6 +449,7 @@ void Scene::Save(const std::string& path, bool silent) {
         jPl["color"] = {pl.color.r, pl.color.g, pl.color.b, pl.color.a};
         jPl["intensity"] = pl.intensity;
         jPl["enabled"] = pl.enabled;
+        jPl["castShadows"] = pl.castShadows;
         data["point_lights"].push_back(jPl);
     }
 
@@ -549,6 +550,7 @@ void Scene::Load(const std::string& path) {
                 pl->color = glm::vec4(col[0], col[1], col[2], col[3]);
                 pl->intensity = jPl["intensity"];
                 pl->enabled = jPl["enabled"];
+                if (jPl.contains("castShadows")) pl->castShadows = jPl["castShadows"].get<bool>();
             }
         }
 

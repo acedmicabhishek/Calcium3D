@@ -1751,6 +1751,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
             if (ImGui::ColorEdit4("Color", color)) light.color = glm::vec4(color[0], color[1], color[2], color[3]);
             
             ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 20.0f);
+            ImGui::Checkbox("Cast Shadows", &light.castShadows);
             
             ImGui::Separator();
             ImGui::Text("Attenuation");
@@ -1984,6 +1985,12 @@ void EditorLayer::DrawSettings(Camera& camera) {
         }
         
         ImGui::SliderFloat("Moon Intensity", &moonIntensity, 0.0f, 5.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Shadow Settings");
+        ImGui::Checkbox("Sun Shadows", &enableShadows);
+        ImGui::Checkbox("Global Point Shadows", &enablePointShadows);
+        ImGui::DragFloat("Shadow Bias", &shadowBias, 0.0001f, 0.0f, 0.1f, "%.4f");
 
         ImGui::Separator();
         ImGui::Text("Bloom Settings");
@@ -3779,6 +3786,9 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
         envSetup["sunIntensity"]       = sunIntensity;
         envSetup["sunColor"]           = {sunColor.r, sunColor.g, sunColor.b, sunColor.a};
         envSetup["sunBloom"]           = sunBloom;
+        envSetup["enableShadows"]      = enableShadows;
+        envSetup["enablePointShadows"] = enablePointShadows;
+        envSetup["shadowBias"]         = shadowBias;
         envSetup["moonEnabled"]        = moonEnabled;
         envSetup["moonIntensity"]      = moonIntensity;
         envSetup["moonColor"]          = {moonColor.r, moonColor.g, moonColor.b, moonColor.a};

@@ -28,33 +28,47 @@ std::string ResourceManager::ResolvePath(const std::string& path) {
     return path;
 }
 
-Shader& ResourceManager::LoadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile) {
+Shader& ResourceManager::LoadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile, const char* gShaderFile) {
     if (Shaders.find(name) != Shaders.end()) {
         return Shaders.at(name);
     }
     
     std::string vPath = ResolvePath(vShaderFile);
     std::string fPath = ResolvePath(fShaderFile);
+    std::string gPath = gShaderFile != nullptr ? ResolvePath(gShaderFile) : "";
     
-    Shaders.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(name),
-                    std::forward_as_tuple(vPath.c_str(), fPath.c_str()));
+    if (gShaderFile != nullptr) {
+        Shaders.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(name),
+                        std::forward_as_tuple(vPath.c_str(), fPath.c_str(), gPath.c_str()));
+    } else {
+        Shaders.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(name),
+                        std::forward_as_tuple(vPath.c_str(), fPath.c_str()));
+    }
                     
     return Shaders.at(name);
 }
 
-Shader& ResourceManager::ReloadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile) {
+Shader& ResourceManager::ReloadShader(const std::string& name, const char* vShaderFile, const char* fShaderFile, const char* gShaderFile) {
     std::string vPath = ResolvePath(vShaderFile);
     std::string fPath = ResolvePath(fShaderFile);
+    std::string gPath = gShaderFile != nullptr ? ResolvePath(gShaderFile) : "";
     
     if (Shaders.find(name) != Shaders.end()) {
         Shaders.at(name).Delete(); 
         Shaders.erase(name);
     }
     
-    Shaders.emplace(std::piecewise_construct,
-                    std::forward_as_tuple(name),
-                    std::forward_as_tuple(vPath.c_str(), fPath.c_str()));
+    if (gShaderFile != nullptr) {
+        Shaders.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(name),
+                        std::forward_as_tuple(vPath.c_str(), fPath.c_str(), gPath.c_str()));
+    } else {
+        Shaders.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(name),
+                        std::forward_as_tuple(vPath.c_str(), fPath.c_str()));
+    }
                     
     return Shaders.at(name);
 }

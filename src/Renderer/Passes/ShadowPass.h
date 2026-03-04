@@ -13,8 +13,11 @@ public:
     void Resize(int width, int height) override;
 
 private:
-    unsigned int m_FBO = 0;
-    unsigned int m_DepthMap = 0;
-    int m_ShadowWidth = 2048;
-    int m_ShadowHeight = 2048;
+    unsigned int m_DirShadowFBO = 0;
+    unsigned int m_DirShadowMap = 0;
+    int m_DirShadowRes = 2048;
+    
+    unsigned int m_PointShadowFBO = 0;
+    unsigned int m_PointShadowMaps[4] = {0};
+    int m_PointShadowRes = 1024;
 };

@@ -11,10 +11,12 @@ out vec3 color;
 out vec2 texCoord;
 out vec3 Normal;
 out vec3 crntPos;
+out vec4 FragPosLightSpace;
 
 uniform mat4 camMatrix;
 uniform mat4 model;
 uniform vec3 tilingFactor;
+uniform mat4 lightSpaceMatrix;
 
 const int MAX_BONES = 100;
 uniform mat4 finalBonesMatrices[MAX_BONES];
@@ -47,6 +49,7 @@ void main()
 
 	crntPos = vec3(model * totalPosition);
 	gl_Position = camMatrix * vec4(crntPos, 1.0);
+	FragPosLightSpace = lightSpaceMatrix * vec4(crntPos, 1.0);
 
 	color = aColor;
 	vec3 n = abs(totalNormal);

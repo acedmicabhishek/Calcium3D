@@ -39,6 +39,19 @@ struct RenderContext {
     unsigned int outputTexture = 0;
     
     
+    #define MAX_SHADOW_POINT_LIGHTS 4
+    bool enableShadows = true;
+    bool enablePointShadows = true;
+    float shadowBias = 0.005f;
+    int dirShadowResolution = 2048;
+    int pointShadowResolution = 512;
+    float pointShadowFarPlane = 25.0f;
+    
+    mutable unsigned int dirShadowMap = 0;
+    mutable glm::mat4 lightSpaceMatrix = glm::mat4(1.0f);
+    mutable unsigned int pointShadowCubemaps[MAX_SHADOW_POINT_LIGHTS] = {0};
+    
+    
     int width = 0;
     int height = 0;
     

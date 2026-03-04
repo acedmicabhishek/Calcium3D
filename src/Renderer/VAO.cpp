@@ -24,13 +24,13 @@ void VAO::LinkAttribInt(VBO& VBO, GLuint layout, GLuint numComponents, GLenum ty
 }
 
 
-void VAO::Bind()
+void VAO::Bind() const
 {
 	glBindVertexArray(ID);
 }
 
 
-void VAO::Unbind()
+void VAO::Unbind() const
 {
 	glBindVertexArray(0);
 }

@@ -44,16 +44,29 @@ void GeometryPass::Execute(const RenderContext& context)
     if (context.scene) {
         
         auto& pointLights = context.scene->GetPointLights();
-        shader.setInt("pointLightCount", (int)pointLights.size());
-        for (int i = 0; i < (int)pointLights.size() && i < 16; ++i) {
-             std::string base = "pointLights[" + std::to_string(i) + "]";
+        int shadowCasters = 0;
+        int activeLights = 0;
+        for (int i = 0; i < (int)pointLights.size() && activeLights < 16; ++i) {
+             if (!pointLights[i].enabled) continue;
+             
+             std::string base = "pointLights[" + std::to_string(activeLights) + "]";
              shader.setVec3(base + ".position", pointLights[i].position);
              shader.setVec4(base + ".color", pointLights[i].color);
              shader.setFloat(base + ".intensity", pointLights[i].intensity);
              shader.setFloat(base + ".constant", pointLights[i].constant);
              shader.setFloat(base + ".linear", pointLights[i].linear);
              shader.setFloat(base + ".quadratic", pointLights[i].quadratic);
+             
+             int sIdx = -1;
+             if (pointLights[i].castShadows && shadowCasters < 4) {
+                 sIdx = shadowCasters;
+                 shadowCasters++;
+             }
+             shader.setInt(base + ".shadowIndex", sIdx);
+             
+             activeLights++;
         }
+        shader.setInt("pointLightCount", activeLights);
         
         
         shader.setVec3("sunLight.direction", context.sunPosition);
@@ -70,7 +83,27 @@ void GeometryPass::Execute(const RenderContext& context)
         float moonInt = context.moonIntensity * glm::smoothstep(-2.0f, 2.0f, moonHeight);
         if (!context.moonEnabled) moonInt = 0.0f;
         shader.setFloat("moonLight.intensity", moonInt);
+
         
+        shader.setInt("enableShadows", context.enableShadows ? 1 : 0);
+        shader.setInt("enablePointShadows", context.enablePointShadows ? 1 : 0);
+        shader.setFloat("shadowBias", context.shadowBias);
+        shader.setFloat("pointShadowFarPlane", context.pointShadowFarPlane);
+        
+        if (context.enableShadows) {
+            shader.setMat4("lightSpaceMatrix", context.lightSpaceMatrix);
+            glActiveTexture(GL_TEXTURE4); 
+            glBindTexture(GL_TEXTURE_2D, context.dirShadowMap);
+            shader.setInt("dirShadowMap", 4);
+        }
+        
+        if (context.enablePointShadows) {
+            for (int i = 0; i < 4; i++) {
+                glActiveTexture(GL_TEXTURE5 + i); 
+                glBindTexture(GL_TEXTURE_CUBE_MAP, context.pointShadowCubemaps[i]);
+                shader.setInt("pointShadowMap" + std::to_string(i), 5 + i);
+            }
+        }
         
         Renderer::RenderScene(*context.scene, *context.camera, shader, context.globalTilingFactor, context.renderEditorObjects, context.deltaTime);
     }
