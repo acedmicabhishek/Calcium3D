@@ -99,75 +99,9 @@ json SceneIO::SerializeObject(const GameObject& obj) {
         {"liquidDensity", obj.water.liquidDensity}
     };
 
-    json jSkeleton;
-    for (const auto& bone : obj.mesh.skeleton.bones) {
-        json jBone;
-        jBone["name"] = bone.name;
-        jBone["index"] = bone.index;
-        jBone["parentIndex"] = bone.parentIndex;
 
-        auto matToArr = [](const glm::mat4& m) {
-            std::vector<float> v;
-            const float* p = glm::value_ptr(m);
-            for(int i=0; i<16; ++i) v.push_back(p[i]);
-            return v;
-        };
-        jBone["localTransform"] = matToArr(bone.localTransform);
-        jBone["offsetMatrix"] = matToArr(bone.offsetMatrix);
-        jSkeleton["bones"].push_back(jBone);
-    }
-    jObj["skeleton"] = jSkeleton;
 
-    if (!obj.mesh.skeleton.bones.empty()) {
-        json jVerts = json::array();
-        for (const auto& v : obj.mesh.vertices) {
-            json jV;
-            jV["b"] = {v.boneIds[0], v.boneIds[1], v.boneIds[2], v.boneIds[3]};
-            jV["w"] = {v.weights[0], v.weights[1], v.weights[2], v.weights[3]};
-            jVerts.push_back(jV);
-        }
-        jObj["vertexBoneData"] = jVerts;
-    }
 
-    json jAnims = json::array();
-    for (const auto& anim : obj.animations) {
-        json jAnim;
-        jAnim["name"] = anim.name;
-        jAnim["duration"] = anim.duration;
-        jAnim["ticksPerSecond"] = anim.ticksPerSecond;
-
-        json jChannels = json::array();
-        for (const auto& ch : anim.channels) {
-            json jCh;
-            jCh["boneName"] = ch.boneName;
-
-            json jPosKeys = json::array();
-            for (const auto& k : ch.positionKeys) {
-                jPosKeys.push_back({{"t", k.time}, {"v", {k.value.x, k.value.y, k.value.z}}});
-            }
-            jCh["positionKeys"] = jPosKeys;
-
-            json jRotKeys = json::array();
-            for (const auto& k : ch.rotationKeys) {
-                jRotKeys.push_back({{"t", k.time}, {"v", {k.value.w, k.value.x, k.value.y, k.value.z}}});
-            }
-            jCh["rotationKeys"] = jRotKeys;
-
-            json jScaleKeys = json::array();
-            for (const auto& k : ch.scaleKeys) {
-                jScaleKeys.push_back({{"t", k.time}, {"v", {k.value.x, k.value.y, k.value.z}}});
-            }
-            jCh["scaleKeys"] = jScaleKeys;
-
-            jChannels.push_back(jCh);
-        }
-        jAnim["channels"] = jChannels;
-        jAnims.push_back(jAnim);
-    }
-    jObj["animations"] = jAnims;
-    jObj["isAnimating"] = obj.isAnimating;
-    jObj["currentAnimationIndex"] = obj.currentAnimationIndex;
-    jObj["animationTime"] = obj.animationTime;
 
     return jObj;
 }
@@ -258,77 +192,11 @@ void SceneIO::DeserializeObject(const json& jObj, GameObject& obj) {
         if (a.contains("enableOcclusion")) obj.audio.enableOcclusion = a["enableOcclusion"];
     }
 
-    if (jObj.contains("skeleton") && jObj["skeleton"].contains("bones")) {
-        obj.mesh.skeleton.bones.clear();
-        obj.mesh.skeleton.boneMapping.clear();
 
-        auto arrToMat = [](const json& j) {
-            glm::mat4 m;
-            float* p = glm::value_ptr(m);
-            for(int i=0; i<16; ++i) p[i] = j[i].get<float>();
-            return m;
-        };
 
-        for (const auto& jBone : jObj["skeleton"]["bones"]) {
-            Bone bone;
-            bone.name = jBone["name"].get<std::string>();
-            bone.index = jBone["index"].get<int>();
-            bone.parentIndex = jBone["parentIndex"].get<int>();
-            bone.localTransform = arrToMat(jBone["localTransform"]);
-            bone.offsetMatrix = arrToMat(jBone["offsetMatrix"]);
-            obj.mesh.skeleton.bones.push_back(bone);
-            obj.mesh.skeleton.boneMapping[bone.name] = bone.index;
-        }
-    }
 
-    if (jObj.contains("animations")) {
-        obj.animations.clear();
-        for (const auto& jAnim : jObj["animations"]) {
-            AnimationClip anim;
-            anim.name = jAnim["name"].get<std::string>();
-            anim.duration = jAnim["duration"].get<float>();
-            anim.ticksPerSecond = jAnim["ticksPerSecond"].get<float>();
 
-            if (jAnim.contains("channels")) {
-                for (const auto& jCh : jAnim["channels"]) {
-                    AnimationChannel ch;
-                    ch.boneName = jCh["boneName"].get<std::string>();
 
-                    for (const auto& k : jCh["positionKeys"]) {
-                        ch.positionKeys.push_back({k["t"].get<float>(), glm::vec3(k["v"][0], k["v"][1], k["v"][2])});
-                    }
-                    for (const auto& k : jCh["rotationKeys"]) {
-                        ch.rotationKeys.push_back({k["t"].get<float>(), glm::quat(k["v"][0], k["v"][1], k["v"][2], k["v"][3])});
-                    }
-                    for (const auto& k : jCh["scaleKeys"]) {
-                        ch.scaleKeys.push_back({k["t"].get<float>(), glm::vec3(k["v"][0], k["v"][1], k["v"][2])});
-                    }
-                    anim.channels.push_back(ch);
-                }
-            }
-            obj.animations.push_back(anim);
-        }
-    }
-
-    if (jObj.contains("isAnimating")) obj.isAnimating = jObj["isAnimating"];
-    if (jObj.contains("currentAnimationIndex")) obj.currentAnimationIndex = jObj["currentAnimationIndex"];
-    if (jObj.contains("animationTime")) obj.animationTime = jObj["animationTime"];
-
-    if (jObj.contains("vertexBoneData")) {
-        const auto& jVerts = jObj["vertexBoneData"];
-        if (jVerts.is_array() && jVerts.size() == obj.mesh.vertices.size()) {
-            for (size_t i = 0; i < jVerts.size(); ++i) {
-                auto& v = obj.mesh.vertices[i];
-                auto b = jVerts[i]["b"];
-                auto w = jVerts[i]["w"];
-                for (int k = 0; k < 4; ++k) {
-                    v.boneIds[k] = b[k].get<int>();
-                    v.weights[k] = w[k].get<float>();
-                }
-            }
-            obj.mesh.UpdateVBO();
-        }
-    }
 
     if (jObj.contains("hasCamera")) obj.hasCamera = jObj["hasCamera"];
     if (jObj.contains("camera")) {
@@ -413,7 +281,7 @@ GameObject SceneIO::LoadPrefab(const std::string& path) {
             objPtr->modelPath = modelPath;
             objPtr->meshIndex = meshIndex;
             objPtr->meshType = MeshType::Model;
-            objPtr->animations = result.animations;
+
         } else {
             if (!result.success) {
                 Logger::AddLog("[SceneIO] Prefab model import failed: %s", result.error.c_str());
@@ -581,9 +449,7 @@ void Scene::Load(const std::string& path) {
                         objPtr->modelPath = modelPath;  
                         objPtr->meshIndex = meshIndex;
                         objPtr->meshType = MeshType::Model;
-                        objPtr->animations = result.animations;
-                        objPtr->mesh.skeleton = meshData.skeleton; 
-
+                        objPtr->meshType = MeshType::Model;
                         
                         if (!jObj.contains("material")) {
                             objPtr->material.albedo = meshData.albedo;

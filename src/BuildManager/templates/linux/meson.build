@@ -84,7 +84,6 @@ sources = files(
   'src/Scene/SceneManager.cpp',
   'src/Scene/Behavior.cpp',
   'src/Scene/BehaviorRegistry.cpp',
-  'src/AniEngine/AniEngine.cpp',
   'src/Core/ThreadManager.cpp',
   'src/Game/game_code.cpp',
   'src/UI/UIManager.cpp',

@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <unordered_map>
 #include "../Core/ThreadManager.h"
-#include "../AniEngine/AniEngine.h"
 #include "../Tools/Profiler/Profiler.h"
 #include "SceneManager.h"
 
@@ -32,7 +31,7 @@ void Scene::Update(float dt, float time) {
                     if (script->enabled) script->OnUpdate(dt);
                 }
             }
-            AniEngine::Update(obj, dt);
+
         });
     } else {
         PROFILE_SCOPE("Scripts");
@@ -43,7 +42,7 @@ void Scene::Update(float dt, float time) {
                     if (script->enabled) script->OnUpdate(dt);
                 }
             }
-            AniEngine::Update(obj, dt);
+
         }
     }
 }

@@ -22,8 +22,7 @@
 #include "Mesh.h"    
 #include "Model.h"   
 #include "Shader.h"  
-#include "../AniEngine/AnimatorUI.h"
-#include "../AniEngine/RiggingUI.h"
+
 #include "../Tools/Profiler/Profiler.h"
 #include "../Tools/Profiler/ProfilerUI.h"
 
@@ -49,7 +48,7 @@ public:
     bool showInspector = true;
     bool showConsole = true;
     bool showContentBrowser = true;
-    bool showAnimator = true;
+
     bool showProfiler = false;
     bool showProjectSettings = false;
     
@@ -64,8 +63,7 @@ public:
     Gizmo gizmo;
     
     
-    AnimatorUI m_AnimatorUI;
-    RiggingUI m_RiggingUI;
+
 
     
     int selectedCube = -1;

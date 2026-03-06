@@ -98,11 +98,7 @@ set(SOURCES
     # Audio
     src/AudioEngine/audioEngine.cpp
     
-    # Animation
-    src/AniEngine/AniEngine.cpp
-    src/AniEngine/Animation.h
-    src/AniEngine/AnimatorUI.cpp
-    src/AniEngine/RiggingUI.cpp
+
     
     # Environment
     src/Environment/2dCloud.cpp
@@ -139,7 +135,7 @@ target_include_directories(calcium3d PUBLIC
     src/BuildManager
     src/ModelImport
     src/AudioEngine
-    src/AniEngine
+
     src
     include/ufbx
     src/Tools/Profiler
@@ -234,8 +230,7 @@ set(TESTBUILD_SOURCES
     # Audio
     src/AudioEngine/audioEngine.cpp
     
-    # Animation
-    src/AniEngine/AniEngine.cpp
+
     
     # Glad
     src/glad.c
@@ -260,7 +255,7 @@ target_include_directories(calcium3d_testbuild PUBLIC
     src/Scene
     src/Environment
     src/AudioEngine
-    src/AniEngine
+
     src
 )
 

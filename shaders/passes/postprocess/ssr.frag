@@ -58,6 +58,7 @@ void main() {
         return;
     }
 
+    float fragDist = length(viewPos);
     if (fragDist > ssrRenderDistance) discard;
     float distanceFade = 1.0 - smoothstep(ssrFadeStart, ssrRenderDistance, fragDist);
     float effectiveMetal = metallic * distanceFade;

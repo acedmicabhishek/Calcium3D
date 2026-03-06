@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 #include "../Renderer/VBO.h"
 #include "../Renderer/Texture.h"
-#include "../AniEngine/Animation.h"
+
 
 struct ImportedMeshData {
     std::vector<Vertex> vertices;
@@ -19,14 +19,14 @@ struct ImportedMeshData {
     float roughness = 0.5f;
 
     
-    Skeleton skeleton;
+
 };
 
 struct ImportResult {
     bool success = false;
     std::string error;
     std::vector<ImportedMeshData> meshes;
-    std::vector<AnimationClip> animations;
+
     std::string sourceFile;
 };
 

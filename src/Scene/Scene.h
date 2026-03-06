@@ -10,7 +10,7 @@
 #include "../Renderer/Material.h"
 #include <memory>
 #include <map>
-#include "../AniEngine/Animation.h"
+
 #include <any>
 
 enum class ColliderShape { Box, Sphere };
@@ -155,12 +155,6 @@ struct GameObject {
     int meshIndex = -1;
     MeshType meshType = MeshType::None;
 
-    
-    std::vector<AnimationClip> animations;
-    int currentAnimationIndex = -1;
-    float animationTime = 0.0f;
-    bool isAnimating = false;
-    std::vector<glm::mat4> boneMatrices; 
     
     void ApplyImpulse(const glm::vec3& impulse) {
         if (!isStatic && mass > 0.0f) {

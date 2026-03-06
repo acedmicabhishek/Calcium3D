@@ -72,10 +72,7 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
             if (ResourceManager::HasShader(object.material.customShaderName)) {
                 activeShader = &ResourceManager::GetShader(object.material.customShaderName);
             }
-        } else if (object.isAnimating && !object.boneMatrices.empty() && ResourceManager::HasShader("skeletal")) {
-            activeShader = &ResourceManager::GetShader("skeletal");
         }
-
         if (!activeShader) {
             continue;
         }
@@ -105,9 +102,7 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
         
         glm::mat4 finalMatrix = glm::scale(globalTransform, glm::vec3(tilingFactor));
         
-        for (int j = 0; j < (int)object.boneMatrices.size() && j < 100; j++) {
-            activeShader->setMat4("finalBonesMatrices[" + std::to_string(j) + "]", object.boneMatrices[j]);
-        }
+
         
         unsigned int texOverride = 0;
         if (object.hasScreen && object.screen.enabled) {
@@ -190,6 +185,6 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
             }
         }
         
-        object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride, object.boneMatrices);
+        object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride);
     }
 }

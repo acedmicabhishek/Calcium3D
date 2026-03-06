@@ -97,33 +97,24 @@ void ShadowPass::Execute(const RenderContext& context)
 
         
         Shader& shadowShader = ResourceManager::GetShader("shadow");
-        Shader& shadowSkeletalShader = ResourceManager::GetShader("shadow_skeletal");
         
         shadowShader.use();
         shadowShader.setMat4("lightSpaceMatrix", context.lightSpaceMatrix);
         
-        shadowSkeletalShader.use();
-        shadowSkeletalShader.setMat4("lightSpaceMatrix", context.lightSpaceMatrix);
+        shadowShader.use();
+        shadowShader.setMat4("lightSpaceMatrix", context.lightSpaceMatrix);
         
         
         for (const auto& obj : context.scene->GetObjects()) {
             if (!obj.isActive || obj.meshType == MeshType::Camera) continue;
 
-            Shader* activeShader = &shadowShader;
-            if (obj.isAnimating && !obj.boneMatrices.empty()) {
-                activeShader = &shadowSkeletalShader;
-            }
-            activeShader->use();
+            shadowShader.use();
 
             
             glm::mat4 model = context.scene->GetGlobalTransform(&obj - &context.scene->GetObjects()[0]);
-            activeShader->setMat4("model", model);
+            shadowShader.setMat4("model", model);
 
-            if (activeShader == &shadowSkeletalShader) {
-                for (size_t j = 0; j < obj.boneMatrices.size() && j < 100; j++) {
-                    activeShader->setMat4("finalBonesMatrices[" + std::to_string(j) + "]", obj.boneMatrices[j]);
-                }
-            }
+
             
             
             obj.mesh.vao.Bind();
@@ -139,7 +130,6 @@ void ShadowPass::Execute(const RenderContext& context)
         glDisable(GL_CULL_FACE); 
         
         Shader& pointShadowShader = ResourceManager::GetShader("point_shadow");
-        Shader& pointShadowSkeletal = ResourceManager::GetShader("point_shadow_skeletal");
 
         int shadowCasters = 0;
         const auto& pointLights = context.scene->GetPointLights();
@@ -170,27 +160,20 @@ void ShadowPass::Execute(const RenderContext& context)
             pointShadowShader.setVec3("lightPos", light.position);
             pointShadowShader.setFloat("far_plane", far);
             
-            pointShadowSkeletal.use();
-            for (int j = 0; j < 6; ++j) pointShadowSkeletal.setMat4("shadowMatrices[" + std::to_string(j) + "]", shadowTransforms[j]);
-            pointShadowSkeletal.setVec3("lightPos", light.position);
-            pointShadowSkeletal.setFloat("far_plane", far);
+            pointShadowShader.use();
+            for (int j = 0; j < 6; ++j) pointShadowShader.setMat4("shadowMatrices[" + std::to_string(j) + "]", shadowTransforms[j]);
+            pointShadowShader.setVec3("lightPos", light.position);
+            pointShadowShader.setFloat("far_plane", far);
 
             
             for (const auto& obj : context.scene->GetObjects()) {
                 if (!obj.isActive || obj.meshType == MeshType::Camera) continue;
 
-                Shader* activeShader = &pointShadowShader;
-                if (obj.isAnimating && !obj.boneMatrices.empty()) activeShader = &pointShadowSkeletal;
-                
-                activeShader->use();
+                pointShadowShader.use();
                 glm::mat4 model = context.scene->GetGlobalTransform(&obj - &context.scene->GetObjects()[0]);
-                activeShader->setMat4("model", model);
+                pointShadowShader.setMat4("model", model);
 
-                if (activeShader == &pointShadowSkeletal) {
-                    for (size_t j = 0; j < obj.boneMatrices.size() && j < 100; j++) {
-                        activeShader->setMat4("finalBonesMatrices[" + std::to_string(j) + "]", obj.boneMatrices[j]);
-                    }
-                }
+
                 
                 obj.mesh.vao.Bind();
                 glDrawElements(GL_TRIANGLES, obj.mesh.indices.size(), GL_UNSIGNED_INT, 0);

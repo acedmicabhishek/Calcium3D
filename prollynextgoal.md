@@ -22,3 +22,22 @@ create a new UI lib in CPP and not imgui for better bloat free high performance 
 
 
 audio optimisation for low latency , small to decent buffer size
+
+
+
+
+
+
+debug :
+- remove the aniEngine , rigging and everything
+
+- test with hardcoded object like hardcode the cube to space and see if it gets poerted to build or not
+
+
+- SSR is not well implemneted to the build tempelemt casuing it to create invisble objects in standalon build
+
+- check geometry pass and VBO bindings
+
+
+
+i cant think of anything else lol

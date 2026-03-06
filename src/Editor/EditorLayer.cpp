@@ -2,7 +2,6 @@
 #include "PlayMode.h"
 #include "ThreadManager.h"
 #include "../AudioEngine/AudioEngine.h"
-#include "../AniEngine/RiggingUI.h"
 #include "../Scene/SceneManager.h"
 #include "../Scene/SceneIO.h"
 #include "../Scene/Builtin/SceneTransitionBehavior.h"
@@ -440,7 +439,6 @@ void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
     }
     
     if (showContentBrowser) DrawContentBrowser();
-    if (showAnimator) DrawAnimator(scene);
     if (showProfiler) ProfilerUI::Draw(&showProfiler);
     
     
@@ -590,7 +588,6 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::MenuItem("Inspector", NULL, &showInspector);
             ImGui::MenuItem("Console", NULL, &showConsole);
             ImGui::MenuItem("Content Browser", NULL, &showContentBrowser);
-            ImGui::MenuItem("Animator", NULL, &showAnimator);
             ImGui::MenuItem("Settings", NULL, &showMetrics);
             ImGui::MenuItem("Project Settings", NULL, &showProjectSettings);
             ImGui::Separator();
@@ -909,7 +906,7 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                         int curr = mainCam->parentIndex;
                         while(curr != -1) {
                             if (curr == payloadIndex) { isCycle = true; break; }
-                            curr = (curr >= 0 && curr < objects.size()) ? objects[curr].parentIndex : (curr == -10 ? mainCam->parentIndex : -1);
+                            curr = (curr < objects.size()) ? objects[curr].parentIndex : (curr == -10 ? mainCam->parentIndex : -1);
                         }
                         if (!isCycle) objects[payloadIndex].parentIndex = -10;
                     }
@@ -1080,9 +1077,7 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                 }
                 ImGui::EndDragDropTarget();
             }
-                        if (nodeOpen) {
-                 m_RiggingUI.DrawBoneHierarchy(scene, index, selectedCube);
- 
+            if (nodeOpen) {
                  if (hasChildren) {
                     if (mainCam && mainCam->parentIndex == index) drawMainCamera();
                     for (int i = 0; i < objects.size(); ++i) {
@@ -1374,7 +1369,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 availShaders.push_back("water");
                 availShaders.push_back("cloud2d");
                 availShaders.push_back("volumetric_cloud");
-                availShaders.push_back("skeletal");
+
                 availShaders.push_back("particles");
                 availShaders.push_back("thruster");
                 availShaders.push_back("speedlines");
@@ -1598,7 +1593,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 ImGui::Unindent();
             }
 
-            m_RiggingUI.DrawRiggingInspector(obj, scene);
+
 
             ImGui::Separator();
             ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Scripts");
@@ -1884,21 +1879,7 @@ void EditorLayer::DrawInspector(Scene& scene) {
             }
 
             ImGui::Separator();
-            if (!obj.animations.empty()) {
-                if (ImGui::CollapsingHeader("Animations", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::Checkbox("Playing", &obj.isAnimating);
-                    
-                    std::vector<const char*> animNames;
-                    animNames.reserve(obj.animations.size());
-                    for (const auto& anim : obj.animations) animNames.push_back(anim.name.c_str());
-                    
-                    if (ImGui::Combo("Clip", &obj.currentAnimationIndex, animNames.data(), animNames.size())) {
-                        obj.animationTime = 0.0f;
-                    }
-                    
-                    ImGui::ProgressBar(obj.animationTime / obj.animations[obj.currentAnimationIndex].duration);
-                }
-            }
+
 
             ImGui::Separator();
             ImGui::Text("Actions");
@@ -2679,7 +2660,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                         obj.meshIndex = meshIdx++;
                         obj.meshType = MeshType::Model;
                         obj.isStatic = true;
-                        obj.animations = result.animations;
+
                         
                         if (!meshData.textures.empty()) {
                             obj.material.useTexture = true;
@@ -2689,7 +2670,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                         obj.parentIndex = parentId;
                         app.GetScene()->AddObject(std::move(obj));
                     }
-                    groupObj.animations = result.animations;
+
                     Logger::AddLog("Added model group: %s (%zu meshes)", groupName.c_str(), result.meshes.size());
                 } else {
                     Logger::AddLog("[ERROR] Import failed: %s", result.error.c_str());
@@ -2931,7 +2912,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
             }
         }
         
-        m_RiggingUI.RenderBoneOverlay(scene, camera, selectedCube, cursorPos, viewportWidth, viewportHeight);
+
         
         
         if (selectedCube >= 0) {
@@ -2951,37 +2932,16 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 if (gizmoOp == 2) op = ImGuizmo::SCALE;
                 ImGuizmo::MODE mode = gizmoLocal ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
                 
-                if (m_RiggingUI.editRigMode && m_RiggingUI.selectedBone >= 0 && m_RiggingUI.selectedBone < (int)obj.mesh.skeleton.bones.size()) {
-                    
-                    std::function<glm::mat4(int)> getBoneGlobal = [&](int bIdx) -> glm::mat4 {
-                        if (bIdx < 0 || bIdx >= obj.mesh.skeleton.bones.size()) return scene.GetGlobalTransform(selectedCube);
-                        glm::mat4 pMat = getBoneGlobal(obj.mesh.skeleton.bones[bIdx].parentIndex);
-                        return pMat * obj.mesh.skeleton.bones[bIdx].localTransform;
-                    };
-                    
-                    glm::mat4 boneWorld = getBoneGlobal(m_RiggingUI.selectedBone);
-                    
-                        if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(boneWorld))) {
-                            glm::mat4 parentWorld = getBoneGlobal(obj.mesh.skeleton.bones[m_RiggingUI.selectedBone].parentIndex);
-                            glm::mat4 newLocal = glm::inverse(parentWorld) * boneWorld;
-                            obj.mesh.skeleton.bones[m_RiggingUI.selectedBone].localTransform = newLocal;
-                            
-                            if (m_AnimatorUI.IsRecording()) {
-                                m_AnimatorUI.AddKeyframe(obj, m_RiggingUI.selectedBone, obj.animationTime);
-                            }
-                        }
-                } else {
-                    glm::mat4 worldMatrix = scene.GetGlobalTransform(selectedCube);
-                    if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(worldMatrix))) {
-                        glm::mat4 localMatrix = worldMatrix;
-                        if (obj.parentIndex != -1 && obj.parentIndex < scene.GetObjects().size()) {
-                            glm::mat4 parentWorld = scene.GetGlobalTransform(obj.parentIndex);
-                            localMatrix = glm::inverse(parentWorld) * worldMatrix;
-                        }
-
-                        glm::vec3 skew; glm::vec4 perspective;
-                        glm::decompose(localMatrix, obj.scale, obj.rotation, obj.position, skew, perspective);
+                glm::mat4 worldMatrix = scene.GetGlobalTransform(selectedCube);
+                if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), op, mode, glm::value_ptr(worldMatrix))) {
+                    glm::mat4 localMatrix = worldMatrix;
+                    if (obj.parentIndex != -1 && obj.parentIndex < scene.GetObjects().size()) {
+                        glm::mat4 parentWorld = scene.GetGlobalTransform(obj.parentIndex);
+                        localMatrix = glm::inverse(parentWorld) * worldMatrix;
                     }
+
+                    glm::vec3 skew; glm::vec4 perspective;
+                    glm::decompose(localMatrix, obj.scale, obj.rotation, obj.position, skew, perspective);
                 }
             }
         }
@@ -3038,7 +2998,7 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
         ImGui::SameLine();
         ImGui::Text(" | ");
         ImGui::SameLine();
-        m_RiggingUI.DrawRiggingControls();
+
         
         ImGui::PopStyleVar(2);
     }
@@ -3097,10 +3057,6 @@ void EditorLayer::DrawContentBrowser() {
     ImGui::EndChild();
     
     ImGui::End();
-}
-
-void EditorLayer::DrawAnimator(Scene& scene) {
-    m_AnimatorUI.DrawPanel(scene, showAnimator, selectedObjects);
 }
 
 void EditorLayer::DrawContentBrowserTree(const std::string& path) {
@@ -3512,7 +3468,7 @@ void EditorLayer::DrawContentBrowserGrid() {
                             obj.meshIndex = meshIdx++;
                             obj.meshType = MeshType::Model;
                             obj.isStatic = true;
-                            obj.animations = result.animations;
+
                             
                             
                             if (!meshData.textures.empty()) {
@@ -3526,7 +3482,7 @@ void EditorLayer::DrawContentBrowserGrid() {
                             app.GetScene()->AddObject(std::move(obj));
                         }
                         
-                        groupObj.animations = result.animations; 
+ 
                         
                         Logger::AddLog("Imported model group from %s (%zu meshes)", filename.c_str(), result.meshes.size());
                     } else {

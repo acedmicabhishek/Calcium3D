@@ -32,8 +32,7 @@ Mesh::Mesh(const std::vector <Vertex>& vertices, const std::vector <GLuint>& ind
 	vao.LinkAttrib(VBO, 3, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 	
 	
-	vao.LinkAttribInt(VBO, 4, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, boneIds));
-	vao.LinkAttrib(VBO, 5, 4, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, weights));
+
 	
 	vao.Unbind();
 	VBO.Unbind();
@@ -53,7 +52,7 @@ void Mesh::Delete() {
 }
 
 
-void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale, unsigned int textureOverride, const std::vector<glm::mat4>& boneMatrices)
+void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat rotation, glm::vec3 scale, unsigned int textureOverride)
 {
 	shader.use();
 	vao.Bind();
@@ -91,15 +90,13 @@ void Mesh::Draw(Shader& shader, Camera& camera, glm::vec3 position, glm::quat ro
 
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 	
-	for (int i = 0; i < (int)boneMatrices.size() && i < 100; i++) {
-		shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", boneMatrices[i]);
-	}
+
 
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 	vao.Unbind();
 }
 
-void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned int textureOverride, const std::vector<glm::mat4>& boneMatrices)
+void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned int textureOverride)
 {
 	shader.use();
 	vao.Bind();
@@ -133,9 +130,7 @@ void Mesh::Draw(Shader& shader, Camera& camera, const glm::mat4& model, unsigned
 
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
-	for (int i = 0; i < (int)boneMatrices.size() && i < 100; i++) {
-		shader.setMat4("finalBonesMatrices[" + std::to_string(i) + "]", boneMatrices[i]);
-	}
+
 	
 	
 	float scaleX = glm::length(glm::vec3(model[0]));
