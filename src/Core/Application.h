@@ -80,16 +80,19 @@ protected:
     
     int m_MSAASamples = 0; 
     unsigned int m_MSAAFBO = 0, m_MSAAColorBuffer = 0, m_MSAARBO = 0;
+    unsigned int m_MSAANormalBuffer = 0; 
     void CreateMSAAFramebuffer(int samples);
     void ResizeMSAAFramebuffer(int width, int height);
 
     
     unsigned int m_ViewportFBO = 0;
     unsigned int m_ViewportTexture = 0;
+    unsigned int m_ViewportNormalTexture = 0; 
     unsigned int m_ViewportRBO = 0;
     int m_ViewportWidth = 800;
     int m_ViewportHeight = 600;
     void CreateViewportFramebuffer(int width, int height);
+    void ResizeViewportFramebuffer(int width, int height);
 
     static Application* s_Instance;
 };

@@ -1,0 +1,1018 @@
+{
+    "flags": {},
+    "main_camera": {
+        "game_camera_index": 4,
+        "parentIndex": -1
+    },
+    "objects": [
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": true,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": true,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929
+                ],
+                "ao": 1.0,
+                "customShaderName": "",
+                "diffuseTexture": "",
+                "isTransparent": false,
+                "metallic": 0.18199999630451202,
+                "roughness": 0.531000018119812,
+                "shininess": 112.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": -1,
+            "meshType": 2,
+            "modelPath": "",
+            "name": "WaterPlane",
+            "parentIndex": -1,
+            "position": [
+                0.0,
+                -9.824518203735352,
+                0.0
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                2000.0,
+                1.0,
+                2000.0
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [
+                "InfiniteWater",
+                "FlightHUD"
+            ],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 2.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 10.050000190734863,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.10000000149011612,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.5,
+                "waveStrength": 0.5,
+                "waveSystem": 2
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929
+                ],
+                "ao": 1.0,
+                "customShaderName": "",
+                "diffuseTexture": "",
+                "isTransparent": false,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": -1,
+            "meshType": 0,
+            "modelPath": "",
+            "name": "Model: j20",
+            "parentIndex": -1,
+            "position": [
+                0.0,
+                4.449999809265137,
+                0.0
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [
+                "PlaneController"
+            ],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "ao": 1.0,
+                "customShaderName": "",
+                "diffuseTexture": "",
+                "isTransparent": false,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": 0,
+            "meshType": 4,
+            "modelPath": "Assets/j20/j20.fbx",
+            "name": "J20-C_Glass_LOD1",
+            "parentIndex": 1,
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "ao": 1.0,
+                "customShaderName": "",
+                "diffuseTexture": "",
+                "isTransparent": false,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": 1,
+            "meshType": 4,
+            "modelPath": "Assets/j20/j20.fbx",
+            "name": "J20-C_Hull_LOD1",
+            "parentIndex": 1,
+            "position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                0.0,
+                0.0,
+                1.0,
+                0.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": true,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": true,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929
+                ],
+                "ao": 1.0,
+                "customShaderName": "",
+                "diffuseTexture": "",
+                "isTransparent": false,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": -1,
+            "meshType": 5,
+            "modelPath": "",
+            "name": "Camera",
+            "parentIndex": -1,
+            "position": [
+                0.0,
+                5.369999885559082,
+                -2.6600000858306885
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "ao": 1.0,
+                "customShaderName": "thruster",
+                "diffuseTexture": "",
+                "isTransparent": true,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": -1,
+            "meshType": 1,
+            "modelPath": "",
+            "name": "Exhaust_L",
+            "parentIndex": 1,
+            "position": [
+                0.1290217936038971,
+                0.05041074752807617,
+                1.8170830011367798
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                0.4000000059604645,
+                0.4000000059604645,
+                0.0035000001080334187
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "ao": 1.0,
+                "customShaderName": "thruster",
+                "diffuseTexture": "",
+                "isTransparent": true,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": -1,
+            "meshType": 1,
+            "modelPath": "",
+            "name": "Exhaust_R",
+            "parentIndex": 1,
+            "position": [
+                -0.13430975377559662,
+                0.053475379943847656,
+                1.8238091468811035
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "scale": [
+                0.4000000059604645,
+                0.4000000059604645,
+                0.0035000001080334187
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        },
+        {
+            "acousticMaterial": {
+                "absorption": 0.30000001192092896,
+                "hardness": 0.5,
+                "isAcousticObstacle": true
+            },
+            "angularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "animations": [],
+            "audio": {
+                "dopplerFactor": 1.0,
+                "enableDoppler": true,
+                "enableOcclusion": true,
+                "enableReverb": true,
+                "filePath": "",
+                "looping": false,
+                "maxDistance": 100.0,
+                "minDistance": 1.0,
+                "pitch": 1.0,
+                "playOnAwake": true,
+                "type": 0,
+                "volume": 1.0
+            },
+            "camera": {
+                "enabled": false,
+                "farPlane": 1000.0,
+                "fov": 45.0,
+                "nearPlane": 0.10000000149011612,
+                "resolutionX": 1024,
+                "resolutionY": 1024
+            },
+            "centerOfMassOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "collisionRadius": 0.5,
+            "enableCollision": true,
+            "friction": 0.5,
+            "hasAudio": false,
+            "hasCamera": false,
+            "hasScreen": false,
+            "hasWater": false,
+            "isActive": true,
+            "isFolded": false,
+            "isStatic": false,
+            "isTrigger": false,
+            "mass": 1.0,
+            "material": {
+                "albedo": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "ao": 1.0,
+                "customShaderName": "heathaze",
+                "diffuseTexture": "",
+                "isTransparent": true,
+                "metallic": 0.0,
+                "roughness": 0.5,
+                "shininess": 32.0,
+                "specularTexture": "",
+                "useTexture": true
+            },
+            "meshIndex": -1,
+            "meshType": 3,
+            "modelPath": "",
+            "name": "HeatHaze",
+            "parentIndex": 1,
+            "position": [
+                0.0,
+                -0.09999990463256836,
+                5.0
+            ],
+            "restitution": 0.5,
+            "rotation": [
+                0.0019679239485412836,
+                0.0,
+                0.9999980926513672,
+                0.0
+            ],
+            "scale": [
+                2.0000009536743164,
+                2.0,
+                1.0000004768371582
+            ],
+            "screen": {
+                "brightness": 1.0,
+                "enabled": false,
+                "filePath": "",
+                "isVideoPlaying": false,
+                "targetCameraIndex": -1,
+                "type": 0,
+                "videoKeepAspect": true,
+                "videoLoop": true,
+                "videoPaused": true,
+                "videoPlaybackSpeed": 1.0,
+                "videoVolume": 1.0
+            },
+            "scripts": [],
+            "shape": 0,
+            "skeleton": null,
+            "useGravity": false,
+            "water": {
+                "depth": 5.0,
+                "gridResolution": 200,
+                "liquidDensity": 1.0,
+                "shininess": 64.0,
+                "surfaceHeight": 0.0,
+                "tiling": 1.0,
+                "waterColor": [
+                    0.0,
+                    0.4000000059604645,
+                    0.800000011920929
+                ],
+                "waveSpeed": 1.0,
+                "waveStrength": 0.5,
+                "waveSystem": 0
+            }
+        }
+    ],
+    "physics": {
+        "AngularDamping": 0.8999999761581421,
+        "GlobalAcceleration": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "GlobalAirResistance": 0.10000000149011612,
+        "GlobalCOMEnabled": true,
+        "GlobalGravityEnabled": false,
+        "GlobalPhysicsEnabled": false,
+        "Gravity": [
+            0.0,
+            -9.8100004196167,
+            0.0
+        ],
+        "ImpulseEnabled": true,
+        "LinearDamping": 0.949999988079071,
+        "SubSteps": 1
+    }
+}

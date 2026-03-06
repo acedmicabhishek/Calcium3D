@@ -105,6 +105,6 @@ void GeometryPass::Execute(const RenderContext& context)
             }
         }
         
-        Renderer::RenderScene(*context.scene, *context.camera, shader, context.globalTilingFactor, context.renderEditorObjects, context.deltaTime);
+        Renderer::RenderScene(*context.scene, *context.camera, shader, context.globalTilingFactor, context.renderEditorObjects, context.deltaTime, context.time, 1);
     }
 }

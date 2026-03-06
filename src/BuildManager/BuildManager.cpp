@@ -188,8 +188,22 @@ bool BuildManager::CopyProjectData(const fs::path& projectRoot, const fs::path& 
     
     auto copyIfExists = [&](const std::string& folder) {
         fs::path src = projectRoot / folder;
+        if (!fs::exists(src)) {
+            
+            std::string lower = folder;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+            src = projectRoot / lower;
+        }
+
         if (fs::exists(src)) {
-            fs::copy(src, destination / folder, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+            try {
+                fs::copy(src, destination / folder, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                Logger::AddLog("  Bundled folder: %s", folder.c_str());
+            } catch (const std::exception& e) {
+                Logger::AddLog("  [WARNING] Failed to copy folder %s: %s", folder.c_str(), e.what());
+            }
+        } else {
+            Logger::AddLog("  [INFO] Folder not found in project: %s", folder.c_str());
         }
     };
 

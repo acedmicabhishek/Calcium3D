@@ -44,27 +44,30 @@ void ThreadManager::ParallelFor(int start, int end, std::function<void(int)> fun
         return;
     }
 
-    std::atomic<int> remaining(end - start);
-    std::mutex completionMutex;
-    std::condition_variable completionCondition;
+    struct SharedState {
+        std::atomic<int> remaining;
+        std::mutex mutex;
+        std::condition_variable cv;
+        SharedState(int count) : remaining(count) {}
+    };
+    auto state = std::make_shared<SharedState>(end - start);
 
     {
         std::unique_lock<std::mutex> lock(s_QueueMutex);
         for (int i = start; i < end; ++i) {
-            s_Tasks.push({[i, &func, &remaining, &completionCondition, &completionMutex]() {
+            s_Tasks.push({[i, &func, state]() {
                 func(i);
-                if (--remaining == 0) {
-                    std::lock_guard<std::mutex> lock(completionMutex);
-                    completionCondition.notify_all();
+                if (state->remaining.fetch_sub(1) == 1) { 
+                    std::lock_guard<std::mutex> lock(state->mutex);
+                    state->cv.notify_all();
                 }
             }});
         }
     }
     s_Condition.notify_all();
 
-    
-    std::unique_lock<std::mutex> lock(completionMutex);
-    completionCondition.wait(lock, [&remaining]() { return remaining == 0; });
+    std::unique_lock<std::mutex> lock(state->mutex);
+    state->cv.wait(lock, [&state]() { return state->remaining == 0; });
 }
 
 void ThreadManager::WorkerThread() {

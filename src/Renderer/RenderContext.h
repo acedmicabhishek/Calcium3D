@@ -75,5 +75,19 @@ struct RenderContext {
     bool msaaGeometryPass = true;
     bool msaaTransparencyPass = true;
     
+    
+    int  reflectionMode = 0;           
+    bool ssrUseCubemapFallback = true; 
+    
+    bool ssrGeometry = false;
+    bool ssrTransparency = false;
+    bool ssrAll = false;
+    float ssrResolution = 0.5f;
+    int ssrMaxSteps = 30;
+    float ssrMaxDistance = 50.0f;       
+    float ssrThickness = 2.0f;
+    float ssrRenderDistance = 100.0f;   
+    float ssrFadeStart = 60.0f;         
+    
     bool renderEditorObjects = false;
 };

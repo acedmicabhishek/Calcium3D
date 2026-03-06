@@ -445,8 +445,8 @@ void EditorLayer::Render(Scene& scene, Camera& camera, float dt) {
     
     
     if (!m_EditingShaderPath.empty()) DrawShaderEditor();
-    
-    DrawSettings(camera);
+    if (showProjectSettings) DrawProjectSettings(scene);
+    DrawSettings(scene, camera);
 #endif
 }
 
@@ -592,6 +592,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::MenuItem("Content Browser", NULL, &showContentBrowser);
             ImGui::MenuItem("Animator", NULL, &showAnimator);
             ImGui::MenuItem("Settings", NULL, &showMetrics);
+            ImGui::MenuItem("Project Settings", NULL, &showProjectSettings);
             ImGui::Separator();
             ImGui::MenuItem("Profiler", NULL, &showProfiler);
             ImGui::EndMenu();
@@ -865,12 +866,74 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
             }
         };
         
-        std::function<void(int)> drawNode = [&](int index) {
+        Camera* mainCam = SceneManager::Get().GetMainCamera();
+        std::function<void(int)> drawNode;
+
+        auto drawMainCamera = [&]() {
+            if (!mainCam) return;
+
+            bool hasChildren = false;
+            for (size_t i = 0; i < objects.size(); ++i) {
+                if (objects[i].parentIndex == -10) { hasChildren = true; break; }
+            }
+
+            ImGuiTreeNodeFlags camFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+            if (!hasChildren) camFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+            if (selectedCube == -10) camFlags |= ImGuiTreeNodeFlags_Selected;
+            
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 1.0f, 1.0f)); 
+            bool camNodeOpen = ImGui::TreeNodeEx((void*)(intptr_t)-10, camFlags, "Main Camera");
+            ImGui::PopStyleColor();
+            
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                selectedCube = -10;
+                lastSelectedObject = -10;
+                selectedObjects.clear();
+                selectedMesh = -1;
+                isLightSelected = false;
+                selectedPointLightIndex = -1;
+                Logger::AddLog("Selected Main Camera");
+            }
+            if (ImGui::BeginDragDropSource()) {
+                int camIndex = -10;
+                ImGui::SetDragDropPayload("SCENE_OBJ", &camIndex, sizeof(int));
+                ImGui::Text("Move Main Camera");
+                ImGui::EndDragDropSource();
+            }
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_OBJ")) {
+                    int payloadIndex = *(const int*)payload->Data;
+                    if (payloadIndex >= 0 && payloadIndex < objects.size()) {
+                        
+                        bool isCycle = false;
+                        int curr = mainCam->parentIndex;
+                        while(curr != -1) {
+                            if (curr == payloadIndex) { isCycle = true; break; }
+                            curr = (curr >= 0 && curr < objects.size()) ? objects[curr].parentIndex : (curr == -10 ? mainCam->parentIndex : -1);
+                        }
+                        if (!isCycle) objects[payloadIndex].parentIndex = -10;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            if (camNodeOpen) {
+                if (hasChildren) {
+                    for (int i = 0; i < objects.size(); ++i) {
+                        if (objects[i].parentIndex == -10) drawNode(i);
+                    }
+                    ImGui::TreePop();
+                }
+            }
+        };
+
+        drawNode = [&](int index) {
             std::string name = objects[index].name;
             if (name.empty()) name = "GameObject " + std::to_string(index);
             std::string label = name + "##" + std::to_string(index);
             
             bool hasChildren = false;
+            if (mainCam && mainCam->parentIndex == index) hasChildren = true;
             for (size_t i = 0; i < objects.size(); ++i) {
                 if (objects[i].parentIndex == index) { hasChildren = true; break; }
             }
@@ -1007,9 +1070,12 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                         int curr = index;
                         while(curr != -1) {
                             if (curr == payloadIndex) { isCycle = true; break; }
-                            curr = objects[curr].parentIndex;
+                            curr = (curr >= 0 && curr < objects.size()) ? objects[curr].parentIndex : (curr == -10 && mainCam ? mainCam->parentIndex : -1);
                         }
-                        if (!isCycle) objects[payloadIndex].parentIndex = index;
+                        if (!isCycle) {
+                            if (payloadIndex >= 0 && payloadIndex < objects.size()) objects[payloadIndex].parentIndex = index;
+                            else if (payloadIndex == -10 && mainCam) mainCam->parentIndex = index;
+                        }
                     }
                 }
                 ImGui::EndDragDropTarget();
@@ -1018,6 +1084,7 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
                  m_RiggingUI.DrawBoneHierarchy(scene, index, selectedCube);
  
                  if (hasChildren) {
+                    if (mainCam && mainCam->parentIndex == index) drawMainCamera();
                     for (int i = 0; i < objects.size(); ++i) {
                         
                         if (i < objects.size() && objects[i].parentIndex == index) drawNode(i);
@@ -1045,11 +1112,12 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
         if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_Delete)) {
             std::vector<int> toDelete;
             for (int idx : selectedObjects) {
+                if (idx < 0) continue;
                 bool parentSelected = false;
                 int curr = (idx < objects.size()) ? objects[idx].parentIndex : -1;
                 while(curr != -1) {
                     if (selectedObjects.count(curr)) { parentSelected = true; break; }
-                    curr = (curr < objects.size()) ? objects[curr].parentIndex : -1;
+                    curr = (curr >= 0 && curr < objects.size()) ? objects[curr].parentIndex : (curr == -10 && mainCam ? mainCam->parentIndex : -1);
                 }
                 if (!parentSelected && idx < objects.size()) toDelete.push_back(idx);
             }
@@ -1059,6 +1127,10 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
             selectedCube = -1;
             lastSelectedObject = -1;
             Logger::AddLog("Deleted %zu objects", toDelete.size());
+        }
+
+        if (mainCam && mainCam->parentIndex == -1) {
+            drawMainCamera();
         }
 
         for (int i = 0; i < objects.size(); ++i) {
@@ -1071,7 +1143,11 @@ void EditorLayer::DrawSceneHierarchy(Scene& scene) {
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_OBJ")) {
                 int payloadIndex = *(const int*)payload->Data;
-                objects[payloadIndex].parentIndex = -1;
+                if (payloadIndex >= 0 && payloadIndex < objects.size()) {
+                    objects[payloadIndex].parentIndex = -1;
+                } else if (payloadIndex == -10 && mainCam) {
+                    mainCam->parentIndex = -1;
+                }
             }
             ImGui::EndDragDropTarget();
         }
@@ -1134,7 +1210,49 @@ void EditorLayer::DrawInspector(Scene& scene) {
     
     ImGui::Begin("Inspector", nullptr, lockFlags);
     
-    if (selectedCube != -1) {
+    if (selectedCube == -10) {
+        if (Camera* mainCam = SceneManager::Get().GetMainCamera()) {
+            ImGui::TextColored(ImVec4(0.8f, 0.9f, 1.0f, 1.0f), "[Root Interface: Main Camera]");
+            ImGui::Separator();
+            
+            ImGui::Text("Transform");
+            float pos[3] = { mainCam->Position.x, mainCam->Position.y, mainCam->Position.z };
+            if (ImGui::DragFloat3("Position", pos, 0.1f)) {
+                mainCam->Position = glm::vec3(pos[0], pos[1], pos[2]);
+            }
+            float euler[3] = { mainCam->pitch, mainCam->yaw, 0.0f };
+            if (ImGui::DragFloat2("Rotation (Pitch/Yaw)", euler, 1.0f)) {
+                mainCam->pitch = euler[0];
+                mainCam->yaw = euler[1];
+                
+                glm::vec3 dir;
+                dir.x = cos(glm::radians(mainCam->yaw)) * cos(glm::radians(mainCam->pitch));
+                dir.y = sin(glm::radians(mainCam->pitch));
+                dir.z = sin(glm::radians(mainCam->yaw)) * cos(glm::radians(mainCam->pitch));
+                mainCam->Orientation = glm::normalize(dir);
+            }
+            
+            ImGui::Separator();
+            ImGui::Text("Camera Properties");
+            ImGui::DragFloat("FOV", &mainCam->FOV, 1.0f, 10.0f, 120.0f);
+            ImGui::DragFloat("Near Plane", &mainCam->nearPlane, 0.1f, 0.01f, 10.0f);
+            ImGui::DragFloat("Far Plane", &mainCam->farPlane, 1.0f, 10.0f, 10000.0f);
+            
+            ImGui::Separator();
+            ImGui::Text("Movement Setup");
+            ImGui::DragFloat("Move Speed", &mainCam->speed, 0.1f, 0.1f, 100.0f);
+            ImGui::DragFloat("Look Sensitivity", &mainCam->sensitivity, 1.0f, 10.0f, 500.0f);
+            
+            if (mainCam->parentIndex != -1) {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Parented to Object ID: %d", mainCam->parentIndex);
+                if (ImGui::Button("Unparent (Detach)")) {
+                    mainCam->parentIndex = -1;
+                }
+            }
+
+        }
+    } else if (selectedCube != -1) {
         auto& objects = scene.GetObjects();
         if (selectedCube < objects.size()) {
             GameObject& obj = objects[selectedCube];
@@ -1168,9 +1286,22 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene);
             }
             
-            if (obj.meshType != MeshType::None) {
-                ImGui::Separator();
-                ImGui::Text("Material");
+            const char* meshTypeNames[] = { "None", "Cube", "Sphere", "Plane", "Model", "Camera", "Water" };
+            int currentMeshType = (int)obj.meshType;
+            if (ImGui::Combo("Mesh Type", &currentMeshType, meshTypeNames, IM_ARRAYSIZE(meshTypeNames))) {
+                if ((MeshType)currentMeshType != obj.meshType) {
+                    obj.meshType = (MeshType)currentMeshType;
+                    if (obj.meshType == MeshType::Cube) obj.mesh = ObjectFactory::createCube();
+                    else if (obj.meshType == MeshType::Sphere) obj.mesh = ObjectFactory::createSphere(36, 18);
+                    else if (obj.meshType == MeshType::Plane) obj.mesh = ObjectFactory::createPlane();
+                    else if (obj.meshType == MeshType::Camera) obj.mesh = ObjectFactory::createCameraMesh();
+                    else if (obj.meshType == MeshType::Water) obj.mesh = ObjectFactory::createWaterGrid(obj.water.gridResolution);
+                    TriggerAutoSave(scene);
+                }
+            }
+            
+            ImGui::Separator();
+            ImGui::Text("Material");
                 if (ImGui::ColorEdit3("Albedo", &obj.material.albedo[0])) TriggerAutoSave(scene);
                 if (ImGui::SliderFloat("Metallic", &obj.material.metallic, 0.0f, 1.0f)) { if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene); }
                 if (ImGui::SliderFloat("Roughness", &obj.material.roughness, 0.0f, 1.0f)) { if (ImGui::IsItemDeactivatedAfterEdit()) TriggerAutoSave(scene); }
@@ -1236,11 +1367,61 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 }
                 ImGui::Separator();
                 ImGui::Text("Custom Render Shader:");
-                char shaderNameBuffer[128] = "";
-                strncpy(shaderNameBuffer, obj.material.customShaderName.c_str(), sizeof(shaderNameBuffer) - 1);
-                if (ImGui::InputText("##CustomShaderName", shaderNameBuffer, sizeof(shaderNameBuffer))) {
-                    obj.material.customShaderName = shaderNameBuffer;
+                
+                std::vector<std::string> availShaders;
+                availShaders.push_back("(None)");
+                availShaders.push_back("default");
+                availShaders.push_back("water");
+                availShaders.push_back("cloud2d");
+                availShaders.push_back("volumetric_cloud");
+                availShaders.push_back("skeletal");
+                availShaders.push_back("particles");
+                availShaders.push_back("thruster");
+                availShaders.push_back("speedlines");
+                availShaders.push_back("heathaze");
+                
+                std::string projShadersDir = Application::Get().GetProjectRoot() + "/Shaders";
+                if (std::filesystem::exists(projShadersDir)) {
+                    for (const auto& entry : std::filesystem::recursive_directory_iterator(projShadersDir)) {
+                        if (entry.is_regular_file() && entry.path().extension() == ".frag") {
+                            std::string relPath = std::filesystem::relative(entry.path(), projShadersDir).string();
+                            
+                            size_t lastDot = relPath.find_last_of(".");
+                            if (lastDot != std::string::npos) relPath = relPath.substr(0, lastDot);
+                            availShaders.push_back(relPath);
+                        }
+                    }
                 }
+                
+                std::sort(availShaders.begin() + 1, availShaders.end());
+                availShaders.erase(std::unique(availShaders.begin() + 1, availShaders.end()), availShaders.end());
+                
+                int currentShaderIdx = 0;
+                for (size_t i = 1; i < availShaders.size(); ++i) {
+                    if (obj.material.customShaderName == availShaders[i]) {
+                        currentShaderIdx = i;
+                        break;
+                    }
+                }
+                
+                if (!obj.material.customShaderName.empty() && currentShaderIdx == 0) {
+                    availShaders.push_back(obj.material.customShaderName);
+                    currentShaderIdx = availShaders.size() - 1;
+                }
+                
+                std::vector<const char*> shaderCStrs;
+                for (const auto& s : availShaders) shaderCStrs.push_back(s.c_str());
+                
+                ImGui::PushItemWidth(-1);
+                if (ImGui::Combo("##CustomShaderCombo", &currentShaderIdx, shaderCStrs.data(), shaderCStrs.size())) {
+                    if (currentShaderIdx == 0) {
+                        obj.material.customShaderName = "";
+                    } else {
+                        obj.material.customShaderName = availShaders[currentShaderIdx];
+                    }
+                }
+                ImGui::PopItemWidth();
+                
                 if (ImGui::BeginDragDropTarget()) {
                     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SHADER_FILE")) {
                         std::string shaderPath((const char*)payload->Data, payload->DataSize - 1);
@@ -1250,11 +1431,9 @@ void EditorLayer::DrawInspector(Scene& scene) {
                     }
                     ImGui::EndDragDropTarget();
                 }
-                ImGui::SameLine();
-                if (ImGui::Button("X##ClearShader")) {
-                    obj.material.customShaderName = "";
-                }
-            }
+                
+                ImGui::Checkbox("Is Transparent (Alpha Blend)", &obj.material.isTransparent);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Render this material in the Transparency Pass (required for fire/glass).");
             
             if (obj.meshType != MeshType::None) {
                 ImGui::Separator();
@@ -1399,19 +1578,20 @@ void EditorLayer::DrawInspector(Scene& scene) {
                 ImGui::ColorEdit3("Water Color##Water", glm::value_ptr(obj.water.waterColor));
                 
                 ImGui::Separator();
-                ImGui::DragFloat("Render Height##Water", &obj.water.surfaceHeight, 0.05f);
+                ImGui::DragFloat("Render Height##Water", &obj.water.surfaceHeight, 10.05f);
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("Visual surface level offset from base position");
                 ImGui::DragFloat("Water Depth##Water", &obj.water.depth, 0.1f, 0.0f, 100.0f);
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("How deep the buoyancy volume goes below surface");
                 ImGui::DragFloat("Liquid Density##Water", &obj.water.liquidDensity, 0.01f, 0.01f, 10.0f);
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("Heavier liquid = stronger buoyancy (objects float more)");
                 
-                const char* waveSystems[] = { "Blinn-Wyvill", "Gerstner" };
+                const char* waveSystems[] = { "Ocean Swell (Blinn-Wyvill)", "Ocean Swell (Gerstner)", "Micro-Ripples (Blinn-Wyvill)" };
                 ImGui::Combo("Wave System##Water", &obj.water.waveSystem, waveSystems, IM_ARRAYSIZE(waveSystems));
                 
                 ImGui::Separator();
                 ImGui::SliderInt("Grid Resolution##Water", &obj.water.gridResolution, 10, 1000);
                 if (ImGui::Button("Rebuild Grid Mesh##Water", ImVec2(-1, 0))) {
+                    obj.mesh.Delete();
                     obj.mesh = ObjectFactory::createWaterGrid(obj.water.gridResolution);
                 }
                 
@@ -1857,12 +2037,48 @@ void EditorLayer::DrawInspector(Scene& scene) {
     ImGui::End();
 }
 
-void EditorLayer::DrawSettings(Camera& camera) {
+void EditorLayer::DrawSettings(Scene& scene, Camera& camera) {
     ImGuiWindowFlags lockFlags = fixedLayout ? 
         (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
     
     ImGui::Begin("Settings", nullptr, lockFlags);
     
+    if (ImGui::CollapsingHeader("Project Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Active Game Camera");
+        ImGui::Separator();
+
+        auto& allObjects = scene.GetObjects();
+        std::vector<const char*> camNames;
+        std::vector<int> camIndices;
+
+        
+        camNames.push_back("Main Camera (Default)");
+        camIndices.push_back(-1);
+
+        for (int i = 0; i < (int)allObjects.size(); i++) {
+            if (allObjects[i].hasCamera) {
+                camNames.push_back(allObjects[i].name.c_str());
+                camIndices.push_back(i);
+            }
+        }
+
+        int currentGameCamIdx = scene.GetGameCameraIndex();
+        int selectedIdx = 0; 
+        for (int i = 0; i < (int)camIndices.size(); i++) {
+            if (camIndices[i] == currentGameCamIdx) {
+                selectedIdx = i;
+                break;
+            }
+        }
+
+        if (ImGui::Combo("##ActiveGameCam", &selectedIdx, camNames.data(), (int)camNames.size())) {
+            scene.SetGameCameraIndex(camIndices[selectedIdx]);
+            Logger::AddLog("[Project] Game Camera set to: %s", camNames[selectedIdx]);
+        }
+        
+        ImGui::TextDisabled("This camera is the primary view for Play Mode.");
+    }
+
     if (ImGui::CollapsingHeader("Camera")) {
         ImGui::DragFloat("Speed", &camera.speed, 0.1f, 0.1f, 10.0f);
         ImGui::DragFloat("Sensitivity", &camera.sensitivity, 1.0f, 10.f, 200.0f);
@@ -1942,6 +2158,51 @@ void EditorLayer::DrawSettings(Camera& camera) {
         ImGui::Checkbox("Use Gradient Sky", &showGradientSky);
         
         ImGui::Checkbox("Clouds", &showClouds);
+
+        ImGui::Separator();
+        ImGui::Text("Reflections");
+        const char* reflModes[] = { "Off", "Screen Space (SSR)", "Cubemap Only" };
+        ImGui::Combo("Mode##refl", &reflectionMode, reflModes, IM_ARRAYSIZE(reflModes));
+
+        
+        if (reflectionMode == 1) {
+            ImGui::Indent();
+            ImGui::TextDisabled("Apply SSR To");
+            ImGui::Checkbox("Geometry##ssr",      &ssrGeometry);
+            ImGui::Checkbox("Transparency##ssr",  &ssrTransparency);
+            ImGui::Checkbox("Reflect All (Clouds / Stars)##ssr", &ssrAll);
+            ImGui::Separator();
+            ImGui::TextDisabled("Ray March");
+            ImGui::SliderFloat("Resolution##ssr",  &ssrResolution, 0.1f, 1.0f, "%.2f");
+            ImGui::SliderInt  ("Max Steps##ssr",   &ssrMaxSteps,    10,   100);
+            ImGui::SliderFloat("Ray Distance##ssr",&ssrMaxDistance, 5.0f, 200.0f, "%.1f m");
+            ImGui::SliderFloat("Hit Thickness##ssr",&ssrThickness,  0.1f, 10.0f, "%.2f m");
+            ImGui::Separator();
+            ImGui::TextDisabled("Render Distance");
+            if (ssrFadeStart > ssrRenderDistance) ssrFadeStart = ssrRenderDistance;
+            ImGui::SliderFloat("Fade Start##ssr",    &ssrFadeStart,       20.0f, 400.0f, "%.0f m");
+            ImGui::SliderFloat("Cull Distance##ssr", &ssrRenderDistance,  ssrFadeStart, 600.0f, "%.0f m");
+            ImGui::Separator();
+            ImGui::TextDisabled("Cubemap Fallback");
+            ImGui::Checkbox("Use Cubemap for Off-Screen Rays##ssr", &ssrUseCubemapFallback);
+            ImGui::Spacing();
+            if (ImGui::Button("Reset Defaults##ssr")) {
+                ssrResolution = 0.5f;  ssrMaxSteps = 30;
+                ssrMaxDistance = 50.0f; ssrThickness = 2.0f;
+                ssrFadeStart = 60.0f;  ssrRenderDistance = 100.0f;
+                ssrUseCubemapFallback = true;
+            }
+            ImGui::Unindent();
+        }
+
+        
+        if (reflectionMode == 2) {
+            ImGui::Indent();
+            ImGui::TextDisabled("Uses the loaded Skybox Cubemap");
+            ImGui::TextDisabled("to reflect the sky on metallic surfaces.");
+            ImGui::TextDisabled("Much cheaper than SSR.");
+            ImGui::Unindent();
+        }
     }
     
     if (ImGui::CollapsingHeader("Environment Settings")) {
@@ -2374,6 +2635,19 @@ void EditorLayer::DrawViewport(Scene& scene, Camera& camera) {
                 m_MasterControl = !m_MasterControl;
                 if (m_MasterControl) Logger::AddLog("[Master] View Unlocked (F8)");
                 else Logger::AddLog("[Master] View Locked (F8)");
+            }
+            
+            
+            
+            ImGui::SetCursorScreenPos(cursorPos); 
+
+            for (auto& obj : scene.GetObjects()) {
+                if (!obj.isActive) continue;
+                for (auto& behavior : obj.behaviors) {
+                    if (behavior && behavior->enabled) {
+                        behavior->OnUI();
+                    }
+                }
             }
         }
         
@@ -3794,6 +4068,18 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
         envSetup["moonColor"]          = {moonColor.r, moonColor.g, moonColor.b, moonColor.a};
         envSetup["moonBloom"]          = moonBloom;
         envSetup["globalTilingFactor"] = globalTilingFactor;
+        
+        envSetup["reflectionMode"]        = reflectionMode;
+        envSetup["ssrUseCubemapFallback"] = ssrUseCubemapFallback;
+        envSetup["ssrGeometry"]           = ssrGeometry;
+        envSetup["ssrTransparency"]       = ssrTransparency;
+        envSetup["ssrAll"]                = ssrAll;
+        envSetup["ssrResolution"]         = ssrResolution;
+        envSetup["ssrMaxSteps"]           = ssrMaxSteps;
+        envSetup["ssrMaxDistance"]        = ssrMaxDistance;
+        envSetup["ssrThickness"]          = ssrThickness;
+        envSetup["ssrRenderDistance"]     = ssrRenderDistance;
+        envSetup["ssrFadeStart"]          = ssrFadeStart;
         Camera* cam = Application::Get().GetCamera();
         if (cam) {
             envSetup["camera"]["position"]    = nlohmann::json::array({cam->Position.x, cam->Position.y, cam->Position.z});
@@ -3882,4 +4168,53 @@ void EditorLayer::RenderTransitions() {
         
         ImGui::End();
     }
+}
+
+void EditorLayer::DrawProjectSettings(Scene& scene) {
+    if (!showProjectSettings) return;
+
+    ImGuiWindowFlags lockFlags = fixedLayout ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+
+    
+    ImGui::Begin("Project Settings", &showProjectSettings, lockFlags);
+
+    if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Active Game Camera");
+        ImGui::Separator();
+
+        auto& allObjects = scene.GetObjects();
+        std::vector<const char*> camNames;
+        std::vector<int> camIndices;
+
+        
+        camNames.push_back("Main Camera (Default)");
+        camIndices.push_back(-1);
+
+        for (int i = 0; i < (int)allObjects.size(); i++) {
+            if (allObjects[i].hasCamera) {
+                camNames.push_back(allObjects[i].name.c_str());
+                camIndices.push_back(i);
+            }
+        }
+
+        int currentGameCamIdx = scene.GetGameCameraIndex();
+        int selectedIdx = 0; 
+        for (int i = 0; i < (int)camIndices.size(); i++) {
+            if (camIndices[i] == currentGameCamIdx) {
+                selectedIdx = i;
+                break;
+            }
+        }
+
+        if (ImGui::Combo("##ActiveGameCamPrj", &selectedIdx, camNames.data(), (int)camNames.size())) {
+            scene.SetGameCameraIndex(camIndices[selectedIdx]);
+            Logger::AddLog("[Project] Game Camera set to: %s", camNames[selectedIdx]);
+        }
+        
+        ImGui::Separator();
+        ImGui::TextDisabled("This camera is used when entering Play Mode (F7).");
+    }
+
+    ImGui::End();
 }

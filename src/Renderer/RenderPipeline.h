@@ -11,6 +11,7 @@ public:
     virtual ~RenderPipeline() = default;
 
     void AddPass(std::unique_ptr<RenderPass> pass);
+    void ClearPasses();
     void Execute(const RenderContext& context);
     void Resize(int width, int height);
 

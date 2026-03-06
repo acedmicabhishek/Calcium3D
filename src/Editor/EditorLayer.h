@@ -51,6 +51,7 @@ public:
     bool showContentBrowser = true;
     bool showAnimator = true;
     bool showProfiler = false;
+    bool showProjectSettings = false;
     
     
     unsigned int viewportTextureID = 0;
@@ -113,6 +114,19 @@ public:
     bool enablePointShadows = false;
     float shadowBias = 0.005f;
 
+    
+    
+    int  reflectionMode = 0;           
+    bool ssrUseCubemapFallback = true;
+    bool ssrGeometry = false;
+    bool ssrTransparency = false;
+    bool ssrAll = false;
+    float ssrResolution = 0.5f;
+    int ssrMaxSteps = 30;
+    float ssrMaxDistance = 50.0f;
+    float ssrThickness = 2.0f;
+    float ssrRenderDistance = 100.0f;
+    float ssrFadeStart = 60.0f;
     
     float timeOfDay = 0.0f;
     float timeSpeed = 1.0f;
@@ -179,7 +193,7 @@ public:
         
         if (!sourceShaders.empty()) {
             try {
-                std::filesystem::copy(sourceShaders, targetShadersDir, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+                std::filesystem::copy(sourceShaders, targetShadersDir, std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing);
                 std::cout << "[EditorLayer] Successfully copied shaders from " << sourceShaders << " to " << targetShadersDir << "\n";
             } catch(const std::exception& e) {
                 std::cerr << "[EditorLayer] Failed to copy shaders: " << e.what() << "\n";
@@ -212,7 +226,8 @@ private:
     void DrawMenuBar(Scene& scene);
     void DrawSceneHierarchy(Scene& scene);
     void DrawInspector(Scene& scene);
-    void DrawSettings(Camera& camera);
+    void DrawProjectSettings(Scene& scene);
+    void DrawSettings(Scene& scene, Camera& camera);
     void DrawViewport(Scene& scene, Camera& camera);
     void DrawContentBrowser();
     void DrawAnimator(Scene& scene);

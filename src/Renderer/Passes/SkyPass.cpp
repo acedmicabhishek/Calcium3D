@@ -140,6 +140,8 @@ void SkyPass::Reload() {
     std::cout << "Skybox Reloaded." << std::endl;
 }
 
+unsigned int SkyPass::GetCubemapTexture() { return s_SkyTexture; }
+
 void SkyPass::Execute(const RenderContext& context)
 {
     PROFILE_SCOPE("SkyPass");

@@ -4,6 +4,7 @@
 #include "../Core/Logger.h"
 #include "ObjectFactory.h"
 #include "BehaviorRegistry.h"
+#include "SceneManager.h"
 #include <unordered_map>
 #include "../ModelImport/ModelImporter.h"
 #include <glm/gtc/type_ptr.hpp>
@@ -164,6 +165,9 @@ json SceneIO::SerializeObject(const GameObject& obj) {
         jAnims.push_back(jAnim);
     }
     jObj["animations"] = jAnims;
+    jObj["isAnimating"] = obj.isAnimating;
+    jObj["currentAnimationIndex"] = obj.currentAnimationIndex;
+    jObj["animationTime"] = obj.animationTime;
 
     return jObj;
 }
@@ -306,6 +310,10 @@ void SceneIO::DeserializeObject(const json& jObj, GameObject& obj) {
         }
     }
 
+    if (jObj.contains("isAnimating")) obj.isAnimating = jObj["isAnimating"];
+    if (jObj.contains("currentAnimationIndex")) obj.currentAnimationIndex = jObj["currentAnimationIndex"];
+    if (jObj.contains("animationTime")) obj.animationTime = jObj["animationTime"];
+
     if (jObj.contains("vertexBoneData")) {
         const auto& jVerts = jObj["vertexBoneData"];
         if (jVerts.is_array() && jVerts.size() == obj.mesh.vertices.size()) {
@@ -406,6 +414,12 @@ GameObject SceneIO::LoadPrefab(const std::string& path) {
             objPtr->meshIndex = meshIndex;
             objPtr->meshType = MeshType::Model;
             objPtr->animations = result.animations;
+        } else {
+            if (!result.success) {
+                Logger::AddLog("[SceneIO] Prefab model import failed: %s", result.error.c_str());
+            } else {
+                Logger::AddLog("[SceneIO] Prefab mesh index %d out of bounds (count: %d)", meshIndex, (int)result.meshes.size());
+            }
         }
     }
 
@@ -438,6 +452,11 @@ void Scene::Save(const std::string& path, bool silent) {
     data["physics"]["GlobalAirResistance"] = PhysicsEngine::GlobalAirResistance;
     data["physics"]["Gravity"] = {PhysicsEngine::Gravity.x, PhysicsEngine::Gravity.y, PhysicsEngine::Gravity.z};
     data["physics"]["GlobalAcceleration"] = {PhysicsEngine::GlobalAcceleration.x, PhysicsEngine::GlobalAcceleration.y, PhysicsEngine::GlobalAcceleration.z};
+
+    if (auto cam = SceneManager::Get().GetMainCamera()) {
+        data["main_camera"]["parentIndex"] = cam->parentIndex;
+    }
+    data["main_camera"]["game_camera_index"] = m_GameCameraIndex;
 
     for (const auto& obj : m_Objects) {
         data["objects"].push_back(SceneIO::SerializeObject(obj));
@@ -501,6 +520,24 @@ void Scene::Load(const std::string& path) {
             }
         }
 
+        if (data.contains("main_camera")) {
+            if (data["main_camera"].contains("game_camera_index")) {
+                m_GameCameraIndex = data["main_camera"]["game_camera_index"];
+            }
+            if (auto cam = SceneManager::Get().GetMainCamera()) {
+                if (data["main_camera"].contains("parentIndex")) {
+                    cam->parentIndex = data["main_camera"]["parentIndex"];
+                }
+            }
+        }
+
+        
+        
+        
+        std::string sceneDir = std::filesystem::path(path).parent_path().string();
+        std::string derivedRoot = std::filesystem::path(sceneDir).parent_path().string();
+        std::string projectRoot = m_ProjectRoot.empty() ? derivedRoot : m_ProjectRoot;
+
         if (data.contains("objects")) {
             for (const auto& jObj : data["objects"]) {
                 MeshType loadedType = MeshType::None;
@@ -513,22 +550,69 @@ void Scene::Load(const std::string& path) {
 
                 GameObject* objPtr = nullptr;
                 if (loadedType == MeshType::Model && !modelPath.empty() && meshIndex != -1) {
-                    auto result = ModelImporter::Import(modelPath);
+                    
+                    std::string resolvedPath = modelPath;
+                    if (!std::filesystem::path(modelPath).is_absolute() && !std::filesystem::exists(modelPath)) {
+                        
+                        std::string fromProject = projectRoot + "/" + modelPath;
+                        if (std::filesystem::exists(fromProject)) {
+                            resolvedPath = fromProject;
+                        } else if (projectRoot != derivedRoot) {
+                            
+                            std::string fromDerived = derivedRoot + "/" + modelPath;
+                            if (std::filesystem::exists(fromDerived)) {
+                                resolvedPath = fromDerived;
+                            }
+                        }
+                        
+                        if (resolvedPath == modelPath) {
+                            std::string fromScene = sceneDir + "/" + modelPath;
+                            if (std::filesystem::exists(fromScene)) {
+                                resolvedPath = fromScene;
+                            }
+                        }
+                    }
+
+                    auto result = ModelImporter::Import(resolvedPath);
                     if (result.success && meshIndex < (int)result.meshes.size()) {
                         auto& meshData = result.meshes[meshIndex];
                         Mesh mesh(meshData.vertices, meshData.indices, meshData.textures);
                         objPtr = new GameObject(std::move(mesh), jObj["name"]);
-                        objPtr->modelPath = modelPath;
+                        objPtr->modelPath = modelPath;  
                         objPtr->meshIndex = meshIndex;
                         objPtr->meshType = MeshType::Model;
                         objPtr->animations = result.animations;
+                        objPtr->mesh.skeleton = meshData.skeleton; 
+
+                        
+                        if (!jObj.contains("material")) {
+                            objPtr->material.albedo = meshData.albedo;
+                            objPtr->material.metallic = meshData.metallic;
+                            objPtr->material.roughness = meshData.roughness;
+                            objPtr->material.useTexture = !meshData.textures.empty();
+                        }
+                    } else {
+                        if (!result.success) {
+                            Logger::AddLog("[ERROR] Failed to import model %s: %s", resolvedPath.c_str(), result.error.c_str());
+                        } else {
+                            Logger::AddLog("[ERROR] Mesh index %d out of bounds for model %s (count: %d)", 
+                                meshIndex, resolvedPath.c_str(), (int)result.meshes.size());
+                        }
                     }
                 }
 
                 if (!objPtr) {
                     if (loadedType == MeshType::Cube) objPtr = new GameObject(ObjectFactory::createCube(), jObj["name"]);
                     else if (loadedType == MeshType::Sphere) objPtr = new GameObject(ObjectFactory::createSphere(30,30), jObj["name"]);
-                    else if (loadedType == MeshType::Plane) objPtr = new GameObject(ObjectFactory::createPlane(), jObj["name"]);
+                    else if (loadedType == MeshType::Plane) {
+                        if (jObj.contains("hasWater") && jObj["hasWater"].get<bool>()) {
+                            int res = jObj.contains("water") && jObj["water"].contains("gridResolution") 
+                                ? jObj["water"]["gridResolution"].get<int>() : 400;
+                            objPtr = new GameObject(ObjectFactory::createWaterGrid(res), jObj["name"]);
+                        } else {
+                            objPtr = new GameObject(ObjectFactory::createPlane(), jObj["name"]);
+                        }
+                    }
                     else if (loadedType == MeshType::Camera) objPtr = new GameObject(ObjectFactory::createCameraMesh(), jObj["name"]);
                     else objPtr = new GameObject(Mesh({}, {}, {}), jObj["name"]);
                     objPtr->meshType = loadedType;

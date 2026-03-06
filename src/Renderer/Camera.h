@@ -22,6 +22,8 @@ public:
 	
 	bool firstClick = true;
 
+	int parentIndex = -1; 
+
 	
 	int width;
 	int height;

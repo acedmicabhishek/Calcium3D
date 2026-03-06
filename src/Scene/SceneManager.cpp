@@ -46,6 +46,14 @@ void SceneManager::TransitionToFlag(const std::string& flagName, TransitionType 
 }
 
 void SceneManager::Update(float dt) {
+    if (m_MainCamera && m_ActiveScene && m_MainCamera->parentIndex != -1) {
+        if (m_MainCamera->parentIndex < (int)m_ActiveScene->GetObjects().size()) {
+            glm::mat4 globalT = m_ActiveScene->GetGlobalTransform(m_MainCamera->parentIndex);
+            m_MainCamera->Position = glm::vec3(globalT[3]);
+        } else {
+            m_MainCamera->parentIndex = -1;
+        }
+    }
     
     if (m_TeleportPending) {
         ApplyTeleport();

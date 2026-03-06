@@ -9,12 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(include include/stb include/glm include/glad imgui imgui/backends fs include/tinyobj)
 
 # Find required packages
-find_package(OpenGL REQUIRED) #1 
-find_package(PkgConfig REQUIRED) #2
-pkg_check_modules(GLFW REQUIRED glfw3) #3
-pkg_check_modules(GLEW REQUIRED glew) #4
+find_package(OpenGL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLFW REQUIRED glfw3)
+pkg_check_modules(GLEW REQUIRED glew)
 pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale libswresample)
-find_package(nlohmann_json 3 REQUIRED) #5
+find_package(nlohmann_json 3 REQUIRED)
 find_package(Threads REQUIRED)
 
 # Set sources
@@ -62,9 +62,11 @@ set(SOURCES
     src/Renderer/VideoPlayer.cpp
     
     src/Renderer/Passes/GeometryPass.cpp
+    src/Renderer/Passes/SSRPass.cpp
     src/Renderer/Passes/ShadowPass.cpp
     src/Renderer/Passes/SkyPass.cpp
     src/Renderer/Passes/TransparencyPass.cpp
+    src/Renderer/Passes/UnderwaterPass.cpp
     src/Renderer/Pipelines/StandardPipeline.cpp
     src/Renderer/RenderPipeline.cpp
 
@@ -76,6 +78,7 @@ set(SOURCES
     src/Scene/SceneManager.cpp
     src/Scene/Behavior.cpp
     src/Physics/HitboxGraphics.cpp
+    src/Scene/BehaviorRegistry.cpp
     
     # Editor
     src/Editor/Editor.cpp
@@ -202,9 +205,11 @@ set(TESTBUILD_SOURCES
     src/Renderer/VideoPlayer.cpp
     
     src/Renderer/Passes/GeometryPass.cpp
+    src/Renderer/Passes/SSRPass.cpp
     src/Renderer/Passes/ShadowPass.cpp
     src/Renderer/Passes/SkyPass.cpp
     src/Renderer/Passes/TransparencyPass.cpp
+    src/Renderer/Passes/UnderwaterPass.cpp
     src/Renderer/Pipelines/StandardPipeline.cpp
     src/Renderer/RenderPipeline.cpp
 
@@ -220,6 +225,7 @@ set(TESTBUILD_SOURCES
     src/Environment/2dCloud.cpp
     src/Environment/VolumetricCloud.cpp
     src/Physics/HitboxGraphics.cpp
+    src/Scene/BehaviorRegistry.cpp
     
     # Model Import
     src/ModelImport/ModelImporter.cpp

@@ -17,6 +17,7 @@ struct Material {
     std::string customShaderName = "";
     
     bool useTexture = true;  
+    bool isTransparent = false;
 
     nlohmann::json Serialize() const {
         nlohmann::json j;
@@ -29,6 +30,7 @@ struct Material {
         j["specularTexture"] = specularTexture;
         j["customShaderName"] = customShaderName;
         j["useTexture"] = useTexture;
+        j["isTransparent"] = isTransparent;
         return j;
     }
 
@@ -45,6 +47,7 @@ struct Material {
         if (j.contains("specularTexture")) specularTexture = j["specularTexture"].get<std::string>();
         if (j.contains("customShaderName")) customShaderName = j["customShaderName"].get<std::string>();
         if (j.contains("useTexture")) useTexture = j["useTexture"].get<bool>();
+        if (j.contains("isTransparent")) isTransparent = j["isTransparent"].get<bool>();
     }
 };
 

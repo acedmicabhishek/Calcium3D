@@ -107,6 +107,7 @@ bool Application::Init()
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     ResourceManager::LoadShader("default", "../shaders/passes/geometry/default.vert", "../shaders/passes/geometry/default.frag");
+    ResourceManager::LoadShader("skeletal", "../shaders/passes/geometry/skeletal.vert", "../shaders/passes/geometry/skeletal.frag");
     ResourceManager::LoadShader("light", "../shaders/passes/geometry/light.vert", "../shaders/passes/geometry/light.frag");
     ResourceManager::LoadShader("skybox", "../shaders/passes/sky/skybox.vert", "../shaders/passes/sky/skybox.frag");
     ResourceManager::LoadShader("gradientSky", "../shaders/passes/sky/gradient_sky.vert", "../shaders/passes/sky/gradient_sky.frag");
@@ -146,11 +147,6 @@ bool Application::Init()
     Texture defaultSpecular = ResourceManager::LoadTexture("defaultSpecular", "../Resource/default/texture/DefaultTex.png", "specular", 1);
 
     
-
-    
-    
-    
-    
     AudioEngine::Init();
     
     Logger::AddLog("Application Initialized");
@@ -163,9 +159,11 @@ void Application::CreateMSAAFramebuffer(int samples) {
     if (m_MSAAFBO != 0) {
         glDeleteFramebuffers(1, &m_MSAAFBO);
         glDeleteTextures(1, &m_MSAAColorBuffer);
+        glDeleteTextures(1, &m_MSAANormalBuffer);
         glDeleteRenderbuffers(1, &m_MSAARBO);
         m_MSAAFBO = 0;
         m_MSAAColorBuffer = 0;
+        m_MSAANormalBuffer = 0;
         m_MSAARBO = 0;
     }
 
@@ -179,16 +177,83 @@ void Application::CreateMSAAFramebuffer(int samples) {
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, m_MSAASamples, GL_RGB, m_ViewportWidth, m_ViewportHeight, GL_TRUE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, m_MSAAColorBuffer, 0);
 
+        glGenTextures(1, &m_MSAANormalBuffer);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, m_MSAANormalBuffer);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, m_MSAASamples, GL_RGBA16F, m_ViewportWidth, m_ViewportHeight, GL_TRUE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D_MULTISAMPLE, m_MSAANormalBuffer, 0);
+
         glGenRenderbuffers(1, &m_MSAARBO);
         glBindRenderbuffer(GL_RENDERBUFFER, m_MSAARBO);
         glRenderbufferStorageMultisample(GL_RENDERBUFFER, m_MSAASamples, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_MSAARBO);
 
+        unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, attachments);
+
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            std::cerr << "MSAA Framebuffer error" << std::endl;
+            Logger::AddLog("[ERROR] MSAA Framebuffer incomplete!");
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+}
+
+void Application::ResizeMSAAFramebuffer(int width, int height) {
+    m_ViewportWidth = width;
+    m_ViewportHeight = height;
+    if (m_MSAASamples > 0) {
+        CreateMSAAFramebuffer(m_MSAASamples);
+    }
+}
+
+void Application::CreateViewportFramebuffer(int width, int height) {
+    if (m_ViewportFBO != 0) {
+        glDeleteFramebuffers(1, &m_ViewportFBO);
+        glDeleteTextures(1, &m_ViewportTexture);
+        glDeleteTextures(1, &m_ViewportNormalTexture);
+        glDeleteRenderbuffers(1, &m_ViewportRBO);
+    }
+
+    m_ViewportWidth = width;
+    m_ViewportHeight = height;
+
+    glGenFramebuffers(1, &m_ViewportFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_ViewportFBO);
+
+    
+    glGenTextures(1, &m_ViewportTexture);
+    glBindTexture(GL_TEXTURE_2D, m_ViewportTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ViewportTexture, 0);
+
+    
+    glGenTextures(1, &m_ViewportNormalTexture);
+    glBindTexture(GL_TEXTURE_2D, m_ViewportNormalTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_ViewportNormalTexture, 0);
+
+    
+    glGenRenderbuffers(1, &m_ViewportRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_ViewportRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_ViewportRBO);
+
+    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        Logger::AddLog("[ERROR] Viewport Framebuffer incomplete!");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Application::ResizeViewportFramebuffer(int width, int height) {
+    m_ViewportWidth = width;
+    m_ViewportHeight = height;
+    CreateViewportFramebuffer(width, height);
 }
 
 void Application::Run()
@@ -291,6 +356,12 @@ void Application::Shutdown()
 void Application::ProcessSceneCameras() {
     if (!m_Scene) return;
     
+    
+    GLint currentFBO;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFBO);
+    GLint currentViewport[4];
+    glGetIntegerv(GL_VIEWPORT, currentViewport);
+
     auto& objects = m_Scene->GetObjects();
     for (auto& obj : objects) {
         if (obj.hasCamera && obj.camera.enabled) {
@@ -336,4 +407,8 @@ void Application::ProcessSceneCameras() {
             m_RenderPipeline->Execute(camCtx);
         }
     }
+
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, currentFBO);
+    glViewport(currentViewport[0], currentViewport[1], currentViewport[2], currentViewport[3]);
 }

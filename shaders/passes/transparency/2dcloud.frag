@@ -1,5 +1,6 @@
 #version 330 core
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 NormalColor; // Must be declared to prevent garbage writes to G-Buffer
 
 in vec2 TexCoords;
 in vec3 WorldPos;
@@ -142,4 +143,5 @@ void main()
     if (alpha < 0.01) discard;
     
     FragColor = vec4(cloudLit, alpha);
+    NormalColor = vec4(0.0, 0.0, 0.0, 0.0); // No SSR on clouds; metallic = 0
 }

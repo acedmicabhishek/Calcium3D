@@ -19,6 +19,7 @@ public:
     std::vector<Texture> textures;
     VAO vao;
     GLuint vboID;
+    GLuint eboID;
     glm::vec3 minAABB;
     glm::vec3 maxAABB;
     
@@ -37,6 +38,7 @@ public:
     void Draw(Shader& shader, Camera& camera, const glm::mat4& matrix, unsigned int textureOverride = 0, const std::vector<glm::mat4>& boneMatrices = {});
               
     void UpdateVBO();
+    void Delete();
               
     bool Intersect(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const glm::mat4& modelMatrix, float& intersectionDistance);
 };

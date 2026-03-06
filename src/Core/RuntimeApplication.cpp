@@ -43,6 +43,11 @@ bool RuntimeApplication::Init()
     Logger::SetRuntimeConsole(m_Console.get());
     m_Console->Init();
 
+    
+    int winW, winH;
+    glfwGetFramebufferSize(m_Window, &winW, &winH);
+    CreateViewportFramebuffer(winW, winH);
+
     LoadProjectConfig();
     return true;
 }
@@ -81,7 +86,21 @@ void RuntimeApplication::LoadProjectConfig() {
                 auto& env = config["environment"];
                 if (env.contains("showSkybox")) m_Console->SetSkyboxEnabled(env["showSkybox"]);
                 if (env.contains("showGradientSky")) m_Console->SetGradientSkyEnabled(env["showGradientSky"]);
+                if (env.contains("showClouds")) m_Console->SetCloudsEnabled(env["showClouds"]);
+                
+                if (env.contains("cloudMode")) m_RenderContext.cloudMode = env["cloudMode"];
+                if (env.contains("cloudHeight")) m_RenderContext.cloudHeight = env["cloudHeight"];
+                if (env.contains("cloudDensity")) m_RenderContext.cloudDensity = env["cloudDensity"];
                 if (env.contains("cloudCover")) m_RenderContext.cloudCover = env["cloudCover"];
+                
+                if (env.contains("cloudSpeed") && m_Cloud2D) m_Cloud2D->cloudSpeed = env["cloudSpeed"];
+                if (env.contains("cloudTiling") && m_Cloud2D) m_Cloud2D->tiling = env["cloudTiling"];
+                if (env.contains("cloudSize") && m_Cloud2D) m_Cloud2D->cloudSize = env["cloudSize"];
+                if (env.contains("cloudRandomness") && m_Cloud2D) m_Cloud2D->randomness = env["cloudRandomness"];
+                if (env.contains("cloudColor") && m_Cloud2D) {
+                    auto& clc = env["cloudColor"];
+                    m_Cloud2D->cloudColor = glm::vec3(clc[0], clc[1], clc[2]);
+                }
                 
                 if (env.contains("timeOfDay")) m_RenderContext.timeOfDay = env["timeOfDay"];
                 if (env.contains("sunEnabled")) m_RenderContext.sunEnabled = env["sunEnabled"];
@@ -105,24 +124,47 @@ void RuntimeApplication::LoadProjectConfig() {
                 if (env.contains("moonBloom")) m_RenderContext.moonBloom = env["moonBloom"];
                 
                 if (env.contains("globalTilingFactor")) m_RenderContext.globalTilingFactor = env["globalTilingFactor"];
-                
-                if (env.contains("camera")) {
-                    auto& cam = env["camera"];
-                    if (cam.contains("position")) {
-                        auto& p = cam["position"];
-                        m_Camera->Position = glm::vec3(p[0], p[1], p[2]);
-                    }
-                    if (cam.contains("orientation")) {
-                        auto& o = cam["orientation"];
-                        m_Camera->Orientation = glm::vec3(o[0], o[1], o[2]);
-                    }
-                    if (cam.contains("yaw")) m_Camera->yaw = cam["yaw"];
-                    if (cam.contains("pitch")) m_Camera->pitch = cam["pitch"];
-                    if (cam.contains("fov")) m_Camera->FOV = cam["fov"];
-                }
-                
-                Logger::AddLog("Loaded extracted Editor Environment Settings.");
             }
+
+            if (config.contains("graphics")) {
+                auto& gfx = config["graphics"];
+                if (gfx.contains("reflectionMode")) m_RenderContext.reflectionMode = gfx["reflectionMode"];
+                if (gfx.contains("ssrUseCubemapFallback")) m_RenderContext.ssrUseCubemapFallback = gfx["ssrUseCubemapFallback"];
+                if (gfx.contains("ssrGeometry")) m_RenderContext.ssrGeometry = gfx["ssrGeometry"];
+                if (gfx.contains("ssrTransparency")) m_RenderContext.ssrTransparency = gfx["ssrTransparency"];
+                if (gfx.contains("ssrAll")) m_RenderContext.ssrAll = gfx["ssrAll"];
+                if (gfx.contains("ssrResolution")) m_RenderContext.ssrResolution = gfx["ssrResolution"];
+                if (gfx.contains("ssrMaxSteps")) m_RenderContext.ssrMaxSteps = gfx["ssrMaxSteps"];
+                if (gfx.contains("ssrMaxDistance")) m_RenderContext.ssrMaxDistance = gfx["ssrMaxDistance"];
+                if (gfx.contains("ssrThickness")) m_RenderContext.ssrThickness = gfx["ssrThickness"];
+                if (gfx.contains("ssrRenderDistance")) m_RenderContext.ssrRenderDistance = gfx["ssrRenderDistance"];
+                if (gfx.contains("ssrFadeStart")) m_RenderContext.ssrFadeStart = gfx["ssrFadeStart"];
+                if (gfx.contains("msaaSamples")) {
+                    m_MSAASamples = gfx["msaaSamples"];
+                    CreateMSAAFramebuffer(m_MSAASamples);
+                }
+            }
+            
+            if (config.contains("camera")) {
+                auto& cam = config["camera"];
+                if (cam.contains("position")) {
+                    auto& p = cam["position"];
+                    m_Camera->Position = glm::vec3(p[0], p[1], p[2]);
+                }
+                if (cam.contains("orientation")) {
+                    auto& o = cam["orientation"];
+                    m_Camera->Orientation = glm::vec3(o[0], o[1], o[2]);
+                }
+                if (cam.contains("up")) {
+                    auto& u = cam["up"];
+                    m_Camera->Up = glm::vec3(u[0], u[1], u[2]);
+                }
+                if (cam.contains("fov")) m_Camera->FOV = cam["fov"];
+                if (cam.contains("nearPlane")) m_Camera->nearPlane = cam["nearPlane"];
+                if (cam.contains("farPlane")) m_Camera->farPlane = cam["farPlane"];
+            }
+            
+            Logger::AddLog("Loaded extracted Editor Environment & Graphics Settings.");
 
             if (config.contains("game_states")) {
                 auto& jStates = config["game_states"];
@@ -451,6 +493,13 @@ void RuntimeApplication::OnRender()
 {
     int winW, winH;
     glfwGetFramebufferSize(m_Window, &winW, &winH);
+    
+    
+    if (winW != m_ViewportWidth || winH != m_ViewportHeight) {
+        ResizeViewportFramebuffer(winW, winH);
+        if (m_MSAASamples > 0) ResizeMSAAFramebuffer(winW, winH);
+    }
+
     glViewport(0, 0, winW, winH);
 
     if (m_Camera) {
@@ -459,19 +508,12 @@ void RuntimeApplication::OnRender()
     }
 
     
-    glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    
     m_RenderContext.width = winW;
     m_RenderContext.height = winH;
     m_RenderContext.camera = m_Camera.get();
     m_RenderContext.scene = m_Scene.get();
     m_RenderContext.cloud2d = m_Cloud2D.get();
     m_RenderContext.volCloud = m_VolumetricCloud.get();
-    
-    m_RenderContext.mainFBO = 0; 
-    
     m_RenderContext.time = glfwGetTime();
     m_RenderContext.deltaTime = m_LastDeltaTime;
     
@@ -479,26 +521,39 @@ void RuntimeApplication::OnRender()
     m_RenderContext.showSkybox = m_Console->IsSkyboxEnabled();
     m_RenderContext.showGradientSky = m_Console->IsGradientSkyEnabled();
     m_RenderContext.showClouds = m_Console->IsCloudsEnabled();
+
     
+    unsigned int activeFBO = (m_MSAASamples > 0) ? m_MSAAFBO : m_ViewportFBO;
+    m_RenderContext.mainFBO = activeFBO;
+
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, activeFBO);
+    glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
     float angle = (m_RenderContext.timeOfDay - 6.0f) / 24.0f * 2.0f * glm::pi<float>();
-    glm::vec3 dynamicSunPos = glm::vec3(cos(angle) * 10.0f, sin(angle) * 10.0f, 0.0f);
-    m_RenderContext.sunPosition = dynamicSunPos;
+    m_RenderContext.sunPosition = glm::vec3(cos(angle) * 10.0f, sin(angle) * 10.0f, 0.0f);
+    m_RenderContext.moonPosition = glm::vec3(-m_RenderContext.sunPosition.x, -m_RenderContext.sunPosition.y, 0.0f);
     
-    glm::vec3 dynamicMoonPos = glm::vec3(-dynamicSunPos.x, -dynamicSunPos.y, 0.0f);
-    m_RenderContext.moonPosition = dynamicMoonPos;
-    
-    m_RenderContext.msaaSamples = 4;
+    m_RenderContext.msaaSamples = m_MSAASamples;
     m_RenderContext.msaaSkyPass = true;
     m_RenderContext.msaaGeometryPass = true;
     
     ProcessSceneCameras();
     
-    glfwGetFramebufferSize(m_Window, &winW, &winH);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, winW, winH);
-
     m_RenderPipeline->Execute(m_RenderContext);
 
+    
+    if (m_MSAASamples > 0) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_MSAAFBO);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_ViewportFBO);
+        glBlitFramebuffer(0, 0, winW, winH, 0, 0, winW, winH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_ViewportFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, winW, winH, 0, 0, winW, winH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -507,6 +562,17 @@ void RuntimeApplication::OnRender()
 
 void RuntimeApplication::PostRender() {
     
+    if (m_Scene) {
+        for (auto& obj : m_Scene->GetObjects()) {
+            if (!obj.isActive) continue;
+            for (auto& behavior : obj.behaviors) {
+                if (behavior && behavior->enabled) {
+                    behavior->OnUI();
+                }
+            }
+        }
+    }
+
     if (m_ShowStateWarning) {
         ImGuiIO& io = ImGui::GetIO();
         float winW = 460.0f, winH = 300.0f;

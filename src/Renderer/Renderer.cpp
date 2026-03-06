@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include <iostream>
 #include "Core/ResourceManager.h"
+#include "Core/Logger.h"
 #include "VideoPlayer.h"
 #include "AudioEngine/AudioEngine.h"
 
@@ -27,28 +28,65 @@ void Renderer::RenderMesh(Mesh& mesh, Shader& shader, const glm::vec3& position,
     
 }
 
-void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float tilingFactor, bool renderEditorObjects, float dt) {
+void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float tilingFactor, bool renderEditorObjects, float dt, float time, int renderLayer) {
     auto& objects = scene.GetObjects();
     
     shader.use();
     shader.setMat4("view", camera.GetViewMatrix());
     shader.setMat4("projection", camera.GetProjectionMatrix());
+    shader.setFloat("time", time);
+    shader.setFloat("iTime", time);
+    shader.setFloat("deltaTime", dt);
 
     for (size_t i = 0; i < objects.size(); ++i) {
         auto& object = objects[i];
         if (!object.isActive) continue;
         if (!renderEditorObjects && object.meshType == MeshType::Camera) continue;
         
+        
+        if (renderLayer == 1 && object.material.isTransparent) continue; 
+        if (renderLayer == 2 && !object.material.isTransparent) continue; 
+        
         Shader* activeShader = &shader;
-        if (!object.material.customShaderName.empty() && ResourceManager::HasShader(object.material.customShaderName)) {
-            activeShader = &ResourceManager::GetShader(object.material.customShaderName);
+        if (!object.material.customShaderName.empty()) {
+            if (!ResourceManager::HasShader(object.material.customShaderName)) {
+                
+                std::string sName = object.material.customShaderName;
+                std::string vFile = sName + ".vert";
+                std::string fFile = sName + ".frag";
+                
+                
+                std::string resolvedV = ResourceManager::ResolvePath(vFile);
+                if (!std::filesystem::exists(resolvedV)) {
+                    vFile = "default.vert"; 
+                }
+                
+                try {
+                    ResourceManager::LoadShader(sName, vFile.c_str(), fFile.c_str());
+                    Logger::AddLog("Auto-loaded custom shader: %s", sName.c_str());
+                } catch (...) {
+                    
+                }
+            }
+            
+            if (ResourceManager::HasShader(object.material.customShaderName)) {
+                activeShader = &ResourceManager::GetShader(object.material.customShaderName);
+            }
         } else if (object.isAnimating && !object.boneMatrices.empty() && ResourceManager::HasShader("skeletal")) {
             activeShader = &ResourceManager::GetShader("skeletal");
+        }
+
+        if (!activeShader) {
+            continue;
         }
 
         activeShader->use();
         activeShader->setMat4("view", camera.GetViewMatrix());
         activeShader->setMat4("projection", camera.GetProjectionMatrix());
+        activeShader->setFloat("time", time);
+        activeShader->setFloat("iTime", time);
+        activeShader->setFloat("deltaTime", dt);
+        activeShader->setFloat("intensity", 1.0f); 
         
         glm::vec3 finalAlbedo = object.material.albedo;
         if (object.hasScreen && (object.screen.type == ScreenType::Image || object.screen.type == ScreenType::Video)) {

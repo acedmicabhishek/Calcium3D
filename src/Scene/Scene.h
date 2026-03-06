@@ -11,6 +11,7 @@
 #include <memory>
 #include <map>
 #include "../AniEngine/Animation.h"
+#include <any>
 
 enum class ColliderShape { Box, Sphere };
 enum class MeshType { None, Cube, Sphere, Plane, Model, Camera, Water };
@@ -247,14 +248,32 @@ public:
     FlagData GetFlag(const std::string& name) const;
     const std::map<std::string, FlagData>& GetFlags() const { return m_Flags; }
 
+    int GetGameCameraIndex() const { return m_GameCameraIndex; }
+    void SetGameCameraIndex(int index) { m_GameCameraIndex = index; }
+
+    const std::string& GetProjectRoot() const { return m_ProjectRoot; }
+    void SetProjectRoot(const std::string& root) { m_ProjectRoot = root; }
+
+public:
+    PhysicsEngine physicsEngine;
+
+    
+    void SetProperty(const std::string& name, const std::any& value) { m_Blackboard[name] = value; }
+    std::any GetProperty(const std::string& name) const {
+        auto it = m_Blackboard.find(name);
+        if (it != m_Blackboard.end()) return it->second;
+        return std::any();
+    }
+    bool HasProperty(const std::string& name) const { return m_Blackboard.find(name) != m_Blackboard.end(); }
+
 private:
     std::string m_Filepath = "";
+    std::string m_ProjectRoot = "";
     std::vector<GameObject> m_Objects;
     std::vector<PointLight> m_PointLights;
     std::map<std::string, FlagData> m_Flags;
-    
-public:
-    PhysicsEngine physicsEngine;
+    std::map<std::string, std::any> m_Blackboard;
+    int m_GameCameraIndex = -1; 
 };
 
 #endif

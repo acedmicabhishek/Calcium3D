@@ -1,0 +1,36 @@
+{
+    "camera": {
+        "pitch": -8.37265682220459,
+        "position": [
+            3.727405309677124,
+            5.607829570770264,
+            5.556818962097168
+        ],
+        "yaw": -131.2340850830078
+    },
+    "graphics": {
+        "msaaGeometryPass": true,
+        "msaaSamples": 2,
+        "msaaSkyPass": true,
+        "msaaTransparencyPass": true,
+        "reflectionMode": 1,
+        "ssrAll": true,
+        "ssrFadeStart": 400.0,
+        "ssrGeometry": true,
+        "ssrMaxDistance": 150.0,
+        "ssrMaxSteps": 80,
+        "ssrRenderDistance": 600.0,
+        "ssrResolution": 1.0,
+        "ssrThickness": 2.5,
+        "ssrTransparency": true,
+        "ssrUseCubemapFallback": true
+    },
+    "last_scene": "Scenes/main.scene",
+    "start_state": 0,
+    "ui": {
+        "showConsole": true,
+        "showContentBrowser": true,
+        "showInspector": true,
+        "showSceneHierarchy": true
+    }
+}

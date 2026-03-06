@@ -24,6 +24,7 @@ Mesh::Mesh(const std::vector <Vertex>& vertices, const std::vector <GLuint>& ind
 	VBO VBO(vertices);
 	vboID = VBO.ID;
 	EBO EBO(indices);
+	eboID = EBO.ID;
 	
 	vao.LinkAttrib(VBO, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, position));
 	vao.LinkAttrib(VBO, 1, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, color));
@@ -43,6 +44,12 @@ void Mesh::UpdateVBO() {
     glBindBuffer(GL_ARRAY_BUFFER, vboID);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void Mesh::Delete() {
+    vao.Delete();
+    glDeleteBuffers(1, &vboID);
+    glDeleteBuffers(1, &eboID);
 }
 
 

@@ -6,6 +6,11 @@ void RenderPipeline::AddPass(std::unique_ptr<RenderPass> pass)
     m_Passes.push_back(std::move(pass));
 }
 
+void RenderPipeline::ClearPasses()
+{
+    m_Passes.clear();
+}
+
 void RenderPipeline::Execute(const RenderContext& context)
 {
     for (auto& pass : m_Passes)

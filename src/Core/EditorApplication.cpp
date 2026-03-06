@@ -16,6 +16,12 @@
 #include "../Tools/Profiler/Profiler.h"
 #include "../Tools/Profiler/GpuProfiler.h"
 #include "../Scene/SceneManager.h"
+#include "../Scene/ScriptCompiler.h"
+#include "../Scene/BehaviorRegistry.h"
+
+
+static Camera s_GameCam(800, 600, glm::vec3(0.0f));
+static bool s_GameCamInitialized = false;
 
 struct WindowData {
     Camera* camera;
@@ -133,11 +139,14 @@ void EditorApplication::SaveProject(bool silent) {
     std::filesystem::path currentScenePath = m_Scene->GetFilepath();
     
     if (!currentScenePath.empty()) {
-        
-        
-        std::filesystem::path projRoot(m_ProjectRoot);
-        std::string relPath = std::filesystem::relative(currentScenePath, projRoot).string();
-        config["last_scene"] = relPath;
+        if (currentScenePath.filename().string() == "calcium3d_playmode_backup.scene") {
+            
+            config["last_scene"] = "Scenes/main.scene";
+        } else {
+            std::filesystem::path projRoot(m_ProjectRoot);
+            std::string relPath = std::filesystem::relative(currentScenePath, projRoot).string();
+            config["last_scene"] = relPath;
+        }
     } else {
         config["last_scene"] = "";
     }
@@ -154,7 +163,59 @@ void EditorApplication::SaveProject(bool silent) {
     config["ui"]["showInspector"] = m_EditorLayer->showInspector;
     config["ui"]["showConsole"] = m_EditorLayer->showConsole;
     config["ui"]["showContentBrowser"] = m_EditorLayer->showContentBrowser;
+
+    config["graphics"]["msaaSamples"] = m_EditorLayer->msaaSamples;
+    config["graphics"]["msaaSkyPass"] = m_EditorLayer->msaaSkyPass;
+    config["graphics"]["msaaGeometryPass"] = m_EditorLayer->msaaGeometryPass;
+    config["graphics"]["msaaTransparencyPass"] = m_EditorLayer->msaaTransparencyPass;
+    config["graphics"]["reflectionMode"] = m_EditorLayer->reflectionMode;
+    config["graphics"]["ssrUseCubemapFallback"] = m_EditorLayer->ssrUseCubemapFallback;
+    config["graphics"]["ssrGeometry"] = m_EditorLayer->ssrGeometry;
+    config["graphics"]["ssrTransparency"] = m_EditorLayer->ssrTransparency;
+    config["graphics"]["ssrAll"] = m_EditorLayer->ssrAll;
+    config["graphics"]["ssrResolution"] = m_EditorLayer->ssrResolution;
+    config["graphics"]["ssrMaxSteps"] = m_EditorLayer->ssrMaxSteps;
+    config["graphics"]["ssrMaxDistance"] = m_EditorLayer->ssrMaxDistance;
+    config["graphics"]["ssrThickness"] = m_EditorLayer->ssrThickness;
+    config["graphics"]["ssrRenderDistance"] = m_EditorLayer->ssrRenderDistance;
+    config["graphics"]["ssrFadeStart"] = m_EditorLayer->ssrFadeStart;
     
+    
+    config["environment"]["showSkybox"] = m_EditorLayer->showSkybox;
+    config["environment"]["showGradientSky"] = m_EditorLayer->showGradientSky;
+    config["environment"]["showWater"] = m_EditorLayer->showWater;
+    config["environment"]["showClouds"] = m_EditorLayer->showClouds;
+    config["environment"]["cloudMode"] = m_EditorLayer->cloudMode;
+    config["environment"]["waterHeight"] = m_EditorLayer->waterHeight;
+    config["environment"]["cloudHeight"] = m_EditorLayer->cloud2dHeight;
+    config["environment"]["cloudDensity"] = m_EditorLayer->cloudDensity;
+    config["environment"]["cloudCover"] = m_EditorLayer->cloudCover;
+    config["environment"]["cloudColor"] = {m_EditorLayer->cloudColor.x, m_EditorLayer->cloudColor.y, m_EditorLayer->cloudColor.z};
+    config["environment"]["cloudSpeed"] = m_EditorLayer->cloudSpeed;
+    config["environment"]["cloudTiling"] = m_EditorLayer->cloudTiling;
+    config["environment"]["cloudSize"] = m_EditorLayer->cloudSize;
+    config["environment"]["cloudRandomness"] = m_EditorLayer->cloudRandomness;
+    
+    config["environment"]["waveSpeed"] = m_EditorLayer->waveSpeed;
+    config["environment"]["waveStrength"] = m_EditorLayer->waveStrength;
+    config["environment"]["waterColor"] = {m_EditorLayer->waterColor.x, m_EditorLayer->waterColor.y, m_EditorLayer->waterColor.z};
+    config["environment"]["timeOfDay"] = m_EditorLayer->timeOfDay;
+    
+    config["environment"]["sunEnabled"] = m_EditorLayer->sunEnabled;
+    config["environment"]["sunIntensity"] = m_EditorLayer->sunIntensity;
+    config["environment"]["sunColor"] = {m_EditorLayer->sunColor.x, m_EditorLayer->sunColor.y, m_EditorLayer->sunColor.z, m_EditorLayer->sunColor.w};
+    config["environment"]["sunBloom"] = m_EditorLayer->sunBloom;
+    
+    config["environment"]["moonEnabled"] = m_EditorLayer->moonEnabled;
+    config["environment"]["moonIntensity"] = m_EditorLayer->moonIntensity;
+    config["environment"]["moonColor"] = {m_EditorLayer->moonColor.x, m_EditorLayer->moonColor.y, m_EditorLayer->moonColor.z, m_EditorLayer->moonColor.w};
+    config["environment"]["moonBloom"] = m_EditorLayer->moonBloom;
+
+    config["environment"]["enableShadows"] = m_EditorLayer->enableShadows;
+    config["environment"]["enablePointShadows"] = m_EditorLayer->enablePointShadows;
+    config["environment"]["shadowBias"] = m_EditorLayer->shadowBias;
+    config["environment"]["globalTilingFactor"] = m_EditorLayer->globalTilingFactor;
+
     std::string configPath = m_ProjectRoot + "/project.c3dproj";
     std::ofstream file(configPath);
     if (file.is_open()) {
@@ -176,6 +237,7 @@ void EditorApplication::OpenProject(const std::string& path) {
     UICreationEngine::Clear();
     SceneManager::Get().SetActiveScene(m_Scene.get()); 
     SceneManager::Get().SetMainCamera(m_Camera.get());
+    m_Scene->SetProjectRoot(path);
     m_EditorLayer->selectedCube = -1;
     m_EditorLayer->selectedMesh = -1;
     m_EditorLayer->isLightSelected = false;
@@ -190,6 +252,42 @@ void EditorApplication::OpenProject(const std::string& path) {
         Logger::AddLog("Restored UI layout from %s", uiLayoutPath.c_str());
     }
     
+    
+    
+    
+    std::string engineRoot = "";
+    
+    
+    std::filesystem::path searchPath = std::filesystem::current_path();
+    for (int i = 0; i < 5; ++i) { 
+        if (std::filesystem::exists(searchPath / "src" / "Core" / "Application.cpp")) {
+            engineRoot = searchPath.string();
+            break;
+        }
+        if (!searchPath.has_parent_path()) break;
+        searchPath = searchPath.parent_path();
+    }
+
+    if (engineRoot.empty()) {
+        engineRoot = "/home/light/Documents/C3D/Calcium3D"; 
+        Logger::AddLog("[ScriptCompiler] Engine root not found, using fallback: %s", engineRoot.c_str());
+    } else {
+        Logger::AddLog("[ScriptCompiler] Engine root detected: %s", engineRoot.c_str());
+    }
+
+    std::string scriptsDir = path + "/Scripts";
+    if (std::filesystem::exists(scriptsDir)) {
+        Logger::AddLog("[ScriptCompiler] Auto-compiling scripts in: %s", scriptsDir.c_str());
+        for (auto& entry : std::filesystem::directory_iterator(scriptsDir)) {
+            if (entry.path().extension() == ".cpp") {
+                std::string cppPath = entry.path().string();
+                Logger::AddLog("[ScriptCompiler] Compiling: %s", entry.path().filename().string().c_str());
+                ScriptCompiler::CompileAndLoad(cppPath, engineRoot);
+            }
+        }
+        Logger::AddLog("[ScriptCompiler] Pre-compile complete. Loading scene now.");
+    }
+
     std::string configPath = path + "/project.c3dproj";
     if (std::filesystem::exists(configPath)) {
         try {
@@ -229,6 +327,63 @@ void EditorApplication::OpenProject(const std::string& path) {
                 if (ui.contains("showConsole")) m_EditorLayer->showConsole = ui["showConsole"].get<bool>();
                 if (ui.contains("showContentBrowser")) m_EditorLayer->showContentBrowser = ui["showContentBrowser"].get<bool>();
             }
+
+            if (config.contains("graphics")) {
+                auto& g = config["graphics"];
+                if (g.contains("msaaSamples")) m_EditorLayer->msaaSamples = g["msaaSamples"].get<int>();
+                if (g.contains("msaaSkyPass")) m_EditorLayer->msaaSkyPass = g["msaaSkyPass"].get<bool>();
+                if (g.contains("msaaGeometryPass")) m_EditorLayer->msaaGeometryPass = g["msaaGeometryPass"].get<bool>();
+                if (g.contains("msaaTransparencyPass")) m_EditorLayer->msaaTransparencyPass = g["msaaTransparencyPass"].get<bool>();
+                if (g.contains("reflectionMode")) m_EditorLayer->reflectionMode = g["reflectionMode"].get<int>();
+                if (g.contains("ssrUseCubemapFallback")) m_EditorLayer->ssrUseCubemapFallback = g["ssrUseCubemapFallback"].get<bool>();
+                if (g.contains("ssrGeometry")) m_EditorLayer->ssrGeometry = g["ssrGeometry"].get<bool>();
+                if (g.contains("ssrTransparency")) m_EditorLayer->ssrTransparency = g["ssrTransparency"].get<bool>();
+                if (g.contains("ssrAll")) m_EditorLayer->ssrAll = g["ssrAll"].get<bool>();
+                if (g.contains("ssrResolution")) m_EditorLayer->ssrResolution = g["ssrResolution"].get<float>();
+                if (g.contains("ssrMaxSteps")) m_EditorLayer->ssrMaxSteps = g["ssrMaxSteps"].get<int>();
+                if (g.contains("ssrMaxDistance")) m_EditorLayer->ssrMaxDistance = g["ssrMaxDistance"].get<float>();
+                if (g.contains("ssrThickness")) m_EditorLayer->ssrThickness = g["ssrThickness"].get<float>();
+                if (g.contains("ssrRenderDistance")) m_EditorLayer->ssrRenderDistance = g["ssrRenderDistance"].get<float>();
+                if (g.contains("ssrFadeStart")) m_EditorLayer->ssrFadeStart = g["ssrFadeStart"].get<float>();
+            }
+
+            if (config.contains("environment")) {
+                auto& env = config["environment"];
+                if (env.contains("showSkybox")) m_EditorLayer->showSkybox = env["showSkybox"].get<bool>();
+                if (env.contains("showGradientSky")) m_EditorLayer->showGradientSky = env["showGradientSky"].get<bool>();
+                if (env.contains("showWater")) m_EditorLayer->showWater = env["showWater"].get<bool>();
+                if (env.contains("showClouds")) m_EditorLayer->showClouds = env["showClouds"].get<bool>();
+                if (env.contains("cloudMode")) m_EditorLayer->cloudMode = env["cloudMode"].get<int>();
+                if (env.contains("waterHeight")) m_EditorLayer->waterHeight = env["waterHeight"].get<float>();
+                if (env.contains("cloudHeight")) m_EditorLayer->cloud2dHeight = env["cloudHeight"].get<float>();
+                if (env.contains("cloudDensity")) m_EditorLayer->cloudDensity = env["cloudDensity"].get<float>();
+                if (env.contains("cloudCover")) m_EditorLayer->cloudCover = env["cloudCover"].get<float>();
+                if (env.contains("cloudColor")) m_EditorLayer->cloudColor = glm::vec3(env["cloudColor"][0], env["cloudColor"][1], env["cloudColor"][2]);
+                if (env.contains("cloudSpeed")) m_EditorLayer->cloudSpeed = env["cloudSpeed"].get<float>();
+                if (env.contains("cloudTiling")) m_EditorLayer->cloudTiling = env["cloudTiling"].get<float>();
+                if (env.contains("cloudSize")) m_EditorLayer->cloudSize = env["cloudSize"].get<float>();
+                if (env.contains("cloudRandomness")) m_EditorLayer->cloudRandomness = env["cloudRandomness"].get<float>();
+
+                if (env.contains("waveSpeed")) m_EditorLayer->waveSpeed = env["waveSpeed"].get<float>();
+                if (env.contains("waveStrength")) m_EditorLayer->waveStrength = env["waveStrength"].get<float>();
+                if (env.contains("waterColor")) m_EditorLayer->waterColor = glm::vec3(env["waterColor"][0], env["waterColor"][1], env["waterColor"][2]);
+                if (env.contains("timeOfDay")) m_EditorLayer->timeOfDay = env["timeOfDay"].get<float>();
+                
+                if (env.contains("sunEnabled")) m_EditorLayer->sunEnabled = env["sunEnabled"].get<bool>();
+                if (env.contains("sunIntensity")) m_EditorLayer->sunIntensity = env["sunIntensity"].get<float>();
+                if (env.contains("sunColor")) m_EditorLayer->sunColor = glm::vec4(env["sunColor"][0], env["sunColor"][1], env["sunColor"][2], env["sunColor"][3]);
+                if (env.contains("sunBloom")) m_EditorLayer->sunBloom = env["sunBloom"].get<float>();
+
+                if (env.contains("moonEnabled")) m_EditorLayer->moonEnabled = env["moonEnabled"].get<bool>();
+                if (env.contains("moonIntensity")) m_EditorLayer->moonIntensity = env["moonIntensity"].get<float>();
+                if (env.contains("moonColor")) m_EditorLayer->moonColor = glm::vec4(env["moonColor"][0], env["moonColor"][1], env["moonColor"][2], env["moonColor"][3]);
+                if (env.contains("moonBloom")) m_EditorLayer->moonBloom = env["moonBloom"].get<float>();
+
+                if (env.contains("enableShadows")) m_EditorLayer->enableShadows = env["enableShadows"].get<bool>();
+                if (env.contains("enablePointShadows")) m_EditorLayer->enablePointShadows = env["enablePointShadows"].get<bool>();
+                if (env.contains("shadowBias")) m_EditorLayer->shadowBias = env["shadowBias"].get<float>();
+                if (env.contains("globalTilingFactor")) m_EditorLayer->globalTilingFactor = env["globalTilingFactor"].get<float>();
+            }
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to parse project.c3dproj: %s", e.what());
         }
@@ -264,6 +419,7 @@ void EditorApplication::EnterPlayMode() {
     if (m_PlayMode) return;
     m_PlayMode = true;
     Editor::isEditMode = false;
+    s_GameCamInitialized = false; 
     
     
     m_PlayModeSceneBackup = "/tmp/calcium3d_playmode_backup.scene";
@@ -292,6 +448,7 @@ void EditorApplication::ExitPlayMode() {
     if (!m_PlayMode) return;
     m_PlayMode = false;
     Editor::isEditMode = true;
+    s_GameCamInitialized = false; 
     
     
     if (!m_PlayModeSceneBackup.empty() && std::filesystem::exists(m_PlayModeSceneBackup)) {
@@ -340,14 +497,52 @@ void EditorApplication::OnUpdate(float deltaTime)
 
     {
         PROFILE_SCOPE("Camera");
-        if (Editor::isEditMode || m_EditorLayer->m_MasterControl) {
+        
+        
+        bool gameCamActive = !Editor::isEditMode && m_Scene->GetGameCameraIndex() != -1;
+        if ((Editor::isEditMode || m_EditorLayer->m_MasterControl) && !gameCamActive) {
              m_Camera->Inputs(m_Window, deltaTime, m_EditorLayer->m_MasterControl);
         }
     }
     
     if (!Editor::isEditMode) {
         PROFILE_SCOPE("Scripts+Physics");
+        
+        int gameCamIdx = m_Scene->GetGameCameraIndex();
+
+        
+        if (gameCamIdx != -1) {
+            auto& objs = m_Scene->GetObjects();
+            if (gameCamIdx >= 0 && gameCamIdx < (int)objs.size() && objs[gameCamIdx].hasCamera) {
+                auto& obj = objs[gameCamIdx];
+                
+                if (!s_GameCamInitialized) {
+                    s_GameCam.Position = obj.position;
+                    s_GameCam.Orientation = obj.rotation * glm::vec3(0, 0, -1);
+                    s_GameCam.Up = obj.rotation * glm::vec3(0, 1, 0);
+                    s_GameCam.FOV = obj.camera.fov;
+                    s_GameCam.nearPlane = obj.camera.nearPlane;
+                    s_GameCam.farPlane = obj.camera.farPlane;
+                    s_GameCamInitialized = true;
+                }
+                s_GameCam.width = m_ViewportWidth;
+                s_GameCam.height = m_ViewportHeight;
+                m_RenderContext.camera = &s_GameCam;
+            }
+        } else {
+            m_RenderContext.camera = m_Camera.get();
+        }
+
         m_Scene->Update(deltaTime, (float)glfwGetTime());
+
+        
+        
+        
+        if (gameCamIdx != -1) {
+            s_GameCam.Position    = m_Camera->Position;
+            s_GameCam.Orientation = m_Camera->Orientation;
+            s_GameCam.Up          = m_Camera->Up;
+        }
     }
 
     
@@ -427,6 +622,19 @@ void EditorApplication::RenderEditor(float deltaTime) {
     m_RenderContext.width = m_ViewportWidth;
     m_RenderContext.height = m_ViewportHeight;
     m_RenderContext.camera = m_Camera.get();
+    if (m_PlayMode) {
+        int gameCamIdx = m_Scene->GetGameCameraIndex();
+        if (gameCamIdx != -1) {
+            auto& objs = m_Scene->GetObjects();
+            if (gameCamIdx >= 0 && gameCamIdx < (int)objs.size() && objs[gameCamIdx].hasCamera) {
+                
+                m_RenderContext.camera = &s_GameCam;
+                
+                objs[gameCamIdx].isActive = false;
+            }
+        }
+    }
+    
     m_RenderContext.scene = m_Scene.get();
     m_RenderContext.cloud2d = m_Cloud2D.get();
     m_RenderContext.volCloud = m_VolumetricCloud.get();
@@ -469,6 +677,18 @@ void EditorApplication::RenderEditor(float deltaTime) {
     m_RenderContext.msaaGeometryPass = m_EditorLayer->msaaGeometryPass;
     m_RenderContext.msaaTransparencyPass = m_EditorLayer->msaaTransparencyPass;
 
+    m_RenderContext.reflectionMode         = m_EditorLayer->reflectionMode;
+    m_RenderContext.ssrUseCubemapFallback  = m_EditorLayer->ssrUseCubemapFallback;
+    m_RenderContext.ssrGeometry = m_EditorLayer->ssrGeometry;
+    m_RenderContext.ssrTransparency = m_EditorLayer->ssrTransparency;
+    m_RenderContext.ssrAll = m_EditorLayer->ssrAll;
+    m_RenderContext.ssrResolution = m_EditorLayer->ssrResolution;
+    m_RenderContext.ssrMaxSteps = m_EditorLayer->ssrMaxSteps;
+    m_RenderContext.ssrMaxDistance = m_EditorLayer->ssrMaxDistance;
+    m_RenderContext.ssrThickness = m_EditorLayer->ssrThickness;
+    m_RenderContext.ssrRenderDistance = m_EditorLayer->ssrRenderDistance;
+    m_RenderContext.ssrFadeStart = m_EditorLayer->ssrFadeStart;
+
     ProcessSceneCameras();
 
     if (m_EditorLayer->msaaSamples > 0 && m_MSAAFBO != 0) {
@@ -483,6 +703,18 @@ void EditorApplication::RenderEditor(float deltaTime) {
         PROFILE_SCOPE("RenderPipeline");
         m_RenderPipeline->Execute(m_RenderContext);
     }
+
+    
+    if (m_PlayMode) {
+        int gameCamIdx = m_Scene->GetGameCameraIndex();
+        if (gameCamIdx != -1) {
+            auto& objs = m_Scene->GetObjects();
+            if (gameCamIdx >= 0 && gameCamIdx < (int)objs.size()) {
+                objs[gameCamIdx].isActive = true;
+            }
+        }
+    }
+
     HitboxGraphics::Render(*m_Scene, *m_Camera);
 
     if (m_EditorLayer->msaaSamples > 0 && m_MSAAFBO != 0) {
@@ -532,6 +764,7 @@ void EditorApplication::CreateMSAAFramebuffer(int samples) {
     if (m_MSAAFBO != 0) {
         glDeleteFramebuffers(1, &m_MSAAFBO);
         glDeleteTextures(1, &m_MSAAColorBuffer);
+        glDeleteTextures(1, &m_MSAANormalBuffer);
         glDeleteRenderbuffers(1, &m_MSAARBO);
     }
 
@@ -545,10 +778,18 @@ void EditorApplication::CreateMSAAFramebuffer(int samples) {
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, m_MSAASamples, GL_RGB, m_ViewportWidth, m_ViewportHeight, GL_TRUE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, m_MSAAColorBuffer, 0);
 
+        glGenTextures(1, &m_MSAANormalBuffer);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, m_MSAANormalBuffer);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, m_MSAASamples, GL_RGBA16F, m_ViewportWidth, m_ViewportHeight, GL_TRUE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D_MULTISAMPLE, m_MSAANormalBuffer, 0);
+
         glGenRenderbuffers(1, &m_MSAARBO);
         glBindRenderbuffer(GL_RENDERBUFFER, m_MSAARBO);
         glRenderbufferStorageMultisample(GL_RENDERBUFFER, m_MSAASamples, GL_DEPTH24_STENCIL8, m_ViewportWidth, m_ViewportHeight);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_MSAARBO);
+
+        unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, attachments);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -559,6 +800,7 @@ void EditorApplication::CreateViewportFramebuffer(int width, int height) {
     if (m_ViewportFBO != 0) {
         glDeleteFramebuffers(1, &m_ViewportFBO);
         glDeleteTextures(1, &m_ViewportTexture);
+        glDeleteTextures(1, &m_ViewportNormalTexture);
         glDeleteRenderbuffers(1, &m_ViewportRBO);
     }
 
@@ -575,10 +817,20 @@ void EditorApplication::CreateViewportFramebuffer(int width, int height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ViewportTexture, 0);
 
+    glGenTextures(1, &m_ViewportNormalTexture);
+    glBindTexture(GL_TEXTURE_2D, m_ViewportNormalTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_ViewportNormalTexture, 0);
+
     glGenRenderbuffers(1, &m_ViewportRBO);
     glBindRenderbuffer(GL_RENDERBUFFER, m_ViewportRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_ViewportRBO);
+
+    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

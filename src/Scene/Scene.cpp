@@ -4,6 +4,7 @@
 #include "../Core/ThreadManager.h"
 #include "../AniEngine/AniEngine.h"
 #include "../Tools/Profiler/Profiler.h"
+#include "SceneManager.h"
 
 Scene::Scene() {
     
@@ -63,6 +64,13 @@ void Scene::RemoveObject(int index) {
             }
         }
         
+        if (auto mainCam = SceneManager::Get().GetMainCamera()) {
+            if (mainCam->parentIndex == index) {
+                mainCam->parentIndex = -1;
+            } else if (mainCam->parentIndex > index) {
+                mainCam->parentIndex--;
+            }
+        }
     }
 }
 

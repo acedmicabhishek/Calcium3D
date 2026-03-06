@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdlib>
+#include <map>
+#include <cstdlib>
 
 namespace fs = std::filesystem;
 
@@ -57,8 +59,12 @@ void Home::Render() {
         
         ImGui::SetCursorPosX(centerX);
         if (ImGui::Button("New Project", ImVec2(buttonWidth, 40))) {
-            
             ImGui::OpenPopup("New Project");
+        }
+        
+        ImGui::SetCursorPosX(centerX);
+        if (ImGui::Button("Play Demos", ImVec2(buttonWidth, 40))) {
+            ImGui::OpenPopup("Play Demos");
         }
         
         ImGui::SetCursorPosX(centerX);
@@ -93,6 +99,66 @@ void Home::Render() {
                 Application::Get().CreateProject(projectPath.string());
                 SaveRecentProject(projectPath.string());
                 ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
+        }
+        
+        if (ImGui::BeginPopupModal("Play Demos", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            static int selectedDemoDir = 0;
+            static std::vector<std::string> demoPaths;
+            static std::vector<std::string> demoNames;
+            
+            if (demoPaths.empty()) {
+                fs::path demosPath = fs::current_path().parent_path() / "Resource" / "Demos";
+                if (fs::exists(demosPath)) {
+                    for (const auto& entry : fs::directory_iterator(demosPath)) {
+                        if (entry.is_directory()) {
+                            demoPaths.push_back(entry.path().string());
+                            demoNames.push_back(entry.path().filename().string());
+                        }
+                    }
+                }
+            }
+            
+            ImGui::Text("Select a Demo Template:");
+            if (demoNames.empty()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "No Demos found in Resource/Demos/");
+            } else {
+                if (ImGui::BeginCombo("##democombo", demoNames[selectedDemoDir].c_str())) {
+                    for (int n = 0; n < demoNames.size(); n++) {
+                        bool is_selected = (selectedDemoDir == n);
+                        if (ImGui::Selectable(demoNames[n].c_str(), is_selected)) {
+                            selectedDemoDir = n;
+                        }
+                        if (is_selected) ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            
+            ImGui::Spacing();
+            static char demoProjectName[128] = "MyDemoProject";
+            ImGui::InputText("Save As", demoProjectName, IM_ARRAYSIZE(demoProjectName));
+            
+            static bool demoExistsError = false;
+            if (demoExistsError) {
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Name already taken! Change 'Save As' name.");
+            }
+
+            if (ImGui::Button("Load Demo", ImVec2(120, 0)) && !demoPaths.empty()) {
+                fs::path destPath = m_BaseProjectsPath / std::string(demoProjectName);
+                if (!fs::exists(destPath)) {
+                    demoExistsError = false;
+                    fs::copy(demoPaths[selectedDemoDir], destPath, fs::copy_options::recursive);
+                    SaveRecentProject(destPath.string());
+                    Application::Get().OpenProject(destPath.string());
+                    ImGui::CloseCurrentPopup();
+                } else {
+                    demoExistsError = true;
+                    Logger::AddLog("[ERROR] Project folder already exists. Choose a different save name.");
+                }
             }
             ImGui::SameLine();
             if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }

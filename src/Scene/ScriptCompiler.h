@@ -21,7 +21,8 @@ public:
         }
 
         std::string stem = fs::path(cppPath).stem().string();
-        std::string soPath = "/tmp/calcium3d_script_" + stem + ".so";
+        static int soCounter = 0;
+        std::string soPath = "/tmp/calcium3d_script_" + stem + "_" + std::to_string(soCounter++) + ".so";
 
         fs::path engineRoot = fs::path(engineRootPath);
 
@@ -36,6 +37,7 @@ public:
         includes += " -I" + (engineRoot / "include").string();
         includes += " -I" + (engineRoot / "include" / "glm").string();
         includes += " -I" + (engineRoot / "include" / "glad").string();
+        includes += " -I" + (engineRoot / "imgui").string();
 
         
         std::string cmd = "g++ -shared -fPIC -std=c++17 -O2"

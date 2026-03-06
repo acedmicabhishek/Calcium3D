@@ -1,6 +1,6 @@
 project('calcium3d_player', 'cpp', 'c',
   version : '0.1',
-  default_options : ['warning_level=2', 'cpp_std=c++17', 'buildtype=release'])
+  default_options : ['warning_level=0', 'cpp_std=c++17', 'buildtype=release'])
 
 cpp = meson.get_compiler('cpp')
 
@@ -49,9 +49,12 @@ sources = files(
   'src/Renderer/Mesh.cpp',
   'src/Renderer/Model.cpp',
   'src/Renderer/Passes/GeometryPass.cpp',
+  'src/Renderer/Passes/SSRPass.cpp',
   'src/Renderer/Passes/ShadowPass.cpp',
   'src/Renderer/Passes/SkyPass.cpp',
   'src/Renderer/Passes/TransparencyPass.cpp',
+  'src/Renderer/Passes/UnderwaterPass.cpp',
+  'src/Renderer/Pipelines/StandardPipeline.cpp',
   'src/Renderer/RenderPipeline.cpp',
   'src/Renderer/Renderer.cpp',
   'src/Renderer/Shader.cpp',
@@ -62,6 +65,9 @@ sources = files(
   'src/Scene/ObjectFactory.cpp',
   'src/Scene/Scene.cpp',
   'src/Scene/SceneIO.cpp',
+  'src/Scene/SceneManager.cpp',
+  'src/Scene/Behavior.cpp',
+  'src/Scene/BehaviorRegistry.cpp',
   'src/glad.c'
 )
 

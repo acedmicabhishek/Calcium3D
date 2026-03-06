@@ -12,4 +12,5 @@ public:
     void Execute(const RenderContext& context) override;
     
     static void Reload();
+    static unsigned int GetCubemapTexture(); 
 };

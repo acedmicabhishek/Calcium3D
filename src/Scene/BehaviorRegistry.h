@@ -33,10 +33,7 @@ public:
     }
 
 private:
-    static std::map<std::string, ScriptCreator>& GetCreators() {
-        static std::map<std::string, ScriptCreator> creators;
-        return creators;
-    }
+    static std::map<std::string, ScriptCreator>& GetCreators();
 };
 
 
