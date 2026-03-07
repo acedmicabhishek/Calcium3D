@@ -181,6 +181,7 @@ void EditorApplication::SaveProject(bool silent) {
     config["graphics"]["ssrFadeStart"] = m_EditorLayer->ssrFadeStart;
     
     
+    /*
     config["environment"]["showSkybox"] = m_EditorLayer->showSkybox;
     config["environment"]["showGradientSky"] = m_EditorLayer->showGradientSky;
     config["environment"]["showWater"] = m_EditorLayer->showWater;
@@ -215,6 +216,7 @@ void EditorApplication::SaveProject(bool silent) {
     config["environment"]["enablePointShadows"] = m_EditorLayer->enablePointShadows;
     config["environment"]["shadowBias"] = m_EditorLayer->shadowBias;
     config["environment"]["globalTilingFactor"] = m_EditorLayer->globalTilingFactor;
+    */
 
     std::string configPath = m_ProjectRoot + "/project.c3dproj";
     std::ofstream file(configPath);
@@ -347,6 +349,7 @@ void EditorApplication::OpenProject(const std::string& path) {
                 if (g.contains("ssrFadeStart")) m_EditorLayer->ssrFadeStart = g["ssrFadeStart"].get<float>();
             }
 
+            /*
             if (config.contains("environment")) {
                 auto& env = config["environment"];
                 if (env.contains("showSkybox")) m_EditorLayer->showSkybox = env["showSkybox"].get<bool>();
@@ -384,6 +387,7 @@ void EditorApplication::OpenProject(const std::string& path) {
                 if (env.contains("shadowBias")) m_EditorLayer->shadowBias = env["shadowBias"].get<float>();
                 if (env.contains("globalTilingFactor")) m_EditorLayer->globalTilingFactor = env["globalTilingFactor"].get<float>();
             }
+            */
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to parse project.c3dproj: %s", e.what());
         }

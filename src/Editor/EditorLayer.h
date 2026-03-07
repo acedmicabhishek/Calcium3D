@@ -228,7 +228,6 @@ private:
     void DrawSettings(Scene& scene, Camera& camera);
     void DrawViewport(Scene& scene, Camera& camera);
     void DrawContentBrowser();
-    void DrawAnimator(Scene& scene);
     void DrawUIEditor();
     void DrawContentBrowserTree(const std::string& path);
     void DrawContentBrowserGrid();

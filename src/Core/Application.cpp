@@ -107,7 +107,6 @@ bool Application::Init()
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     ResourceManager::LoadShader("default", "../shaders/passes/geometry/default.vert", "../shaders/passes/geometry/default.frag");
-    ResourceManager::LoadShader("skeletal", "../shaders/passes/geometry/skeletal.vert", "../shaders/passes/geometry/skeletal.frag");
     ResourceManager::LoadShader("light", "../shaders/passes/geometry/light.vert", "../shaders/passes/geometry/light.frag");
     ResourceManager::LoadShader("skybox", "../shaders/passes/sky/skybox.vert", "../shaders/passes/sky/skybox.frag");
     ResourceManager::LoadShader("gradientSky", "../shaders/passes/sky/gradient_sky.vert", "../shaders/passes/sky/gradient_sky.frag");
@@ -118,9 +117,7 @@ bool Application::Init()
     
     
     ResourceManager::LoadShader("shadow", "../shaders/passes/shadow/shadow.vert", "../shaders/passes/shadow/shadow.frag");
-    ResourceManager::LoadShader("shadow_skeletal", "../shaders/passes/shadow/shadow_skeletal.vert", "../shaders/passes/shadow/shadow.frag");
     ResourceManager::LoadShader("point_shadow", "../shaders/passes/shadow/point_shadow.vert", "../shaders/passes/shadow/point_shadow.frag", "../shaders/passes/shadow/point_shadow.geom");
-    ResourceManager::LoadShader("point_shadow_skeletal", "../shaders/passes/shadow/point_shadow_skeletal.vert", "../shaders/passes/shadow/point_shadow.frag", "../shaders/passes/shadow/point_shadow.geom");
     
     HitboxGraphics::Init();
     

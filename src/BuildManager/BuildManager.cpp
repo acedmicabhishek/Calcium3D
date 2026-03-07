@@ -278,9 +278,11 @@ bool BuildManager::GenerateConfigFile(const BuildSettings& settings) {
     }
     config["game_states"] = gameStatesObj;
     
+/*
     if (!settings.EnvironmentSettings.empty()) {
         config["environment"] = settings.EnvironmentSettings;
     }
+    */
     
     std::ofstream file(configPath);
     if (file.is_open()) {

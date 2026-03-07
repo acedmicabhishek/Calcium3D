@@ -327,7 +327,6 @@ void EditorLayer::SetupDockLayout() {
     ImGui::DockBuilderDockWindow("Settings", dock_right_id);
     ImGui::DockBuilderDockWindow("Content Browser", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
-    ImGui::DockBuilderDockWindow("Animator", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Profiler##C3D", dock_bottom_id);
     ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
 

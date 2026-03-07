@@ -87,6 +87,7 @@ void RuntimeApplication::LoadProjectConfig() {
                 }
             }
             
+            /*
             if (config.contains("environment")) {
                 auto& env = config["environment"];
                 if (env.contains("showSkybox")) m_Console->SetSkyboxEnabled(env["showSkybox"]);
@@ -130,6 +131,7 @@ void RuntimeApplication::LoadProjectConfig() {
                 
                 if (env.contains("globalTilingFactor")) m_RenderContext.globalTilingFactor = env["globalTilingFactor"];
             }
+            */
 
             if (config.contains("graphics")) {
                 auto& gfx = config["graphics"];
