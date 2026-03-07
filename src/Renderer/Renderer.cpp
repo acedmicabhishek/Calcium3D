@@ -188,3 +188,74 @@ void Renderer::RenderScene(Scene& scene, Camera& camera, Shader& shader, float t
         object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride);
     }
 }
+
+void Renderer::RenderHitboxes(Scene& scene, Camera& camera) {
+    if (!ResourceManager::HasShader("hitbox")) {
+        
+        try {
+            ResourceManager::LoadShader("hitbox", "shaders/passes/hitbox.vert", "shaders/passes/hitbox.frag");
+        } catch (...) {
+            return;
+        }
+    }
+
+    static unsigned int boxVAO = 0, boxVBO = 0, boxEBO = 0;
+    if (boxVAO == 0) {
+        float vertices[] = {
+            -0.5f, -0.5f, -0.5f,  0.5f, -0.5f, -0.5f,  0.5f,  0.5f, -0.5f, -0.5f,  0.5f, -0.5f,
+            -0.5f, -0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.5f, -0.5f,  0.5f,  0.5f
+        };
+        unsigned int indices[] = {
+            0, 1, 1, 2, 2, 3, 3, 0,
+            4, 5, 5, 6, 6, 7, 7, 4,
+            0, 4, 1, 5, 2, 6, 3, 7
+        };
+
+        glGenVertexArrays(1, &boxVAO);
+        glGenBuffers(1, &boxVBO);
+        glGenBuffers(1, &boxEBO);
+
+        glBindVertexArray(boxVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, boxVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boxEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+    }
+
+    Shader& hbShader = ResourceManager::GetShader("hitbox");
+    hbShader.use();
+    hbShader.setMat4("view", camera.GetViewMatrix());
+    hbShader.setMat4("projection", camera.GetProjectionMatrix());
+
+    auto& objects = scene.GetObjects();
+    glBindVertexArray(boxVAO);
+    glLineWidth(2.0f);
+
+    for (size_t i = 0; i < objects.size(); ++i) {
+        auto& obj = objects[i];
+        if (!obj.isActive) continue;
+
+        glm::mat4 model = scene.GetGlobalTransform(i);
+        glm::vec3 size = obj.mesh.maxAABB - obj.mesh.minAABB;
+        glm::vec3 center = (obj.mesh.maxAABB + obj.mesh.minAABB) * 0.5f;
+
+        glm::mat4 hitboxModel = glm::translate(model, center);
+        hitboxModel = glm::scale(hitboxModel, size);
+
+        hbShader.setMat4("model", hitboxModel);
+        
+        glm::vec3 color = obj.isStatic ? glm::vec3(1.0f, 1.0f, 0.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
+        hbShader.setVec3("color", color);
+
+        glDisable(GL_DEPTH_TEST);
+        glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+        glEnable(GL_DEPTH_TEST);
+    }
+
+    glLineWidth(1.0f);
+    glBindVertexArray(0);
+}

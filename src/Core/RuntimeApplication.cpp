@@ -61,6 +61,11 @@ void RuntimeApplication::LoadProjectConfig() {
             std::ifstream file("project.json");
             nlohmann::json config = nlohmann::json::parse(file);
             
+            if (config.contains("disable_state_warning")) m_ShowStateWarning = !config["disable_state_warning"];
+            
+            if (config.contains("ms_control")) m_Console->SetMasterControl(config["ms_control"]);
+            if (config.contains("hitboxes")) m_Console->SetHitboxEnabled(config["hitboxes"]);
+            
             m_ProjectRoot = std::filesystem::current_path().string();
             
             
@@ -386,8 +391,10 @@ void RuntimeApplication::OnUpdate(float deltaTime)
     }
 
     
-    if (m_IsDemoScene && m_Camera && m_Window && m_CursorCaptured) {
+    if ((m_IsDemoScene || m_Console->IsMasterControlEnabled()) && m_Camera && m_Window && m_CursorCaptured) {
         float camSpeed = 8.0f * deltaTime;
+        if (m_Console->IsMasterControlEnabled()) camSpeed = 15.0f * deltaTime; 
+        
         glm::vec3 forward = m_Camera->Orientation;
         glm::vec3 right = glm::normalize(glm::cross(forward, m_Camera->Up));
         if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS)
@@ -554,6 +561,10 @@ void RuntimeApplication::OnRender()
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, winW, winH, 0, 0, winW, winH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    if (m_Console && m_Console->IsHitboxEnabled()) {
+        Renderer::RenderHitboxes(*m_Scene, *m_Camera);
+    }
     
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();

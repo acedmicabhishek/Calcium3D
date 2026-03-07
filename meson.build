@@ -17,6 +17,12 @@ thread_dep = dependency('threads')
 glm_dep = dependency('glm', required : false)
 json_dep = dependency('nlohmann_json', required : false)
 
+# FFmpeg
+avcodec_dep = dependency('libavcodec')
+avformat_dep = dependency('libavformat')
+swscale_dep = dependency('libswscale')
+avutil_dep = dependency('libavutil')
+
 # Standalone Runtime Define
 add_project_arguments('-DC3D_RUNTIME', language : 'cpp')
 add_project_arguments('-DIMGUI_IMPL_OPENGL_LOADER_GLAD', language : 'cpp')
@@ -30,7 +36,10 @@ inc_dirs = include_directories(
   'src/Core',
   'src/Renderer',
   'src/Scene',
-  'src/Environment'
+  'src/Environment',
+  'imgui',
+  'imgui/backends',
+  'include/ufbx'
 )
 
 sources = files(
@@ -38,12 +47,15 @@ sources = files(
   'src/Core/RuntimeApplication.cpp',
   'src/Core/InputManager.cpp',
   'src/Core/Logger.cpp',
+  'src/Core/Console.cpp',
+  'src/AudioEngine/audioEngine.cpp',
   'src/Core/ResourceManager.cpp',
   'src/Core/main.cpp',
+  'src/Core/State.cpp',
   'src/Core/stb_impl.cpp',
   'src/Environment/2dCloud.cpp',
   'src/Environment/VolumetricCloud.cpp',
-  'src/Environment/Water.cpp',
+  'src/Core/ThreadManager.cpp',
   'src/Renderer/Camera.cpp',
   'src/Renderer/EBO.cpp',
   'src/Renderer/Mesh.cpp',
@@ -59,22 +71,40 @@ sources = files(
   'src/Renderer/Renderer.cpp',
   'src/Renderer/Shader.cpp',
   'src/Renderer/Texture.cpp',
+  'src/Renderer/VideoPlayer.cpp',
+  'src/ModelImport/ModelImporter.cpp',
+  'include/ufbx/ufbx.c',
   'src/Renderer/VAO.cpp',
   'src/Renderer/VBO.cpp',
   'src/Renderer/tinyobj_impl.cpp',
+  'src/Physics/PhysicsEngine.cpp',
+  'src/Physics/HitboxGraphics.cpp',
   'src/Scene/ObjectFactory.cpp',
   'src/Scene/Scene.cpp',
   'src/Scene/SceneIO.cpp',
   'src/Scene/SceneManager.cpp',
   'src/Scene/Behavior.cpp',
   'src/Scene/BehaviorRegistry.cpp',
-  'src/glad.c'
+  'src/UI/UIManager.cpp',
+  'src/UI/UICreationEngine.cpp',
+  'src/UI/Screens/GameplayScreen.cpp',
+  'src/UI/Screens/StartScreen.cpp',
+  'src/UI/Screens/FallbackScreen.cpp',
+  'src/glad.c',
+  'imgui/imgui.cpp',
+  'imgui/imgui_draw.cpp',
+  'imgui/imgui_tables.cpp',
+  'imgui/imgui_widgets.cpp',
+  'imgui/imgui_demo.cpp',
+  'imgui/backends/imgui_impl_glfw.cpp',
+  'imgui/backends/imgui_impl_opengl3.cpp'
 )
 
 executable('calcium3d_player',
   sources,
   include_directories : inc_dirs,
-  dependencies : [glfw_dep, gl_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep],
+  dependencies : [glfw_dep, gl_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep,
+                  avcodec_dep, avformat_dep, swscale_dep, avutil_dep],
   cpp_args: ['-static-libgcc', '-static-libstdc++'],
   link_args: ['-static-libgcc', '-static-libstdc++'],
   install : true

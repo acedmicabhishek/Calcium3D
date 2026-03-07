@@ -269,6 +269,8 @@ bool BuildManager::GenerateConfigFile(const BuildSettings& settings) {
     config["start_state"] = settings.StartGameState;
     config["is_standalone"] = true;
     config["disable_state_warning"] = settings.DisableStateWarning;
+    config["ms_control"] = settings.EnableMasterControl;
+    config["hitboxes"] = settings.EnableHitboxes;
     
     nlohmann::json gameStatesObj = nlohmann::json::object();
     for (const auto& [id, name] : settings.CustomGameStates) {

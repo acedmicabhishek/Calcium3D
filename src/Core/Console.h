@@ -36,6 +36,12 @@ public:
     bool IsTimePaused() const { return m_TimePaused; }
     float GetTimeSpeed() const { return m_TimeSpeed; }
 
+    bool IsMasterControlEnabled() const { return m_MasterControl; }
+    void SetMasterControl(bool v) { m_MasterControl = v; }
+
+    bool IsHitboxEnabled() const { return m_ShowHitboxes; }
+    void SetHitboxEnabled(bool v) { m_ShowHitboxes = v; }
+
 private:
     void ExecuteCommand(const std::string& cmd);
     void AddLog(const char* fmt, ...);
@@ -70,6 +76,8 @@ private:
     
     bool m_Wireframe = false;
     bool m_VSync = true;
+    bool m_MasterControl = false;
+    bool m_ShowHitboxes = false;
 };
 
 #endif

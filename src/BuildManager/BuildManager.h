@@ -17,6 +17,8 @@ public:
         std::map<int, std::string> CustomGameStates;
         nlohmann::json EnvironmentSettings;
         bool DisableStateWarning = false;
+        bool EnableMasterControl = false;
+        bool EnableHitboxes = false;
     };
 
     static bool Build(const BuildSettings& settings);

@@ -249,6 +249,8 @@ private:
     char m_BuildStartScene[128] = "main.scene";
     int  m_BuildPlatform = 0; 
     bool m_DisableStateWarning = false;
+    bool m_EnableMasterControlInBuild = false;
+    bool m_EnableHitboxesInBuild = false;
 };
 
 #endif

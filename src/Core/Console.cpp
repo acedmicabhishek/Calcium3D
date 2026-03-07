@@ -74,6 +74,8 @@ void Console::ExecuteCommand(const std::string& cmd) {
         AddLog("  /clouds [on|off]    — Toggle clouds");
         AddLog("  /fov <value>        — Set camera FOV");
         AddLog("  /dynamicsky [on|off]— Toggle dynamic sky mode");
+        AddLog("  /ms [on|off]        — Toggle Master Control (Free Camera)");
+        AddLog("  /hitbox [on|off]    — Toggle Hitbox/AABB Rendering");
         AddLog("  /enable logging     — Toggle internal Engine event logs");
     }
     else if (parsed == "enable logging") {
@@ -175,6 +177,20 @@ void Console::ExecuteCommand(const std::string& cmd) {
         
         std::string arg = (parsed.size() > 4) ? parsed.substr(4) : "";
         AddLog("  Use /settingsCamera panel to adjust FOV interactively");
+    }
+    else if (parsed.rfind("ms", 0) == 0) {
+        std::string arg = (parsed.size() > 2) ? parsed.substr(3) : ""; 
+        if (arg == "on") m_MasterControl = true;
+        else if (arg == "off") m_MasterControl = false;
+        else m_MasterControl = !m_MasterControl;
+        AddLog("  Master Control: %s", m_MasterControl ? "ON" : "OFF");
+    }
+    else if (parsed.rfind("hitbox", 0) == 0) {
+        std::string arg = (parsed.size() > 7) ? parsed.substr(7) : "";
+        if (arg == "on") m_ShowHitboxes = true;
+        else if (arg == "off") m_ShowHitboxes = false;
+        else m_ShowHitboxes = !m_ShowHitboxes;
+        AddLog("  Hitboxes: %s", m_ShowHitboxes ? "ON" : "OFF");
     }
     else if (parsed.rfind("dynamicsky", 0) == 0) {
         std::string arg = (parsed.size() > 11) ? parsed.substr(11) : "";

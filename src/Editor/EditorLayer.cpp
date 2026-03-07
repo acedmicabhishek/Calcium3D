@@ -517,7 +517,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.3f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.4f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.2f, 1.0f));
-            if (ImGui::Button("▶ Play (F7)")) {
+            if (ImGui::Button(" Play (F7)")) {
                 auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
                 if (edApp) edApp->EnterPlayMode();
             }
@@ -526,7 +526,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
-            if (ImGui::Button("■ Stop (F7)")) {
+            if (ImGui::Button("Stop (F7)")) {
                 auto* edApp = dynamic_cast<EditorApplication*>(&Application::Get());
                 if (edApp) edApp->ExitPlayMode();
                 m_MasterControl = false;
@@ -535,7 +535,7 @@ void EditorLayer::DrawMenuBar(Scene& scene) {
 
             ImGui::SameLine();
             if (m_MasterControl) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
-            if (ImGui::Button(m_MasterControl ? "🔒 Lock View" : "🔓 Master Control")) {
+            if (ImGui::Button(m_MasterControl ? " Lock View" : " Master Control")) {
                 m_MasterControl = !m_MasterControl;
                 if (m_MasterControl) Logger::AddLog("[Master] View Unlocked - Free navigation enabled");
                 else Logger::AddLog("[Master] View Locked");
@@ -3849,7 +3849,7 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
 
     
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.85f, 1.0f, 1.0f));
-    ImGui::Text(" Calcium3D — Build System");
+    ImGui::Text(" Calcium3D : Build System");
     ImGui::PopStyleColor();
     ImGui::SameLine(winW - 180);
     ImGui::TextDisabled("Project: %s", Application::Get().GetProjectName().c_str());
@@ -3931,8 +3931,13 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
 
     ImGui::Spacing();
     ImGui::Checkbox("Disable state warning in build", &m_DisableStateWarning);
+    
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Debug Options");
+    ImGui::Checkbox("Enable Hitboxes by default", &m_EnableHitboxesInBuild);
+    ImGui::Checkbox("Enable Master Control by default", &m_EnableMasterControlInBuild);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("When enabled, the fallback warning screen will not\nappear in the standalone build even if states are misconfigured.");
+        ImGui::SetTooltip("If enabled, WASD movement and free camera will be forced ON in the build.");
 
     if (!linuxSelected) ImGui::EndDisabled();
 
@@ -4052,6 +4057,8 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
         settings.CustomGameStates    = customStates;
         settings.EnvironmentSettings = envSetup;
         settings.DisableStateWarning = m_DisableStateWarning;
+        settings.EnableMasterControl = m_EnableMasterControlInBuild;
+        settings.EnableHitboxes      = m_EnableHitboxesInBuild;
         settings.OutputPath = (std::filesystem::path(outputPath).is_absolute()
             ? std::filesystem::path(outputPath)
             : std::filesystem::path(projRoot) / outputPath).string();
