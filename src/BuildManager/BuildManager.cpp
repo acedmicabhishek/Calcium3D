@@ -149,11 +149,20 @@ bool BuildManager::CompileRuntime(const fs::path& buildDir, const std::string& p
     }
     
     
+    
+    std::string compilerPrefix = "";
+    if (system("command -v clang > /dev/null 2>&1") == 0) {
+        compilerPrefix = "CC=clang CXX=clang++ ";
+        Logger::AddLog("[BuildManager] Clang detected, starting compilation with Clang...");
+    } else {
+        Logger::AddLog("[BuildManager] Clang not found, starting compilation with GCC...");
+    }
+
     std::string setupCmd;
     if (fs::exists(buildDir / "build_runtime")) {
-        setupCmd = "cd '" + buildDir.string() + "' && meson setup build_runtime --wipe";
+        setupCmd = "cd '" + buildDir.string() + "' && " + compilerPrefix + "meson setup build_runtime --wipe";
     } else {
-        setupCmd = "cd '" + buildDir.string() + "' && meson setup build_runtime";
+        setupCmd = "cd '" + buildDir.string() + "' && " + compilerPrefix + "meson setup build_runtime";
     }
     std::string compileCmd = "cd '" + buildDir.string() + "' && meson compile -C build_runtime";
     

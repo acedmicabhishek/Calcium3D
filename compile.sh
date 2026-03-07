@@ -14,11 +14,23 @@ fi
 
 cd build || exit
 
-echo "[>] Running cmake..."
-cmake ..
 
-echo "[>] Building project..."
-make -j16 # 16 logical cpu
+CC_COMPILER="gcc"
+CXX_COMPILER="g++"
+
+if command -v clang >/dev/null 2>&1; then
+    echo "[>] Clang detected, preferring Clang..."
+    CC_COMPILER="clang"
+    CXX_COMPILER="clang++"
+else
+    echo "[>] Clang not found, falling back to GCC..."
+fi
+
+echo "[>] Running cmake with Ninja using $CXX_COMPILER..."
+cmake -G Ninja -DCMAKE_C_COMPILER=$CC_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER ..
+
+echo "[>] Building project with Ninja..."
+ninja
 
 if [ $? -eq 0 ]; then
     echo "[100%] Running calcium3d..."

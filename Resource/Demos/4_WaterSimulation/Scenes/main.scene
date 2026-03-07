@@ -16,7 +16,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -112,7 +111,6 @@
                 "FlightHUD"
             ],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 2.0,
@@ -142,7 +140,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -237,7 +234,6 @@
                 "PlaneController"
             ],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,
@@ -267,7 +263,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -360,7 +355,6 @@
             },
             "scripts": [],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,
@@ -390,7 +384,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -483,7 +476,6 @@
             },
             "scripts": [],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,
@@ -513,7 +505,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -606,7 +597,6 @@
             },
             "scripts": [],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,
@@ -636,7 +626,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -729,7 +718,6 @@
             },
             "scripts": [],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,
@@ -759,7 +747,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -852,7 +839,6 @@
             },
             "scripts": [],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,
@@ -882,7 +868,6 @@
                 0.0,
                 0.0
             ],
-            "animations": [],
             "audio": {
                 "dopplerFactor": 1.0,
                 "enableDoppler": true,
@@ -975,7 +960,6 @@
             },
             "scripts": [],
             "shape": 0,
-            "skeleton": null,
             "useGravity": false,
             "water": {
                 "depth": 5.0,

@@ -3,6 +3,15 @@ project(calcium3d)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Build Optimizations
+message(STATUS "Build using: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
+add_compile_options(-w)
+set(CMAKE_UNITY_BUILD ON)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=gold")
+add_compile_definitions(IMGUI_DEFINE_MATH_OPERATORS)
+
 # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Include directories
@@ -25,6 +34,8 @@ set(SOURCES
     src/Core/State.cpp
     src/Core/RuntimeApplication.cpp
     src/Core/ThreadManager.cpp
+    src/Core/GPUManager.cpp
+    src/Core/DependencyManager.cpp
     src/Core/Console.cpp
     src/Core/EditorApplication.cpp
     src/Core/InputManager.cpp
@@ -139,6 +150,24 @@ target_include_directories(calcium3d PUBLIC
     src
     include/ufbx
     src/Tools/Profiler
+    include/ufbx
+    src/Tools/Profiler
+)
+
+# Exclude 3rd party libraries from Unity Build to avoid header pollution and loader conflicts
+set_source_files_properties(
+    imgui/imgui.cpp
+    imgui/imgui_demo.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
+    imgui/ImGuizmo.cpp
+    include/ufbx/ufbx_impl.c
+    src/Core/stb_impl.cpp
+    src/Renderer/tinyobj_impl.cpp
+    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
 )
 
 # Link libraries
@@ -173,6 +202,8 @@ set(TESTBUILD_SOURCES
     src/Core/State.cpp
     src/Core/RuntimeApplication.cpp
     src/Core/ThreadManager.cpp
+    src/Core/GPUManager.cpp
+    src/Core/DependencyManager.cpp
     src/Core/Console.cpp
     src/Core/InputManager.cpp
     src/Core/Logger.cpp
@@ -257,6 +288,20 @@ target_include_directories(calcium3d_testbuild PUBLIC
     src/AudioEngine
 
     src
+)
+
+# Exclude 3rd party libraries from Unity Build for testbuild
+set_source_files_properties(
+    imgui/imgui.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_widgets.cpp
+    imgui/imgui_tables.cpp
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
+    include/ufbx/ufbx_impl.c
+    src/Core/stb_impl.cpp
+    src/Renderer/tinyobj_impl.cpp
+    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
 )
 
 target_link_libraries(calcium3d_testbuild

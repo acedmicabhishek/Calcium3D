@@ -2,6 +2,9 @@
 #include "PlayMode.h"
 #include "ThreadManager.h"
 #include "../AudioEngine/AudioEngine.h"
+#include "../Core/ThreadManager.h"
+#include "../Core/GPUManager.h"
+#include "../UI/UIManager.h"
 #include "../Scene/SceneManager.h"
 #include "../Scene/SceneIO.h"
 #include "../Scene/Builtin/SceneTransitionBehavior.h"
@@ -2302,6 +2305,42 @@ void EditorLayer::DrawSettings(Scene& scene, Camera& camera) {
             ImGui::TextDisabled("Panels are locked in place.");
         } else {
             ImGui::TextDisabled("Drag panels to rearrange.");
+        }
+
+        ImGui::Separator();
+        ImGui::Text("GPU Settings");
+        auto gpus = GPUManager::GetAvailableGPUs();
+        if (gpus.empty()) {
+            ImGui::TextDisabled("No discrete GPUs detected.");
+        } else {
+            int preferred = GPUManager::GetPreferredGPU();
+            std::vector<const char*> gpuNames;
+            gpuNames.push_back("Default (Auto)");
+            int selectedIdx = (preferred == -1) ? 0 : 0;
+            
+            
+            static std::vector<std::string> s_GpuNameStrs;
+            s_GpuNameStrs.clear();
+            s_GpuNameStrs.push_back("Default (Auto)");
+            for (const auto& g : gpus) s_GpuNameStrs.push_back(g.name);
+            
+            std::vector<const char*> c_GpuNames;
+            for (const auto& s : s_GpuNameStrs) c_GpuNames.push_back(s.c_str());
+
+            for (int i = 0; i < gpus.size(); ++i) {
+                if (preferred == i) selectedIdx = i + 1;
+            }
+
+            if (ImGui::Combo("Preferred GPU", &selectedIdx, c_GpuNames.data(), c_GpuNames.size())) {
+                GPUManager::SetPreferredGPU(selectedIdx - 1);
+                ImGui::OpenPopup("GPU Change");
+            }
+
+            if (ImGui::BeginPopupModal("GPU Change", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("GPU selection changed.\nPlease restart the engine to apply changes.");
+                if (ImGui::Button("OK", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
+            }
         }
 
 

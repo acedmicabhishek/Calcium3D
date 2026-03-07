@@ -3,6 +3,10 @@ project('calcium3d_player', 'cpp', 'c',
   default_options : ['warning_level=0', 'cpp_std=c++17', 'buildtype=release'])
 
 cpp = meson.get_compiler('cpp')
+message('Build using: ' + cpp.get_id() + ' ' + cpp.version())
+
+# Common defines
+add_project_arguments('-DIMGUI_DEFINE_MATH_OPERATORS', language : ['cpp', 'c'])
 
 # Dependencies
 glfw_dep = dependency('glfw3', static : true, required : false)
@@ -11,6 +15,7 @@ if not glfw_dep.found()
 endif
 
 gl_dep = dependency('gl')
+glew_dep = dependency('glew')
 dl_dep = cpp.find_library('dl', required : false)
 m_dep = cpp.find_library('m', required : false)
 thread_dep = dependency('threads')
@@ -23,11 +28,7 @@ avformat_dep = dependency('libavformat')
 swscale_dep = dependency('libswscale')
 avutil_dep = dependency('libavutil')
 
-# Standalone Runtime Define
-add_project_arguments('-DC3D_RUNTIME', language : 'cpp')
-add_project_arguments('-DIMGUI_IMPL_OPENGL_LOADER_GLAD', language : 'cpp')
-
-# Root include directories
+# Common include directories
 inc_dirs = include_directories(
   'include',
   'include/tinyobj',
@@ -37,25 +38,31 @@ inc_dirs = include_directories(
   'src/Renderer',
   'src/Scene',
   'src/Environment',
+  'src/Editor',
+  'src/Home',
+  'src/BuildManager',
+  'src/ModelImport',
+  'src/AudioEngine',
+  'src/Tools/Profiler',
   'imgui',
   'imgui/backends',
   'include/ufbx'
 )
 
-sources = files(
+# Common sources for both player and editor
+common_sources = files(
   'src/Core/Application.cpp',
-  'src/Core/RuntimeApplication.cpp',
+  'src/Core/State.cpp',
+  'src/Core/ThreadManager.cpp',
+  'src/Core/GPUManager.cpp',
+  'src/Core/DependencyManager.cpp',
   'src/Core/InputManager.cpp',
   'src/Core/Logger.cpp',
   'src/Core/Console.cpp',
-  'src/AudioEngine/audioEngine.cpp',
   'src/Core/ResourceManager.cpp',
-  'src/Core/main.cpp',
-  'src/Core/State.cpp',
-  'src/Core/stb_impl.cpp',
+  'src/AudioEngine/audioEngine.cpp',
   'src/Environment/2dCloud.cpp',
   'src/Environment/VolumetricCloud.cpp',
-  'src/Core/ThreadManager.cpp',
   'src/Renderer/Camera.cpp',
   'src/Renderer/EBO.cpp',
   'src/Renderer/Mesh.cpp',
@@ -72,11 +79,8 @@ sources = files(
   'src/Renderer/Shader.cpp',
   'src/Renderer/Texture.cpp',
   'src/Renderer/VideoPlayer.cpp',
-  'src/ModelImport/ModelImporter.cpp',
-  'include/ufbx/ufbx.c',
   'src/Renderer/VAO.cpp',
   'src/Renderer/VBO.cpp',
-  'src/Renderer/tinyobj_impl.cpp',
   'src/Physics/PhysicsEngine.cpp',
   'src/Physics/HitboxGraphics.cpp',
   'src/Scene/ObjectFactory.cpp',
@@ -85,12 +89,12 @@ sources = files(
   'src/Scene/SceneManager.cpp',
   'src/Scene/Behavior.cpp',
   'src/Scene/BehaviorRegistry.cpp',
-  'src/UI/UIManager.cpp',
-  'src/UI/UICreationEngine.cpp',
-  'src/UI/Screens/GameplayScreen.cpp',
-  'src/UI/Screens/StartScreen.cpp',
-  'src/UI/Screens/FallbackScreen.cpp',
+  'src/ModelImport/ModelImporter.cpp',
   'src/glad.c',
+  'fs/filesystem.cpp',
+  'src/Core/stb_impl.cpp',
+  'src/Renderer/tinyobj_impl.cpp',
+  'include/ufbx/ufbx_impl.c',
   'imgui/imgui.cpp',
   'imgui/imgui_draw.cpp',
   'imgui/imgui_tables.cpp',
@@ -100,12 +104,54 @@ sources = files(
   'imgui/backends/imgui_impl_opengl3.cpp'
 )
 
+player_sources = common_sources + files(
+  'src/Core/RuntimeApplication.cpp',
+  'src/Core/main.cpp',
+  'src/UI/UIManager.cpp',
+  'src/UI/UICreationEngine.cpp',
+  'src/UI/Screens/GameplayScreen.cpp',
+  'src/UI/Screens/StartScreen.cpp',
+  'src/UI/Screens/FallbackScreen.cpp'
+)
+
+editor_sources = common_sources + files(
+  'src/Core/EditorApplication.cpp',
+  'src/Core/main.cpp',
+  'src/Editor/Editor.cpp',
+  'src/Editor/EditorLayer.cpp',
+  'src/Editor/PlayMode.cpp',
+  'src/Editor/Gizmo.cpp',
+  'src/Home/Home.cpp',
+  'src/BuildManager/BuildManager.cpp',
+  'src/Tools/Profiler/Profiler.cpp',
+  'src/Tools/Profiler/ProfilerUI.cpp',
+  'src/Tools/Profiler/GpuProfiler.cpp',
+  'imgui/ImGuizmo.cpp',
+  'src/Game/game_code.cpp',
+  'src/UI/UIManager.cpp',
+  'src/UI/UICreationEngine.cpp',
+  'src/UI/Screens/StartScreen.cpp',
+  'src/UI/Screens/GameScreen.cpp',
+  'src/UI/Screens/GameplayScreen.cpp',
+  'src/UI/Screens/FallbackScreen.cpp'
+)
+
 executable('calcium3d_player',
-  sources,
+  player_sources,
   include_directories : inc_dirs,
-  dependencies : [glfw_dep, gl_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep,
+  dependencies : [glfw_dep, gl_dep, glew_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep,
                   avcodec_dep, avformat_dep, swscale_dep, avutil_dep],
-  cpp_args: ['-static-libgcc', '-static-libstdc++'],
-  link_args: ['-static-libgcc', '-static-libstdc++'],
+  cpp_args: ['-DC3D_RUNTIME', '-DIMGUI_IMPL_OPENGL_LOADER_CUSTOM', '-include', 'glad/glad.h', '-w'],
+  link_args: ['-fuse-ld=gold'],
+  install : true
+)
+
+executable('calcium3d',
+  editor_sources,
+  include_directories : inc_dirs,
+  dependencies : [glfw_dep, gl_dep, glew_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep,
+                  avcodec_dep, avformat_dep, swscale_dep, avutil_dep],
+  cpp_args: ['-DIMGUI_IMPL_OPENGL_LOADER_CUSTOM', '-include', 'glad/glad.h', '-w'],
+  link_args: ['-fuse-ld=gold'],
   install : true
 )

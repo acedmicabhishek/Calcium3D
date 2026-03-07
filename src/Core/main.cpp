@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "ResourceManager.h"
+#include "GPUManager.h"
 
 #ifdef C3D_RUNTIME
 #include "RuntimeApplication.h"
@@ -7,7 +8,11 @@
 #include "EditorApplication.h"
 #endif
 
-int main() {
+int main(int argc, char** argv) {
+    GPUManager::EnsureProperGPU(argc, argv);
+    
+    printf("[Calcium3D] Engine Starting...\n");
+    
     ApplicationSpecification spec;
     spec.Name = "Calcium3D";
     spec.Width = 1200;

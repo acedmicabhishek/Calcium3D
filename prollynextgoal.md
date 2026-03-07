@@ -6,6 +6,11 @@ animator is kinda kicking my ass
 
 
 demo scene for all featuers 
+placeholder image for demo screen 
+
+
+loading screen for all 
+
 
 forced optimiation 
 

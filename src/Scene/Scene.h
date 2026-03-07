@@ -13,6 +13,14 @@
 
 #include <any>
 
+
+#ifdef None
+#undef None
+#endif
+#ifdef Status
+#undef Status
+#endif
+
 enum class ColliderShape { Box, Sphere };
 enum class MeshType { None, Cube, Sphere, Plane, Model, Camera, Water };
 enum class AudioType { Directional, Ambience };

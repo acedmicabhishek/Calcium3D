@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdlib>
+#include "../Core/DependencyManager.h"
 #include <map>
 #include <cstdlib>
 
@@ -87,6 +88,85 @@ void Home::Render() {
                 Logger::AddLog("[ERROR] Failed to open native file dialog (Zenity required).");
                 Application::Get().OpenProject(m_BaseProjectsPath.string());
             }
+        }
+
+        ImGui::SetCursorPosX(centerX);
+        if (ImGui::Button("Install Dependencies", ImVec2(buttonWidth, 40))) {
+            ImGui::OpenPopup("Dependency Manager");
+        }
+
+        if (ImGui::BeginPopupModal("Dependency Manager", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("System Requirements:");
+            ImGui::Separator();
+            
+            static std::vector<DependencyInfo> s_Deps = DependencyManager::GetDependencies();
+            static float lastRefresh = 0;
+            if (ImGui::GetTime() - lastRefresh > 5.0f) {
+                s_Deps = DependencyManager::GetDependencies();
+                lastRefresh = ImGui::GetTime();
+            }
+
+            bool allInstalled = true;
+            
+            ImGui::BeginChild("DepList", ImVec2(500, 300), true);
+            for (const auto& dep : s_Deps) {
+                ImGui::PushID(dep.packageName.c_str());
+                
+                if (dep.isInstalled) {
+                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[INSTALLED]");
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "[MISSING  ]");
+                    allInstalled = false;
+                }
+                
+                ImGui::SameLine(100);
+                ImGui::Text("%s", dep.name.c_str());
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s (%s)", dep.description.c_str(), dep.packageName.c_str());
+                
+                ImGui::SameLine(300);
+                if (dep.isInstalled) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+                    if (ImGui::Button("Uninstall", ImVec2(80, 0))) {
+                        DependencyManager::UninstallPackage(dep);
+                        s_Deps = DependencyManager::GetDependencies();
+                    }
+                    ImGui::PopStyleColor();
+                } else {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 0.2f, 1.0f));
+                    if (ImGui::Button("Install", ImVec2(80, 0))) {
+                        DependencyManager::InstallPackage(dep);
+                        s_Deps = DependencyManager::GetDependencies();
+                    }
+                    ImGui::PopStyleColor();
+                }
+                
+                ImGui::PopID();
+                ImGui::Separator();
+            }
+            ImGui::EndChild();
+            
+            ImGui::Separator();
+            
+            std::string pm = DependencyManager::GetPackageManager();
+            ImGui::Text("Detected Package Manager: %s", pm.empty() ? "None (Manual Install required)" : pm.c_str());
+
+            if (!pm.empty()) {
+                if (ImGui::Button("Install All Missing", ImVec2(200, 40))) {
+                    DependencyManager::InstallAll();
+                    s_Deps = DependencyManager::GetDependencies();
+                }
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Warning: No supported package manager found.");
+                ImGui::Text("Please install dependencies manually using your distro's tools.");
+            }
+            
+            ImGui::Spacing();
+            if (ImGui::Button("Refresh", ImVec2(120, 0))) {
+                s_Deps = DependencyManager::GetDependencies();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Close", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
         }
 
         

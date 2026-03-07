@@ -1,6 +1,6 @@
 project('calcium3d_player', 'cpp', 'c',
   version : '0.1',
-  default_options : ['warning_level=2', 'cpp_std=c++17', 'buildtype=release'])
+  default_options : ['warning_level=0', 'cpp_std=c++17', 'buildtype=release'])
 
 cpp = meson.get_compiler('cpp')
 
@@ -11,6 +11,7 @@ if not glfw_dep.found()
 endif
 
 gl_dep = dependency('gl')
+glew_dep = dependency('glew')
 dl_dep = cpp.find_library('dl', required : false)
 m_dep = cpp.find_library('m', required : false)
 thread_dep = dependency('threads')
@@ -20,10 +21,6 @@ avutil_dep = dependency('libavutil', required : true)
 avcodec_dep = dependency('libavcodec', required : true)
 avformat_dep = dependency('libavformat', required : true)
 swscale_dep = dependency('libswscale', required : true)
-
-# Standalone Runtime Define
-add_project_arguments('-DC3D_RUNTIME', language : 'cpp')
-add_project_arguments('-DIMGUI_IMPL_OPENGL_LOADER_GLAD', language : 'cpp')
 
 # Root include directories
 inc_dirs = include_directories(
@@ -46,6 +43,7 @@ inc_dirs = include_directories(
 
 sources = files(
   'src/Core/Application.cpp',
+  'src/Core/GPUManager.cpp',
   'src/Core/State.cpp',
   'src/Core/RuntimeApplication.cpp',
   'src/Core/Console.cpp',
@@ -53,13 +51,11 @@ sources = files(
   'src/Core/Logger.cpp',
   'src/Core/ResourceManager.cpp',
   'src/Core/main.cpp',
-  'src/Core/stb_impl.cpp',
   'src/Environment/2dCloud.cpp',
   'src/Environment/VolumetricCloud.cpp',
   'src/Renderer/Camera.cpp',
   'src/Renderer/EBO.cpp',
   'src/Renderer/Mesh.cpp',
-  'src/Renderer/VideoPlayer.cpp',
   'src/Renderer/Model.cpp',
   'src/Renderer/Passes/GeometryPass.cpp',
   'src/Renderer/Passes/SSRPass.cpp',
@@ -75,9 +71,9 @@ sources = files(
   'src/Renderer/Renderer.cpp',
   'src/Renderer/Shader.cpp',
   'src/Renderer/Texture.cpp',
+  'src/Renderer/VideoPlayer.cpp',
   'src/Renderer/VAO.cpp',
   'src/Renderer/VBO.cpp',
-  'src/Renderer/tinyobj_impl.cpp',
   'src/Scene/ObjectFactory.cpp',
   'src/Scene/Scene.cpp',
   'src/Scene/SceneIO.cpp',
@@ -93,9 +89,11 @@ sources = files(
   'src/UI/Screens/GameScreen.cpp',
   'src/UI/Screens/FallbackScreen.cpp',
   'src/ModelImport/ModelImporter.cpp',
-  'include/ufbx/ufbx_impl.c',
   'src/glad.c',
   'fs/filesystem.cpp',
+  'src/Core/stb_impl.cpp',
+  'src/Renderer/tinyobj_impl.cpp',
+  'include/ufbx/ufbx_impl.c',
   'imgui/imgui.cpp',
   'imgui/imgui_draw.cpp',
   'imgui/imgui_widgets.cpp',
@@ -107,8 +105,8 @@ sources = files(
 executable('calcium3d_player',
   sources,
   include_directories : inc_dirs,
-  dependencies : [glfw_dep, gl_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep, avutil_dep, avcodec_dep, avformat_dep, swscale_dep],
-  cpp_args: ['-static-libgcc', '-static-libstdc++'],
-  link_args: ['-static-libgcc', '-static-libstdc++'],
+  dependencies : [glfw_dep, gl_dep, glew_dep, dl_dep, m_dep, thread_dep, glm_dep, json_dep, avutil_dep, avcodec_dep, avformat_dep, swscale_dep],
+  cpp_args: ['-DC3D_RUNTIME', '-DIMGUI_IMPL_OPENGL_LOADER_GLAD', '-DIMGUI_DEFINE_MATH_OPERATORS', '-w'],
+  link_args: ['-fuse-ld=gold'],
   install : true
 )

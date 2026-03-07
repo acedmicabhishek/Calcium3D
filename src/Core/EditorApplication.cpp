@@ -380,7 +380,7 @@ void EditorApplication::OpenProject(const std::string& path) {
                 if (env.contains("enableShadows")) m_EditorLayer->enableShadows = env["enableShadows"].get<bool>();
                 if (env.contains("enablePointShadows")) m_EditorLayer->enablePointShadows = env["enablePointShadows"].get<bool>();
                 if (env.contains("shadowBias")) m_EditorLayer->shadowBias = env["shadowBias"].get<float>();
-                
+            }
         } catch (const std::exception& e) {
             Logger::AddLog("[ERROR] Failed to parse project.c3dproj: %s", e.what());
         }
