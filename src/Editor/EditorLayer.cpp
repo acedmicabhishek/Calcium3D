@@ -4027,26 +4027,35 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
         envSetup["moonIntensity"]      = moonIntensity;
         envSetup["moonColor"]          = {moonColor.r, moonColor.g, moonColor.b, moonColor.a};
         envSetup["moonBloom"]          = moonBloom;
-        envSetup["globalTilingFactor"] = globalTilingFactor;
-        
-        envSetup["reflectionMode"]        = reflectionMode;
-        envSetup["ssrUseCubemapFallback"] = ssrUseCubemapFallback;
-        envSetup["ssrGeometry"]           = ssrGeometry;
-        envSetup["ssrTransparency"]       = ssrTransparency;
-        envSetup["ssrAll"]                = ssrAll;
-        envSetup["ssrResolution"]         = ssrResolution;
-        envSetup["ssrMaxSteps"]           = ssrMaxSteps;
-        envSetup["ssrMaxDistance"]        = ssrMaxDistance;
-        envSetup["ssrThickness"]          = ssrThickness;
-        envSetup["ssrRenderDistance"]     = ssrRenderDistance;
-        envSetup["ssrFadeStart"]          = ssrFadeStart;
+
+        nlohmann::json gfxSetup;
+        gfxSetup["reflectionMode"]        = reflectionMode;
+        gfxSetup["ssrUseCubemapFallback"] = ssrUseCubemapFallback;
+        gfxSetup["ssrGeometry"]           = ssrGeometry;
+        gfxSetup["ssrTransparency"]       = ssrTransparency;
+        gfxSetup["ssrAll"]                = ssrAll;
+        gfxSetup["ssrResolution"]         = ssrResolution;
+        gfxSetup["ssrMaxSteps"]           = ssrMaxSteps;
+        gfxSetup["ssrMaxDistance"]        = ssrMaxDistance;
+        gfxSetup["ssrThickness"]          = ssrThickness;
+        gfxSetup["ssrRenderDistance"]     = ssrRenderDistance;
+        gfxSetup["ssrFadeStart"]          = ssrFadeStart;
+        gfxSetup["msaaSamples"]           = msaaSamples;
+        gfxSetup["msaaSkyPass"]           = msaaSkyPass;
+        gfxSetup["msaaGeometryPass"]      = msaaGeometryPass;
+        gfxSetup["msaaTransparencyPass"]  = msaaTransparencyPass;
+
+        nlohmann::json camSetup;
         Camera* cam = Application::Get().GetCamera();
         if (cam) {
-            envSetup["camera"]["position"]    = nlohmann::json::array({cam->Position.x, cam->Position.y, cam->Position.z});
-            envSetup["camera"]["orientation"] = nlohmann::json::array({cam->Orientation.x, cam->Orientation.y, cam->Orientation.z});
-            envSetup["camera"]["yaw"]   = cam->yaw;
-            envSetup["camera"]["pitch"] = cam->pitch;
-            envSetup["camera"]["fov"]   = cam->FOV;
+            camSetup["position"]    = nlohmann::json::array({cam->Position.x, cam->Position.y, cam->Position.z});
+            camSetup["orientation"] = nlohmann::json::array({cam->Orientation.x, cam->Orientation.y, cam->Orientation.z});
+            camSetup["up"]          = nlohmann::json::array({cam->Up.x, cam->Up.y, cam->Up.z});
+            camSetup["yaw"]   = cam->yaw;
+            camSetup["pitch"] = cam->pitch;
+            camSetup["fov"]   = cam->FOV;
+            camSetup["nearPlane"] = cam->nearPlane;
+            camSetup["farPlane"]  = cam->farPlane;
         }
 
         BuildManager::BuildSettings settings;
@@ -4055,6 +4064,8 @@ void EditorLayer::DrawBuildModal(Scene& scene) {
         settings.StartGameState      = startState;
         settings.CustomGameStates    = customStates;
         settings.EnvironmentSettings = envSetup;
+        settings.GraphicsSettings    = gfxSetup;
+        settings.CameraSettings      = camSetup;
         settings.DisableStateWarning = m_DisableStateWarning;
         settings.EnableMasterControl = m_EnableMasterControlInBuild;
         settings.EnableHitboxes      = m_EnableHitboxesInBuild;

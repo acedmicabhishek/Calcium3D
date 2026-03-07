@@ -16,6 +16,8 @@ public:
         int StartGameState = 0; 
         std::map<int, std::string> CustomGameStates;
         nlohmann::json EnvironmentSettings;
+        nlohmann::json GraphicsSettings;
+        nlohmann::json CameraSettings;
         bool DisableStateWarning = false;
         bool EnableMasterControl = false;
         bool EnableHitboxes = false;

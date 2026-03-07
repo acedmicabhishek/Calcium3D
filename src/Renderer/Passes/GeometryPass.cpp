@@ -97,12 +97,10 @@ void GeometryPass::Execute(const RenderContext& context)
             shader.setInt("dirShadowMap", 4);
         }
         
-        if (context.enablePointShadows) {
-            for (int i = 0; i < 4; i++) {
-                glActiveTexture(GL_TEXTURE5 + i); 
-                glBindTexture(GL_TEXTURE_CUBE_MAP, context.pointShadowCubemaps[i]);
-                shader.setInt("pointShadowMap" + std::to_string(i), 5 + i);
-            }
+        for (int i = 0; i < 4; i++) {
+            glActiveTexture(GL_TEXTURE5 + i); 
+            glBindTexture(GL_TEXTURE_CUBE_MAP, context.pointShadowCubemaps[i]);
+            shader.setInt("pointShadowMap" + std::to_string(i), 5 + i);
         }
         
         Renderer::RenderScene(*context.scene, *context.camera, shader, context.globalTilingFactor, context.renderEditorObjects, context.deltaTime, context.time, 1);

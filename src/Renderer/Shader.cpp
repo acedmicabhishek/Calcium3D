@@ -69,6 +69,11 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath, const char* geo
     glLinkProgram(ID);
     checkCompileErrors(ID, "PROGRAM");
     
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        std::cout << "GL_ERROR after shader link: 0x" << std::hex << err << std::dec << std::endl;
+    }
+    
     glDeleteShader(vertex);
     glDeleteShader(fragment);
     if (geometryPath != nullptr)

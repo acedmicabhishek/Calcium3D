@@ -87,18 +87,17 @@ void RuntimeApplication::LoadProjectConfig() {
                 }
             }
             
-            /*
-            if (config.contains("environment")) {
+                if (config.contains("environment")) {
                 auto& env = config["environment"];
+
                 if (env.contains("showSkybox")) m_Console->SetSkyboxEnabled(env["showSkybox"]);
                 if (env.contains("showGradientSky")) m_Console->SetGradientSkyEnabled(env["showGradientSky"]);
                 if (env.contains("showClouds")) m_Console->SetCloudsEnabled(env["showClouds"]);
-                
+
                 if (env.contains("cloudMode")) m_RenderContext.cloudMode = env["cloudMode"];
                 if (env.contains("cloudHeight")) m_RenderContext.cloudHeight = env["cloudHeight"];
                 if (env.contains("cloudDensity")) m_RenderContext.cloudDensity = env["cloudDensity"];
                 if (env.contains("cloudCover")) m_RenderContext.cloudCover = env["cloudCover"];
-                
                 if (env.contains("cloudSpeed") && m_Cloud2D) m_Cloud2D->cloudSpeed = env["cloudSpeed"];
                 if (env.contains("cloudTiling") && m_Cloud2D) m_Cloud2D->tiling = env["cloudTiling"];
                 if (env.contains("cloudSize") && m_Cloud2D) m_Cloud2D->cloudSize = env["cloudSize"];
@@ -107,8 +106,9 @@ void RuntimeApplication::LoadProjectConfig() {
                     auto& clc = env["cloudColor"];
                     m_Cloud2D->cloudColor = glm::vec3(clc[0], clc[1], clc[2]);
                 }
-                
+
                 if (env.contains("timeOfDay")) m_RenderContext.timeOfDay = env["timeOfDay"];
+
                 if (env.contains("sunEnabled")) m_RenderContext.sunEnabled = env["sunEnabled"];
                 if (env.contains("sunIntensity")) m_RenderContext.sunIntensity = env["sunIntensity"];
                 if (env.contains("sunColor")) {
@@ -116,11 +116,7 @@ void RuntimeApplication::LoadProjectConfig() {
                     m_RenderContext.sunColor = glm::vec4(sc[0], sc[1], sc[2], sc[3]);
                 }
                 if (env.contains("sunBloom")) m_RenderContext.sunBloom = env["sunBloom"];
-                
-                if (env.contains("enableShadows")) m_RenderContext.enableShadows = env["enableShadows"];
-                if (env.contains("enablePointShadows")) m_RenderContext.enablePointShadows = env["enablePointShadows"];
-                if (env.contains("shadowBias")) m_RenderContext.shadowBias = env["shadowBias"];
-                
+
                 if (env.contains("moonEnabled")) m_RenderContext.moonEnabled = env["moonEnabled"];
                 if (env.contains("moonIntensity")) m_RenderContext.moonIntensity = env["moonIntensity"];
                 if (env.contains("moonColor")) {
@@ -128,10 +124,11 @@ void RuntimeApplication::LoadProjectConfig() {
                     m_RenderContext.moonColor = glm::vec4(mc[0], mc[1], mc[2], mc[3]);
                 }
                 if (env.contains("moonBloom")) m_RenderContext.moonBloom = env["moonBloom"];
-                
-                if (env.contains("globalTilingFactor")) m_RenderContext.globalTilingFactor = env["globalTilingFactor"];
+
+                if (env.contains("enableShadows")) m_RenderContext.enableShadows = env["enableShadows"];
+                if (env.contains("enablePointShadows")) m_RenderContext.enablePointShadows = env["enablePointShadows"];
+                if (env.contains("shadowBias")) m_RenderContext.shadowBias = env["shadowBias"];
             }
-            */
 
             if (config.contains("graphics")) {
                 auto& gfx = config["graphics"];
@@ -151,7 +148,7 @@ void RuntimeApplication::LoadProjectConfig() {
                     CreateMSAAFramebuffer(m_MSAASamples);
                 }
             }
-            
+
             if (config.contains("camera")) {
                 auto& cam = config["camera"];
                 if (cam.contains("position")) {

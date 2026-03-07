@@ -278,11 +278,15 @@ bool BuildManager::GenerateConfigFile(const BuildSettings& settings) {
     }
     config["game_states"] = gameStatesObj;
     
-/*
     if (!settings.EnvironmentSettings.empty()) {
         config["environment"] = settings.EnvironmentSettings;
     }
-    */
+    if (!settings.GraphicsSettings.empty()) {
+        config["graphics"] = settings.GraphicsSettings;
+    }
+    if (!settings.CameraSettings.empty()) {
+        config["camera"] = settings.CameraSettings;
+    }
     
     std::ofstream file(configPath);
     if (file.is_open()) {
