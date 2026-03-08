@@ -8,3 +8,8 @@ Makefile
 
 Pipeline.md
 build_meson/
+.cache/
+compile_commands.json
+.clangd/
+
+ForcedOptimisation.md

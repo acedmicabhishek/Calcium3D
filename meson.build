@@ -76,6 +76,7 @@ common_sources = files(
   'src/Renderer/Pipelines/StandardPipeline.cpp',
   'src/Renderer/RenderPipeline.cpp',
   'src/Renderer/Renderer.cpp',
+  'src/Renderer/Frustum.cpp',
   'src/Renderer/Shader.cpp',
   'src/Renderer/Texture.cpp',
   'src/Renderer/VideoPlayer.cpp',

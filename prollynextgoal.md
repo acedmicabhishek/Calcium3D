@@ -4,6 +4,10 @@ i suck at writing shader
 
 animator is kinda kicking my ass
 
+forced optimiation 
+
+
+build in streess test
 
 demo scene for all featuers 
 placeholder image for demo screen 
@@ -12,7 +16,7 @@ placeholder image for demo screen
 loading screen for all 
 
 
-forced optimiation 
+
 
 
 fix the hardcoded path  btw 
@@ -27,4 +31,4 @@ create a new UI lib in CPP and not imgui for better bloat free high performance 
 
 
 audio optimisation for low latency , small to decent buffer size
-
+auto detect the speaker added and output stero or 7.1

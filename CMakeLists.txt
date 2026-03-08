@@ -3,6 +3,7 @@ project(calcium3d)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build Optimizations
 message(STATUS "Build using: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
@@ -18,6 +19,7 @@ add_compile_definitions(IMGUI_DEFINE_MATH_OPERATORS)
 include_directories(include include/stb include/glm include/glad imgui imgui/backends fs include/tinyobj)
 
 # Find required packages
+set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
@@ -61,6 +63,7 @@ set(SOURCES
     
     # Renderer
     src/Renderer/Renderer.cpp
+    src/Renderer/Frustum.cpp
     src/Renderer/Shader.cpp
     src/Renderer/Camera.cpp
     src/Renderer/Texture.cpp
@@ -167,6 +170,9 @@ set_source_files_properties(
     include/ufbx/ufbx_impl.c
     src/Core/stb_impl.cpp
     src/Renderer/tinyobj_impl.cpp
+    src/Editor/EditorLayer.cpp
+    src/Editor/Gizmo.cpp
+    src/Core/EditorApplication.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
 )
 
@@ -220,6 +226,7 @@ set(TESTBUILD_SOURCES
     
     # Renderer
     src/Renderer/Renderer.cpp
+    src/Renderer/Frustum.cpp
     src/Renderer/Shader.cpp
     src/Renderer/Camera.cpp
     src/Renderer/Texture.cpp
