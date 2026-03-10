@@ -1,8 +1,10 @@
 #include "TransparencyPass.h"
+#include "../Physics/PhysicsEngine.h"
 #include "../Tools/Profiler/GpuProfiler.h"
 #include "../Tools/Profiler/Profiler.h"
 #include "2dCloud.h"
 #include "Camera.h"
+#include "Frustum.h"
 #include "Renderer.h"
 #include "ResourceManager.h"
 #include "SSRPass.h"
@@ -34,6 +36,19 @@ void TransparencyPass::Execute(const RenderContext &context) {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDepthMask(GL_FALSE);
 
+  Frustum frustum = Frustum::CreateFrustumFromCamera(
+      context.camera->GetProjectionMatrix() * context.camera->GetViewMatrix());
+
+  std::vector<AABB> occluders;
+  if (Renderer::s_EnableOcclusionCulling && context.scene) {
+    for (const auto &obj : context.scene->GetObjects()) {
+      if (obj.isActive && obj.isOccluder) {
+        occluders.push_back(PhysicsEngine::GetTransformedAABB(
+            obj.collider, obj.position, obj.rotation, obj.scale));
+      }
+    }
+  }
+
   auto renderClouds = [&](const RenderContext &ctx) {
     if (ctx.showClouds) {
       if (ctx.cloudMode == 0 && ctx.cloud2d) {
@@ -43,8 +58,7 @@ void TransparencyPass::Execute(const RenderContext &context) {
 
         bool useVRS = Renderer::s_VRS && !Renderer::s_VRSExcludeClouds;
         cloud2dShader.use();
-        cloud2dShader.setInt("vrsMode",
-                             useVRS ? 3 : 0); 
+        cloud2dShader.setInt("vrsMode", useVRS ? 3 : 0);
         cloud2dShader.setBool("debugVRS", Renderer::s_VisualizeVRS);
 
         glm::mat4 cloud2dModel = glm::mat4(1.0f);
@@ -53,27 +67,50 @@ void TransparencyPass::Execute(const RenderContext &context) {
                                     ctx.camera->Position.z));
         cloud2dModel = glm::rotate(cloud2dModel, glm::radians(-90.0f),
                                    glm::vec3(1.0f, 0.0f, 0.0f));
-        cloud2dModel =
-            glm::scale(cloud2dModel, glm::vec3(ctx.camera->farPlane * 10.0f));
+        float cloudScale = ctx.camera->farPlane * 10.0f;
+        cloud2dModel = glm::scale(cloud2dModel, glm::vec3(cloudScale));
 
-        GLboolean cullWasEnabled = glIsEnabled(GL_CULL_FACE);
-        glDisable(GL_CULL_FACE);
-        ctx.cloud2d->Draw(cloud2dShader, *ctx.camera, cloud2dModel);
-        if (cullWasEnabled)
-          glEnable(GL_CULL_FACE);
-        else
+        bool isCulled = false;
+        if (Renderer::s_ObjFrustumCulling) {
+          glm::vec3 cCenter(ctx.camera->Position.x, ctx.cloudHeight,
+                            ctx.camera->Position.z);
+          float radius = cloudScale * 1.414f;
+          if (!frustum.IsSphereOnFrustum(cCenter, radius)) {
+            isCulled = true;
+          }
+        }
+
+        if (!isCulled) {
+          GLboolean cullWasEnabled = glIsEnabled(GL_CULL_FACE);
           glDisable(GL_CULL_FACE);
+          ctx.cloud2d->Draw(cloud2dShader, *ctx.camera, cloud2dModel);
+          if (cullWasEnabled)
+            glEnable(GL_CULL_FACE);
+          else
+            glDisable(GL_CULL_FACE);
+        }
       } else if (ctx.cloudMode == 1 && ctx.volCloud) {
         Shader &volCloudShader = ResourceManager::GetShader("volumetric_cloud");
         volCloudShader.setFloat("cloudCover", ctx.cloudCover);
-        volCloudShader.setInt(
-            "vrsMode",
-            Renderer::s_VRS ? 3 : 0); 
+        volCloudShader.setInt("vrsMode", Renderer::s_VRS ? 3 : 0);
         volCloudShader.setBool("debugVRS", Renderer::s_VisualizeVRS);
-        glDisable(GL_DEPTH_TEST);
-        ctx.volCloud->Draw(volCloudShader, *ctx.camera, ctx.cloudHeight,
-                           ctx.camera->farPlane);
-        glEnable(GL_DEPTH_TEST);
+
+        bool isCulled = false;
+        if (Renderer::s_ObjFrustumCulling) {
+          glm::vec3 cCenter(ctx.camera->Position.x, ctx.cloudHeight,
+                            ctx.camera->Position.z);
+          float radius = ctx.camera->farPlane;
+          if (!frustum.IsSphereOnFrustum(cCenter, radius)) {
+            isCulled = true;
+          }
+        }
+
+        if (!isCulled) {
+          glDisable(GL_DEPTH_TEST);
+          ctx.volCloud->Draw(volCloudShader, *ctx.camera, ctx.cloudHeight,
+                             ctx.camera->farPlane);
+          glEnable(GL_DEPTH_TEST);
+        }
       }
     }
   };
@@ -94,8 +131,65 @@ void TransparencyPass::Execute(const RenderContext &context) {
     for (int i = 0; i < objects.size(); ++i) {
       auto &obj = objects[i];
       if (obj.hasWater && obj.isActive) {
-        waterShader.use();
         glm::mat4 model = context.scene->GetGlobalTransform(i);
+
+        bool isCulled = false;
+        if (Renderer::s_ObjFrustumCulling) {
+          glm::vec3 minP = obj.mesh.minAABB;
+          glm::vec3 maxP = obj.mesh.maxAABB;
+          glm::vec3 corners[8] = {
+              {minP.x, minP.y, minP.z}, {maxP.x, minP.y, minP.z},
+              {minP.x, maxP.y, minP.z}, {maxP.x, maxP.y, minP.z},
+              {minP.x, minP.y, maxP.z}, {maxP.x, minP.y, maxP.z},
+              {minP.x, maxP.y, maxP.z}, {maxP.x, maxP.y, maxP.z}};
+
+          glm::vec3 worldMin(1e30f);
+          glm::vec3 worldMax(-1e30f);
+          for (int c = 0; c < 8; c++) {
+            glm::vec3 worldCorner =
+                glm::vec3(model * glm::vec4(corners[c], 1.0f));
+            worldMin = glm::min(worldMin, worldCorner);
+            worldMax = glm::max(worldMax, worldCorner);
+          }
+          if (!frustum.IsOnFrustum(worldMin, worldMax)) {
+            isCulled = true;
+          }
+        }
+
+        if (!isCulled && Renderer::s_EnableOcclusionCulling &&
+            !obj.isOccluder) {
+          AABB worldAABB = PhysicsEngine::GetTransformedAABB(
+              obj.collider, obj.position, obj.rotation, obj.scale);
+          for (const auto &occ : occluders) {
+            glm::vec3 toOcc =
+                glm::normalize(occ.min + (occ.max - occ.min) * 0.5f -
+                               context.camera->Position);
+            glm::vec3 toObj = glm::normalize(
+                worldAABB.min + (worldAABB.max - worldAABB.min) * 0.5f -
+                context.camera->Position);
+            float dot = glm::dot(toOcc, toObj);
+            if (dot > 0.99f) {
+              float distToOcc = glm::length(occ.min - context.camera->Position);
+              float distToObj =
+                  glm::length(worldAABB.min - context.camera->Position);
+              if (distToObj > distToOcc + glm::length(occ.max - occ.min)) {
+                isCulled = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (isCulled)
+          continue;
+
+        if (Renderer::s_BackfaceCulling) {
+          float det = glm::determinant(glm::mat3(model));
+          glEnable(GL_CULL_FACE);
+          glFrontFace(det < 0 ? GL_CW : GL_CCW);
+        }
+
+        waterShader.use();
         waterShader.setMat4("model", model);
         waterShader.setMat4("view", context.camera->GetViewMatrix());
         waterShader.setMat4("projection",
@@ -137,6 +231,10 @@ void TransparencyPass::Execute(const RenderContext &context) {
         waterShader.setBool("debugVRS", Renderer::s_VisualizeVRS);
 
         obj.mesh.Draw(waterShader, *context.camera, model);
+
+        if (Renderer::s_BackfaceCulling) {
+          glFrontFace(GL_CCW);
+        }
       }
     }
   }

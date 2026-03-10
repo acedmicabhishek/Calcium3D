@@ -7,7 +7,7 @@ animator is kinda kicking my ass
 forced optimiation 
 
 
-global map 
+global map // later 
 
 
 
