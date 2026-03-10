@@ -2859,6 +2859,11 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
       Logger::AddLog("[Performance] Low Latency Mode %s",
                      Renderer::s_LowLatencyMode ? "Enabled" : "Disabled");
     }
+    if (ImGui::Checkbox("Component Throttling",
+                        &Renderer::s_ComponentThrottling)) {
+      Logger::AddLog("[Optimization] Component Throttling %s",
+                     Renderer::s_ComponentThrottling ? "Enabled" : "Disabled");
+    }
     ImGui::PushItemWidth(150);
     if (ImGui::SliderInt("Max FPS", &Renderer::s_MaxFPS, 0, 1000,
                          Renderer::s_MaxFPS == 0 ? "Unlimited" : "%d")) {

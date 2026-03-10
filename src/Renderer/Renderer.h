@@ -60,6 +60,7 @@ public:
 
   static int s_MaxFPS;
   static bool s_LowLatencyMode;
+  static bool s_ComponentThrottling;
 
 private:
   static void Clear();

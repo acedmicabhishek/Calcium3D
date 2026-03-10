@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "../Core/ThreadManager.h"
+#include "../Renderer/Renderer.h"
 #include "../Tools/Profiler/Profiler.h"
 #include "SceneManager.h"
 #include <algorithm>
@@ -53,27 +54,62 @@ void Scene::Update(float dt, float time) {
     }
   }
 
+  glm::vec3 cameraPos = glm::vec3(0.0f);
+  if (auto mainCam = SceneManager::Get().GetMainCamera()) {
+    cameraPos = mainCam->Position;
+  }
+
   if (ThreadManager::IsEnabled()) {
     PROFILE_SCOPE("Scripts");
     ThreadManager::ParallelFor(0, (int)m_Objects.size(), [&](int i) {
       auto &obj = m_Objects[i];
 
-      for (auto &script : obj.behaviors) {
-        if (script) {
-          script->gameObject = &obj;
-          if (script->enabled)
-            script->OnUpdate(dt);
+      float threshold = 0.0f;
+      if (Renderer::s_ComponentThrottling) {
+        float dist = glm::distance(cameraPos, obj.position);
+        if (dist > 250.0f)
+          threshold = 0.5f;
+        else if (dist > 100.0f)
+          threshold = 0.1f;
+      }
+
+      obj.updateAccumulator += dt;
+      if (obj.updateAccumulator >= threshold) {
+        float currentDt = obj.updateAccumulator;
+        obj.updateAccumulator = 0.0f;
+
+        for (auto &script : obj.behaviors) {
+          if (script) {
+            script->gameObject = &obj;
+            if (script->enabled)
+              script->OnUpdate(currentDt);
+          }
         }
       }
     });
   } else {
     PROFILE_SCOPE("Scripts");
     for (auto &obj : m_Objects) {
-      for (auto &script : obj.behaviors) {
-        if (script) {
-          script->gameObject = &obj;
-          if (script->enabled)
-            script->OnUpdate(dt);
+      float threshold = 0.0f;
+      if (Renderer::s_ComponentThrottling) {
+        float dist = glm::distance(cameraPos, obj.position);
+        if (dist > 250.0f)
+          threshold = 0.5f;
+        else if (dist > 100.0f)
+          threshold = 0.1f;
+      }
+
+      obj.updateAccumulator += dt;
+      if (obj.updateAccumulator >= threshold) {
+        float currentDt = obj.updateAccumulator;
+        obj.updateAccumulator = 0.0f;
+
+        for (auto &script : obj.behaviors) {
+          if (script) {
+            script->gameObject = &obj;
+            if (script->enabled)
+              script->OnUpdate(currentDt);
+          }
         }
       }
     }

@@ -117,7 +117,7 @@ struct SDFComponent {
 
 struct SpriteComponent {
   bool faceCamera = false;
-  int targetCameraIndex = -1; 
+  int targetCameraIndex = -1;
 };
 
 struct GameObject {
@@ -175,6 +175,8 @@ struct GameObject {
 
   bool is2DSprite = false;
   SpriteComponent sprite;
+
+  float updateAccumulator = 0.0f;
 
   glm::vec3 prevPosition = glm::vec3(0.0f);
 

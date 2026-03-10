@@ -37,6 +37,7 @@ float Renderer::s_LODDistances[4] = {12.2f, 36.5f, 74.1f, 102.6f};
 bool Renderer::s_LODEnabled[4] = {true, true, true, true};
 int Renderer::s_MaxFPS = 144;
 bool Renderer::s_LowLatencyMode = false;
+bool Renderer::s_ComponentThrottling = false;
 
 static GLuint s_boxVAO = 0;
 static GLuint s_boxVBO = 0;
