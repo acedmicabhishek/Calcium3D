@@ -548,7 +548,8 @@ void EditorLayer::DrawMenuBar(Scene &scene) {
       ImGui::PopStyleColor(3);
 
       ImGui::SameLine();
-      if (m_MasterControl)
+      bool pushedMasterControl = m_MasterControl;
+      if (pushedMasterControl)
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
       if (ImGui::Button(m_MasterControl ? " Lock View" : " Master Control")) {
         m_MasterControl = !m_MasterControl;
@@ -557,7 +558,7 @@ void EditorLayer::DrawMenuBar(Scene &scene) {
         else
           Logger::AddLog("[Master] View Locked");
       }
-      if (m_MasterControl)
+      if (pushedMasterControl)
         ImGui::PopStyleColor();
       if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Allows free camera movement and object manipulation "
@@ -712,6 +713,24 @@ void EditorLayer::DrawMenuBar(Scene &scene) {
           selectedMesh = -1;
           Logger::AddLog("Created Water Plane");
         }
+        if (ImGui::MenuItem("2D Sprite")) {
+          GameObject obj(ObjectFactory::createPlane(), "2D Sprite");
+          obj.meshType = MeshType::Plane;
+          obj.is2DSprite = true;
+          obj.hasScreen = true;
+          obj.screen.enabled = true;
+          obj.screen.type = ScreenType::Image;
+          obj.rotation = glm::quat(glm::vec3(glm::radians(90.0f), 0.0f, 0.0f));
+          obj.material.useAlphaDiscard = true;
+          scene.AddObject(std::move(obj));
+          TriggerAutoSave(scene);
+          selectedCube = (int)scene.GetObjects().size() - 1;
+          isLightSelected = false;
+          selectedPointLightIndex = -1;
+          selectedMesh = -1;
+          Logger::AddLog("Created 2D Sprite");
+        }
+
         ImGui::EndMenu();
       }
 
@@ -2127,8 +2146,79 @@ void EditorLayer::DrawInspector(Scene &scene) {
         }
       }
 
+      if (obj.is2DSprite) {
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("2D Sprite Component",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+          ImGui::Checkbox("Always Face Camera (Billboard)",
+                          &obj.sprite.faceCamera);
+
+          if (obj.sprite.faceCamera) {
+            auto &allObjects = scene.GetObjects();
+            std::vector<const char *> camNames;
+            std::vector<int> camIndices;
+
+            camNames.push_back("Main Camera (Default)");
+            camIndices.push_back(-1);
+
+            for (int i = 0; i < (int)allObjects.size(); ++i) {
+              if (allObjects[i].hasCamera && i != selectedCube) {
+                camNames.push_back(allObjects[i].name.c_str());
+                camIndices.push_back(i);
+              }
+            }
+
+            int currentTargetIdx = 0;
+            for (int i = 0; i < (int)camIndices.size(); ++i) {
+              if (camIndices[i] == obj.sprite.targetCameraIndex) {
+                currentTargetIdx = i;
+                break;
+              }
+            }
+
+            if (ImGui::Combo("Target Camera", &currentTargetIdx,
+                             camNames.data(), (int)camNames.size())) {
+              obj.sprite.targetCameraIndex = camIndices[currentTargetIdx];
+              TriggerAutoSave(scene);
+            }
+          }
+
+          ImGui::Separator();
+          ImGui::Text("Scatter Tool");
+          static int scatterCount = 10;
+          static float scatterRadius = 50.0f;
+          ImGui::DragInt("Count", &scatterCount, 1, 1, 1000);
+          ImGui::DragFloat("Radius", &scatterRadius, 1.0f, 1.0f, 500.0f);
+          if (ImGui::Button("Scatter Sprites Around Selected", ImVec2(-1, 0))) {
+            int startIndex = scene.GetObjects().size();
+            auto baseObj = obj;
+
+            for (int i = 0; i < scatterCount; ++i) {
+              float r = scatterRadius * sqrt((float)rand() / RAND_MAX);
+              float theta = ((float)rand() / RAND_MAX) * 2.0f * 3.14159265f;
+
+              float dx = r * cos(theta);
+              float dz = r * sin(theta);
+
+              GameObject newSprite = baseObj;
+              newSprite.position.x += dx;
+              newSprite.position.z += dz;
+              newSprite.name = baseObj.name + "_" + std::to_string(i);
+
+              scene.AddObject(std::move(newSprite));
+            }
+            TriggerAutoSave(scene);
+            std::string logMsg =
+                "Scattered " + std::to_string(scatterCount) + " 2D Sprites.";
+            Logger::AddLog(logMsg.c_str());
+          }
+        }
+      }
+
       ImGui::Separator();
+
       ImGui::Checkbox("Has Screen", &obj.hasScreen);
+
       if (obj.hasScreen) {
         if (ImGui::CollapsingHeader("Screen Component",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {

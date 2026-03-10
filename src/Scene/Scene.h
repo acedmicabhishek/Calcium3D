@@ -115,7 +115,13 @@ struct SDFComponent {
   int resolution = 32;
 };
 
+struct SpriteComponent {
+  bool faceCamera = false;
+  int targetCameraIndex = -1; 
+};
+
 struct GameObject {
+
   Mesh mesh;
   glm::vec3 position;
   glm::quat rotation;
@@ -167,6 +173,9 @@ struct GameObject {
   bool hasSDF = false;
   SDFComponent sdf;
 
+  bool is2DSprite = false;
+  SpriteComponent sprite;
+
   glm::vec3 prevPosition = glm::vec3(0.0f);
 
   std::string modelPath = "";
@@ -187,7 +196,7 @@ struct GameObject {
         friction(0.5f), restitution(0.5f), enableCollision(true),
         centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f),
         angularVelocity(0.0f), torque(0.0f), hasAudio(false), hasCamera(false),
-        hasScreen(false), hasWater(false), hasSDF(false) {
+        hasScreen(false), hasWater(false), hasSDF(false), is2DSprite(false) {
 
     if (!mesh.vertices.empty()) {
       glm::vec3 minExtent = mesh.vertices[0].position;

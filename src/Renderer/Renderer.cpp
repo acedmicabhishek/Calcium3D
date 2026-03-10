@@ -163,9 +163,7 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
         continue;
       float dist = glm::distance(cameraPos, proxy.center);
       if (dist > proxy.threshold) {
-        
         proxy.mesh.Draw(shader, camera, proxy.center);
-        
         for (int idx : proxy.originalObjectIndices) {
           if (idx >= 0 && idx < (int)skipObjects.size()) {
             skipObjects[idx] = true;
@@ -336,13 +334,12 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       activeShader->setFloat("material.roughness", object.material.roughness);
       activeShader->setFloat("material.ao", object.material.ao);
       activeShader->setFloat("material.shininess", object.material.shininess);
-      activeShader->setBool("material.useTexture", object.material.useTexture);
     } else {
       activeShader->setVec3("material.albedo", finalAlbedo);
-      activeShader->setBool("material.useTexture", object.material.useTexture);
     }
 
     unsigned int texOverride = 0;
+
     if (object.hasScreen && object.screen.enabled) {
       if (object.screen.type == ScreenType::CameraFeed &&
           object.screen.targetCameraIndex != -1) {
@@ -438,7 +435,15 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
         glFrontFace(GL_CCW);
     }
 
+    bool actualUseTexture = object.material.useTexture &&
+                            (!object.mesh.textures.empty() ||
+                             texOverride != 0 || object.material.isAtlased);
+    activeShader->setBool("material.useTexture", actualUseTexture);
+    activeShader->setBool("material.useAlphaDiscard",
+                          object.material.useAlphaDiscard && actualUseTexture);
+
     object.mesh.currentLOD = 0;
+
     if (useAutoLOD && !object.mesh.lodLevels.empty()) {
       float distance = glm::distance(cameraPos, glm::vec3(finalMatrix[3]));
       float maxScale =

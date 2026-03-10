@@ -15,13 +15,19 @@ struct Material {
   std::string diffuseTexture = "";
   std::string specularTexture = "";
   std::string customShaderName = "";
+  float emission = 0.0f;
+  glm::vec3 emissionColor = glm::vec3(1.0f);
+  bool useEmissionMap = false;
+
+  bool isEmissive = false;
   float intensity = 1.0f;
 
+  bool useAlphaDiscard = false;
   bool useTexture = true;
   bool isTransparent = false;
   bool isAtlased = false;
   unsigned int atlasTextureID = 0;
-  std::string diffusePath = ""; 
+  std::string diffusePath = "";
 
   nlohmann::json Serialize() const {
     nlohmann::json j;
@@ -36,6 +42,7 @@ struct Material {
     j["intensity"] = intensity;
     j["useTexture"] = useTexture;
     j["isTransparent"] = isTransparent;
+    j["useAlphaDiscard"] = useAlphaDiscard;
     return j;
   }
 
@@ -65,6 +72,8 @@ struct Material {
       useTexture = j["useTexture"].get<bool>();
     if (j.contains("isTransparent"))
       isTransparent = j["isTransparent"].get<bool>();
+    if (j.contains("useAlphaDiscard"))
+      useAlphaDiscard = j["useAlphaDiscard"].get<bool>();
   }
 };
 

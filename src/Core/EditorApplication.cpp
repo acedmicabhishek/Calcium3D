@@ -574,9 +574,10 @@ void EditorApplication::OnUpdate(float deltaTime) {
 
     bool gameCamActive =
         !Editor::isEditMode && m_Scene->GetGameCameraIndex() != -1;
-    if ((Editor::isEditMode || m_EditorLayer->m_MasterControl) &&
-        !gameCamActive) {
-      m_Camera->Inputs(m_Window, deltaTime, m_EditorLayer->m_MasterControl);
+    bool isMasterControl = m_EditorLayer->m_MasterControl;
+
+    if (Editor::isEditMode || isMasterControl || !gameCamActive) {
+      m_Camera->Inputs(m_Window, deltaTime, isMasterControl);
     }
   }
 
@@ -584,8 +585,9 @@ void EditorApplication::OnUpdate(float deltaTime) {
     PROFILE_SCOPE("Scripts+Physics");
 
     int gameCamIdx = m_Scene->GetGameCameraIndex();
+    bool isMasterControl = m_EditorLayer->m_MasterControl;
 
-    if (gameCamIdx != -1) {
+    if (gameCamIdx != -1 && !isMasterControl) {
       auto &objs = m_Scene->GetObjects();
       if (gameCamIdx >= 0 && gameCamIdx < (int)objs.size() &&
           objs[gameCamIdx].hasCamera) {

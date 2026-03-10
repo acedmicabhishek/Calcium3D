@@ -29,7 +29,9 @@ struct MaterialData {
     float ao;
     float shininess;
     bool useTexture;
+    bool useAlphaDiscard;
 };
+
 uniform MaterialData material;
 
 // Point Lights
@@ -194,6 +196,13 @@ void main()
     // Normal and View direction
     vec3 normal = normalize(Normal);
     vec3 viewDirection = normalize(camPos - crntPos);
+
+    if (material.useAlphaDiscard && material.useTexture) {
+        float alpha = texture(tex0, texCoord).a;
+        if (alpha < 0.1) {
+            discard;
+        }
+    }
 
     vec3 baseColor = GetBaseColor();
 

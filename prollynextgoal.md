@@ -29,6 +29,8 @@ ray tracing
 path tracing 
 nvidia/amd/arc hardware acc 
 
+extention for external in tegration
+free marketplace
 
 late game stuff :
 create a new UI lib in CPP and not imgui for better bloat free high performance ui
