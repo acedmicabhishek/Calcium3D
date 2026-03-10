@@ -2605,11 +2605,46 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
       ImGui::SetTooltip("Renders depth-only pass to eliminate overdraw.");
-
     if (ImGui::Checkbox("Auto-LOD Generation", &Renderer::s_AutoLOD)) {
       Logger::AddLog("[Optimization] Auto-LOD %s",
                      Renderer::s_AutoLOD ? "Enabled" : "Disabled");
     }
+
+    ImGui::Text("LOD Configuration:");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Each layer can be toggled. Distances are connected: "
+                        "LOD 1 < LOD 2 < LOD 3 < LOD 4.\nValues scale with "
+                        "object radius (Value = Meters for 1m radius).");
+
+    for (int i = 0; i < 4; ++i) {
+      ImGui::PushID(i + 500);
+
+      
+      std::string checkLabel = "L##" + std::to_string(i + 1);
+      ImGui::Checkbox(checkLabel.c_str(), &Renderer::s_LODEnabled[i]);
+      ImGui::SameLine();
+
+      std::string sliderLabel = "Layer " + std::to_string(i + 1) + " Dist";
+      ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 20.0f);
+      if (ImGui::SliderFloat(sliderLabel.c_str(), &Renderer::s_LODDistances[i],
+                             0.0f, 1000.0f, "%.1f m")) {
+        
+        for (int j = i + 1; j < 4; ++j) {
+          if (Renderer::s_LODDistances[j] < Renderer::s_LODDistances[j - 1])
+            Renderer::s_LODDistances[j] = Renderer::s_LODDistances[j - 1];
+        }
+        
+        for (int j = i - 1; j >= 0; --j) {
+          if (Renderer::s_LODDistances[j] > Renderer::s_LODDistances[j + 1])
+            Renderer::s_LODDistances[j] = Renderer::s_LODDistances[j + 1];
+        }
+      }
+
+      ImGui::PopID();
+    }
+
     ImGui::Unindent();
 
     ImGui::Separator();

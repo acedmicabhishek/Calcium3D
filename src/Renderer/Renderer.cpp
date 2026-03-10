@@ -24,6 +24,8 @@ bool Renderer::s_StaticBatching = false;
 bool Renderer::s_DynamicBatching = false;
 bool Renderer::s_ClusteredShading = false;
 bool Renderer::s_AutoLOD = true;
+float Renderer::s_LODDistances[4] = {12.2f, 36.5f, 74.1f, 102.6f};
+bool Renderer::s_LODEnabled[4] = {true, true, true, true};
 int Renderer::s_MaxFPS = 144;
 bool Renderer::s_LowLatencyMode = false;
 
@@ -34,7 +36,6 @@ static GLuint s_boxEBO = 0;
 void Renderer::Init() {
   glEnable(GL_DEPTH_TEST);
 
-  
   bool vrsSupported = false;
   int numExtensions;
   glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
@@ -55,17 +56,15 @@ void Renderer::Init() {
         "hardware.");
   }
 
-  
   float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.5f,  -0.5f, -0.5f, 0.5f, 0.5f,
       -0.5f, -0.5f, 0.5f,  -0.5f, -0.5f, -0.5f, 0.5f, 0.5f,
       -0.5f, 0.5f,  0.5f,  0.5f,  0.5f,  -0.5f, 0.5f, 0.5f,
   };
 
-  unsigned int indices[] = {
-      0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0,
-      4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7 
-                                                  
+  unsigned int indices[] = {0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0,
+                            4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7
+
   };
 
   glGenVertexArrays(1, &s_boxVAO);
@@ -130,10 +129,9 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
     glDisable(GL_CULL_FACE);
   }
 
-  
   GLint incomingPolyMode[2];
   glGetIntegerv(GL_POLYGON_MODE, incomingPolyMode);
-  GLenum basePolyMode = (GLenum)incomingPolyMode[0]; 
+  GLenum basePolyMode = (GLenum)incomingPolyMode[0];
 
   glPolygonMode(GL_FRONT_AND_BACK, basePolyMode);
 
@@ -196,8 +194,6 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
 
     Shader *activeShader = &shader;
 
-    
-    
     if (useBackfaceCulling && renderLayer != 2) {
       float det = glm::determinant(glm::mat3(globalTransform));
       glFrontFace(det < 0 ? GL_CW : GL_CCW);
@@ -221,7 +217,7 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
         activeShader =
             &ResourceManager::GetShader(object.material.customShaderName);
       } else {
-        
+
         std::string name = object.material.customShaderName;
         ResourceManager::LoadShader(name, (name + ".vert").c_str(),
                                     (name + ".frag").c_str());
@@ -244,8 +240,6 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       lastShader = activeShader;
     }
 
-    
-    
     activeShader->setFloat("intensity", object.material.intensity);
 
     glm::vec3 finalAlbedo = object.material.albedo;
@@ -254,9 +248,6 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       finalAlbedo *= object.screen.brightness;
     }
 
-    
-    
-    
     if (!useMaterialOptimisation) {
       activeShader->setVec3("material.albedo", finalAlbedo);
       activeShader->setFloat("material.metallic", object.material.metallic);
@@ -265,12 +256,11 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       activeShader->setFloat("material.shininess", object.material.shininess);
       activeShader->setBool("material.useTexture", object.material.useTexture);
     } else {
-      
+
       activeShader->setVec3("material.albedo", finalAlbedo);
       activeShader->setBool("material.useTexture", object.material.useTexture);
     }
 
-    
     unsigned int texOverride = 0;
     if (object.hasScreen && object.screen.enabled) {
       if (object.screen.type == ScreenType::CameraFeed &&
@@ -359,10 +349,7 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
     }
 
     if (useBackfaceCulling) {
-      
-      
-      
-      
+
       float det = glm::determinant(glm::mat3(finalMatrix));
       if (det < 0)
         glFrontFace(GL_CW);
@@ -370,7 +357,6 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
         glFrontFace(GL_CCW);
     }
 
-    
     object.mesh.currentLOD = 0;
     if (useAutoLOD && !object.mesh.lodLevels.empty()) {
       float distance = glm::distance(cameraPos, glm::vec3(finalMatrix[3]));
@@ -381,15 +367,17 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       float radius = glm::length(object.mesh.maxAABB - object.mesh.minAABB) *
                      0.5f * maxScale;
 
-      
-      float coverage = radius / glm::max(distance, 0.1f);
+      float scaledDistance = distance / glm::max(radius, 0.1f);
 
-      if (coverage < 0.05f && object.mesh.lodLevels.size() >= 3)
-        object.mesh.currentLOD = 3;
-      else if (coverage < 0.15f && object.mesh.lodLevels.size() >= 2)
-        object.mesh.currentLOD = 2;
-      else if (coverage < 0.3f && object.mesh.lodLevels.size() >= 1)
-        object.mesh.currentLOD = 1;
+      object.mesh.currentLOD = 0;
+      for (int i = 3; i >= 0; --i) {
+        if (s_LODEnabled[i] && (int)object.mesh.lodLevels.size() >= (i + 1)) {
+          if (scaledDistance > s_LODDistances[i]) {
+            object.mesh.currentLOD = i + 1;
+            break;
+          }
+        }
+      }
     }
 
     object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride);
@@ -414,7 +402,6 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       glLineWidth(2.0f);
       glEnable(GL_DEPTH_TEST);
 
-      
       int indicesCount = object.mesh.indices.size();
       if (object.mesh.currentLOD != -1 &&
           (size_t)object.mesh.currentLOD < object.mesh.lodLevels.size()) {
@@ -425,12 +412,10 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
         object.mesh.vao.Bind();
       }
 
-      
       debugShader.setInt("cullingMode", 0);
       glDepthFunc(GL_LEQUAL);
       glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, 0);
 
-      
       if (s_BackfaceCulling) {
         debugShader.setInt("cullingMode", 1);
         glDepthFunc(GL_GREATER);
@@ -439,7 +424,7 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
 
       glDepthFunc(useZPrepass ? GL_LEQUAL : GL_LESS);
       glLineWidth(1.0f);
-      
+
       if (useBackfaceCulling && renderLayer != 2) {
         glEnable(GL_CULL_FACE);
       }
@@ -449,12 +434,10 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
     }
 
     if (useBackfaceCulling && renderLayer != 2) {
-      glFrontFace(GL_CCW); 
+      glFrontFace(GL_CCW);
     }
   }
 
-  
-  
   if (renderLayer <= 1) {
     if (useStaticBatching && StaticBatcher::HasBatches()) {
       PROFILE_SCOPE("StaticBatching");

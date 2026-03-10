@@ -49,6 +49,8 @@ public:
   static bool s_DynamicBatching;
   static bool s_ClusteredShading;
   static bool s_AutoLOD;
+  static float s_LODDistances[4];
+  static bool s_LODEnabled[4];
 
   static int s_MaxFPS;
   static bool s_LowLatencyMode;

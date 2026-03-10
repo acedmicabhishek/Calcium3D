@@ -44,7 +44,6 @@ Mesh::Mesh(const std::vector<Vertex> &vertices,
   VBO.Unbind();
   EBO.Unbind();
 
-  
   if (indices.size() > 900) {
     GenerateLODs();
   }
@@ -53,22 +52,20 @@ Mesh::Mesh(const std::vector<Vertex> &vertices,
 void Mesh::GenerateLODs() {
   lodLevels.clear();
 
-  
-  
-  
-  float ratios[] = {0.5f, 0.25f, 0.125f};
+  float targetRatios[] = {0.5f, 0.05f, 0.01f, 0.002f};
 
   std::vector<Vertex> currentVerts = vertices;
   std::vector<GLuint> currentInds = indices;
 
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 4; ++i) {
     LODLevel lod;
-    LODGenerator::SimplifyMesh(currentVerts, currentInds, 0.5f, lod.vertices,
+
+    LODGenerator::SimplifyMesh(vertices, indices, targetRatios[i], lod.vertices,
                                lod.indices);
 
-    
-    
-    if (lod.indices.size() < currentInds.size() && !lod.indices.empty()) {
+    if (lod.indices.size() <
+            (i == 0 ? indices.size() : lodLevels.back().indices.size()) &&
+        !lod.indices.empty()) {
       glGenVertexArrays(1, &lod.vao);
       glGenBuffers(1, &lod.vbo);
       glGenBuffers(1, &lod.ebo);
@@ -100,11 +97,8 @@ void Mesh::GenerateLODs() {
 
       lodLevels.push_back(lod);
 
-      
-      currentVerts = lod.vertices;
-      currentInds = lod.indices;
     } else {
-      break; 
+      break;
     }
   }
 
@@ -180,7 +174,6 @@ void Mesh::Draw(Shader &shader, Camera &camera, glm::vec3 position,
 void Mesh::Draw(Shader &shader, Camera &camera, const glm::mat4 &model,
                 unsigned int textureOverride) {
   shader.use();
-  
 
   unsigned int numDiffuse = 0;
   unsigned int numSpecular = 0;
