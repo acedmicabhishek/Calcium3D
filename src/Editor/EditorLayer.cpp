@@ -2011,8 +2011,7 @@ void EditorLayer::DrawInspector(Scene &scene) {
         if (isCompiling) {
           ImGui::Button("Compiling...");
           if (compileScriptFramesWait > 1) {
-            fs::path engineRoot =
-                fs::path("/home/light/Documents/C3D/Calcium3D");
+            fs::path engineRoot = fs::path(Application::Get().GetEngineRoot());
             if (ScriptCompiler::CompileAndLoad(compileScriptPath,
                                                engineRoot.string())) {
               auto behavior = BehaviorRegistry::Create(compileScriptName);

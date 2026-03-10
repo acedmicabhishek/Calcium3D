@@ -13,3 +13,7 @@ compile_commands.json
 .clangd/
 
 ForcedOptimisation.md
+
+# User-specific settings
+editor_settings.json
+imgui.ini

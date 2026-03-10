@@ -1,7 +1,9 @@
 #include "Application.h"
 #include "../Physics/HitboxGraphics.h"
 #include "2dCloud.h"
+#include "InputManager.h"
 #include "Logger.h"
+#include "Renderer.h"
 #include "ResourceManager.h"
 #include "Tools/Profiler/GpuProfiler.h"
 #include "Tools/Profiler/Profiler.h"
@@ -137,7 +139,7 @@ bool Application::Init() {
 
   GameStateManager::Init();
 
-  UICreationEngine::LoadLayout("ui_layout.json");
+  UICreationEngine::LoadLayout(ResourceManager::ResolvePath("ui_layout.json"));
 
   GameStateManager::RegisterState<FallbackScreen>("Start Screen");
   GameStateManager::RegisterState<FallbackScreen>("Gameplay");
@@ -324,9 +326,8 @@ void Application::Run() {
       if (frameTime < targetFrameTime) {
         double sleepTime = targetFrameTime - frameTime;
         std::this_thread::sleep_for(std::chrono::microseconds(
-            (long long)(sleepTime * 1000000.0 * 0.95))); 
+            (long long)(sleepTime * 1000000.0 * 0.95)));
         while (glfwGetTime() < currentFrame + targetFrameTime) {
-          
         }
       }
     }
@@ -435,12 +436,8 @@ void Application::ProcessSceneCameras() {
       camCtx.camera = &sceneCam;
       camCtx.renderEditorObjects = false;
 
-      
-      
       camCtx.wireframe = false;
 
-      
-      
       camCtx.cullingCamera = nullptr;
       camCtx.objCulling = false;
       camCtx.backfaceCulling = false;
@@ -450,13 +447,12 @@ void Application::ProcessSceneCameras() {
 
       if (obj.camera.isDebugCamera &&
           obj.camera.targetCullingCameraIndex != -1) {
-        
-        
+
         camCtx.visualizeCulling = true;
 
         int targetIdx = obj.camera.targetCullingCameraIndex;
         if (targetIdx == -10) {
-          
+
           camCtx.cullingCamera = m_RenderContext.camera;
         } else if (targetIdx >= 0 && targetIdx < (int)objects.size() &&
                    objects[targetIdx].hasCamera) {

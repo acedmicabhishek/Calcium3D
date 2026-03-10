@@ -1,4 +1,3 @@
-#define EDITORAPPLICATION_CPP
 #include "EditorApplication.h"
 #include "../Physics/HitboxGraphics.h"
 #include "../Renderer/StreamingManager.h"
@@ -7,11 +6,15 @@
 #include "../Tools/Profiler/GpuProfiler.h"
 #include "../Tools/Profiler/Profiler.h"
 #include "../UI/UICreationEngine.h"
+#include "Console.h"
 #include "Editor.h"
 #include "Logger.h"
+#include "Renderer.h"
 #include "ResourceManager.h"
 #include "ThreadManager.h"
+#include <GLFW/glfw3.h>
 #include <fstream>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <nlohmann/json.hpp>
@@ -261,13 +264,11 @@ void EditorApplication::OpenProject(const std::string &path) {
     Logger::AddLog("Restored UI layout from %s", uiLayoutPath.c_str());
   }
 
-  std::string engineRoot = "";
-
   std::filesystem::path searchPath = std::filesystem::current_path();
   for (int i = 0; i < 5; ++i) {
     if (std::filesystem::exists(searchPath / "src" / "Core" /
                                 "Application.cpp")) {
-      engineRoot = searchPath.string();
+      m_EngineRoot = searchPath.string();
       break;
     }
     if (!searchPath.has_parent_path())
@@ -275,13 +276,14 @@ void EditorApplication::OpenProject(const std::string &path) {
     searchPath = searchPath.parent_path();
   }
 
-  if (engineRoot.empty()) {
-    engineRoot = "/home/light/Documents/C3D/Calcium3D";
-    Logger::AddLog("[ScriptCompiler] Engine root not found, using fallback: %s",
-                   engineRoot.c_str());
+  if (m_EngineRoot.empty()) {
+    m_EngineRoot = std::filesystem::current_path().string();
+    Logger::AddLog(
+        "[ScriptCompiler] Engine root not found, using current path: %s",
+        m_EngineRoot.c_str());
   } else {
     Logger::AddLog("[ScriptCompiler] Engine root detected: %s",
-                   engineRoot.c_str());
+                   m_EngineRoot.c_str());
   }
 
   std::string scriptsDir = path + "/Scripts";
@@ -293,7 +295,7 @@ void EditorApplication::OpenProject(const std::string &path) {
         std::string cppPath = entry.path().string();
         Logger::AddLog("[ScriptCompiler] Compiling: %s",
                        entry.path().filename().string().c_str());
-        ScriptCompiler::CompileAndLoad(cppPath, engineRoot);
+        ScriptCompiler::CompileAndLoad(cppPath, m_EngineRoot);
       }
     }
     Logger::AddLog("[ScriptCompiler] Pre-compile complete. Loading scene now.");

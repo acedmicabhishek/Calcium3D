@@ -1,100 +1,97 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#include <glad/glad.h>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include <string>
+#include <glad/glad.h>
 #include <memory>
+#include <string>
 
-
-#include "Scene.h"
-#include "Renderer.h"
 #include "Camera.h"
-#include "InputManager.h"
 #include "RenderContext.h"
 #include "RenderPipeline.h"
+#include "Scene.h"
 #include "StateManager.h"
-#include <map>
 
 struct ApplicationSpecification {
-    std::string Name = "Calcium3D Application";
-    uint32_t Width = 1600;
-    uint32_t Height = 900;
+  std::string Name = "Calcium3D Application";
+  uint32_t Width = 1600;
+  uint32_t Height = 900;
 };
 
 class Application {
 public:
-    Application(const ApplicationSpecification& spec);
-    virtual ~Application();
+  Application(const ApplicationSpecification &spec);
+  virtual ~Application();
 
-    virtual void Run();
-    void Close();
-    virtual bool Init();
-    
-    static Application& Get() { return *s_Instance; }
-    static Application* GetInstance() { return s_Instance; }
-    GLFWwindow* GetWindow() const { return m_Window; }
-    
-    GameState m_StartGameState = GameState::START_SCREEN;
+  virtual void Run();
+  void Close();
+  virtual bool Init();
 
-    bool& GetShowSkybox() { return m_ShowSkybox; }
+  static Application &Get() { return *s_Instance; }
+  static Application *GetInstance() { return s_Instance; }
+  GLFWwindow *GetWindow() const { return m_Window; }
 
-    virtual void OpenProject(const std::string& path);
-    virtual void CreateProject(const std::string& path);
-    void ProcessSceneCameras();
-    const std::string& GetProjectRoot() const { return m_ProjectRoot; }
-    std::string GetProjectName() const;
+  GameState m_StartGameState = GameState::START_SCREEN;
+
+  bool &GetShowSkybox() { return m_ShowSkybox; }
+
+  virtual void OpenProject(const std::string &path);
+  virtual void CreateProject(const std::string &path);
+  void ProcessSceneCameras();
+  const std::string &GetProjectRoot() const { return m_ProjectRoot; }
+  const std::string &GetEngineRoot() const { return m_EngineRoot; }
+  std::string GetProjectName() const;
 
 public:
-    Scene* GetScene() { return m_Scene.get(); }
-    Camera* GetCamera() { return m_Camera.get(); }
+  Scene *GetScene() { return m_Scene.get(); }
+  Camera *GetCamera() { return m_Camera.get(); }
 
 protected:
-    virtual void Shutdown();
-    void ChangeState(int newState);
-    
-    virtual void OnUpdate(float deltaTime) = 0;
-    virtual void OnRender() = 0;
-    virtual void PostRender() {}
+  virtual void Shutdown();
+  void ChangeState(int newState);
 
-    ApplicationSpecification m_Specification;
-    GLFWwindow* m_Window;
-    bool m_Running = true;
-    bool m_Initialized = false;
-    std::string m_ProjectRoot = "";
-    
-    std::unique_ptr<Scene> m_Scene;
+  virtual void OnUpdate(float deltaTime) = 0;
+  virtual void OnRender() = 0;
+  virtual void PostRender() {}
 
-    std::unique_ptr<RenderPipeline> m_RenderPipeline;
-    RenderContext m_RenderContext;
-    
-    std::unique_ptr<Camera> m_Camera;
+  ApplicationSpecification m_Specification;
+  GLFWwindow *m_Window;
+  bool m_Running = true;
+  bool m_Initialized = false;
+  std::string m_ProjectRoot = "";
+  std::string m_EngineRoot = "";
 
-    std::unique_ptr<class Cloud2D> m_Cloud2D;
-    std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
-    
-    bool m_ShowSkybox = true;
-    bool m_ShowGradientSky = false;
-    bool m_ShowClouds = false; 
-    
-    
-    int m_MSAASamples = 0; 
-    unsigned int m_MSAAFBO = 0, m_MSAAColorBuffer = 0, m_MSAARBO = 0;
-    unsigned int m_MSAANormalBuffer = 0; 
-    void CreateMSAAFramebuffer(int samples);
-    void ResizeMSAAFramebuffer(int width, int height);
+  std::unique_ptr<Scene> m_Scene;
 
-    
-    unsigned int m_ViewportFBO = 0;
-    unsigned int m_ViewportTexture = 0;
-    unsigned int m_ViewportNormalTexture = 0; 
-    unsigned int m_ViewportRBO = 0;
-    int m_ViewportWidth = 800;
-    int m_ViewportHeight = 600;
-    void CreateViewportFramebuffer(int width, int height);
-    void ResizeViewportFramebuffer(int width, int height);
+  std::unique_ptr<RenderPipeline> m_RenderPipeline;
+  RenderContext m_RenderContext;
 
-    static Application* s_Instance;
+  std::unique_ptr<Camera> m_Camera;
+
+  std::unique_ptr<class Cloud2D> m_Cloud2D;
+  std::unique_ptr<class VolumetricCloud> m_VolumetricCloud;
+
+  bool m_ShowSkybox = true;
+  bool m_ShowGradientSky = false;
+  bool m_ShowClouds = false;
+
+  int m_MSAASamples = 0;
+  unsigned int m_MSAAFBO = 0, m_MSAAColorBuffer = 0, m_MSAARBO = 0;
+  unsigned int m_MSAANormalBuffer = 0;
+  void CreateMSAAFramebuffer(int samples);
+  void ResizeMSAAFramebuffer(int width, int height);
+
+  unsigned int m_ViewportFBO = 0;
+  unsigned int m_ViewportTexture = 0;
+  unsigned int m_ViewportNormalTexture = 0;
+  unsigned int m_ViewportRBO = 0;
+  int m_ViewportWidth = 800;
+  int m_ViewportHeight = 600;
+  void CreateViewportFramebuffer(int width, int height);
+  void ResizeViewportFramebuffer(int width, int height);
+
+  static Application *s_Instance;
 };
 
 #endif
