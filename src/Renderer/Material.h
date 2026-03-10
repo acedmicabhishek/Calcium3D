@@ -19,6 +19,9 @@ struct Material {
 
   bool useTexture = true;
   bool isTransparent = false;
+  bool isAtlased = false;
+  unsigned int atlasTextureID = 0;
+  std::string diffusePath = ""; 
 
   nlohmann::json Serialize() const {
     nlohmann::json j;

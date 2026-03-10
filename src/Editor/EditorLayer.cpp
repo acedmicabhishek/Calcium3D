@@ -4,9 +4,11 @@
 #include "../Core/ThreadManager.h"
 #include "../Physics/HitboxGraphics.h"
 #include "../Physics/PhysicsEngine.h"
-#include "../Renderer/Pipelines/StandardPipeline.h"
-#include "../Renderer/Renderer.h"
+#include "../Renderer/AtlasManager.h"
+#include "../Renderer/HLODManager.h"
+#include "../Renderer/SDFGenerator.h"
 #include "../Renderer/StaticBatcher.h"
+#include "../Renderer/StreamingManager.h"
 #include "../Scene/Builtin/SceneTransitionBehavior.h"
 #include "../Scene/SceneIO.h"
 #include "../Scene/SceneManager.h"
@@ -1428,6 +1430,18 @@ void EditorLayer::DrawInspector(Scene &scene) {
       ImGui::Separator();
       ImGui::Text("Transform");
 
+      if (ImGui::Button("Bake SDF Shadows")) {
+        SDFVolume vol = SDFGenerator::GenerateSDF(obj.mesh, 32);
+        obj.sdf.textureID = vol.textureID;
+        obj.sdf.minP = vol.minAABB;
+        obj.sdf.maxP = vol.maxAABB;
+        obj.sdf.resolution = vol.resolution;
+        obj.sdf.enabled = true;
+        obj.hasSDF = true;
+        Logger::AddLog("[SDF] Baked SDF for %s", obj.name.c_str());
+      }
+      ImGui::Checkbox("Is Occluder", &obj.isOccluder);
+
       float pos[3] = {obj.position.x, obj.position.y, obj.position.z};
       if (ImGui::DragFloat3("Position", pos, 0.1f)) {
         obj.position = glm::vec3(pos[0], pos[1], pos[2]);
@@ -2621,7 +2635,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     for (int i = 0; i < 4; ++i) {
       ImGui::PushID(i + 500);
 
-      
       std::string checkLabel = "L##" + std::to_string(i + 1);
       ImGui::Checkbox(checkLabel.c_str(), &Renderer::s_LODEnabled[i]);
       ImGui::SameLine();
@@ -2630,12 +2643,12 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
       ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 20.0f);
       if (ImGui::SliderFloat(sliderLabel.c_str(), &Renderer::s_LODDistances[i],
                              0.0f, 1000.0f, "%.1f m")) {
-        
+
         for (int j = i + 1; j < 4; ++j) {
           if (Renderer::s_LODDistances[j] < Renderer::s_LODDistances[j - 1])
             Renderer::s_LODDistances[j] = Renderer::s_LODDistances[j - 1];
         }
-        
+
         for (int j = i - 1; j >= 0; --j) {
           if (Renderer::s_LODDistances[j] > Renderer::s_LODDistances[j + 1])
             Renderer::s_LODDistances[j] = Renderer::s_LODDistances[j + 1];
@@ -2700,6 +2713,13 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
       Logger::AddLog("[Optimization] Dynamic Batching %s",
                      Renderer::s_DynamicBatching ? "Enabled" : "Disabled");
     }
+    if (ImGui::Button("Bake HLOD")) {
+      HLODManager::BakeHLOD(*Application::Get().GetScene());
+      Logger::AddLog("[Optimization] Baked HLOD Clusters.");
+    }
+    if (ImGui::Button("Bake Texture Atlas")) {
+      AtlasManager::BakeSceneTextures(*Application::Get().GetScene());
+    }
     ImGui::Unindent();
 
     ImGui::Separator();
@@ -2712,6 +2732,38 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     if (ImGui::Checkbox("Variable Rate Shading", &Renderer::s_VRS)) {
       Logger::AddLog("[Optimization] VRS %s",
                      Renderer::s_VRS ? "Enabled" : "Disabled");
+    }
+    if (Renderer::s_VRS) {
+      ImGui::Indent();
+      ImGui::TextDisabled("Exclude VRS:");
+      ImGui::Checkbox("Clouds##VRS", &Renderer::s_VRSExcludeClouds);
+      ImGui::Checkbox("Water##VRS", &Renderer::s_VRSExcludeWater);
+      ImGui::Checkbox("Primitive Models##VRS", &Renderer::s_VRSExcludeModels);
+      ImGui::Unindent();
+    }
+    if (ImGui::Checkbox("SDF Shadows", &Renderer::s_EnableSDFShadows)) {
+      Logger::AddLog("[Optimization] SDF Shadows %s",
+                     Renderer::s_EnableSDFShadows ? "Enabled" : "Disabled");
+    }
+    if (ImGui::Checkbox("HLOD (Proxies)", &Renderer::s_EnableHLOD)) {
+      Logger::AddLog("[Optimization] HLOD %s",
+                     Renderer::s_EnableHLOD ? "Enabled" : "Disabled");
+    }
+    if (ImGui::Checkbox("Occlusion Culling",
+                        &Renderer::s_EnableOcclusionCulling)) {
+      Logger::AddLog("[Optimization] Occlusion Culling %s",
+                     Renderer::s_EnableOcclusionCulling ? "Enabled"
+                                                        : "Disabled");
+    }
+    if (ImGui::Checkbox("Asset Streaming",
+                        &StreamingManager::s_EnableStreaming)) {
+      Logger::AddLog("[Optimization] Asset Streaming %s",
+                     StreamingManager::s_EnableStreaming ? "Enabled"
+                                                         : "Disabled");
+    }
+    float radius = StreamingManager::GetStreamingRadius();
+    if (ImGui::SliderFloat("Streaming Radius", &radius, 10.0f, 500.0f)) {
+      StreamingManager::SetStreamingRadius(radius);
     }
     if (ImGui::Checkbox("Low Latency (Reflex)", &Renderer::s_LowLatencyMode)) {
       Logger::AddLog("[Performance] Low Latency Mode %s",

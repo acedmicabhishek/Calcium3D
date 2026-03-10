@@ -16,6 +16,7 @@ uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform bool debugZPrepass;
 uniform bool debugVRS;
+uniform int vrsMode;
 
 // Camera
 uniform vec3 camPos;
@@ -65,6 +66,27 @@ uniform samplerCube pointShadowMap0;
 uniform samplerCube pointShadowMap1;
 uniform samplerCube pointShadowMap2;
 uniform samplerCube pointShadowMap3;
+
+// SDF Shadows
+uniform sampler3D sdfTexture;
+uniform vec3 sdfMin;
+uniform vec3 sdfMax;
+uniform bool useSDF;
+
+float RayMarchSDF(vec3 rayOrigin, vec3 rayDir) {
+    float t = 0.0;
+    for(int i = 0; i < 32; ++i) {
+        vec3 p = rayOrigin + rayDir * t;
+        vec3 uvw = (p - sdfMin) / (sdfMax - sdfMin);
+        if (any(lessThan(uvw, vec3(0.0))) || any(greaterThan(uvw, vec3(1.0)))) break;
+        
+        float dist = texture(sdfTexture, uvw).r;
+        if (dist < 0.01) return 1.0;
+        t += dist;
+        if (t > 10.0) break;
+    }
+    return 0.0;
+}
 
 vec3 GetBaseColor() {
     if (material.useTexture) {
@@ -186,6 +208,12 @@ void main()
     if (sunLight.intensity > 0.0) {
         vec3 sunBase = CalcDirLight(sunLight, normal, viewDirection);
         float shadow = DirShadowCalculation(FragPosLightSpace, normal, normalize(sunLight.direction));
+        
+        if (useSDF) {
+            float sdfOcclusion = RayMarchSDF(crntPos + normal * 0.05, normalize(sunLight.direction));
+            shadow = max(shadow, sdfOcclusion);
+        }
+        
         totalLighting += sunBase * (1.0 - shadow);
     }
     if (moonLight.intensity > 0.0) {
@@ -197,33 +225,44 @@ void main()
     int count = pointLightCount;
     if (count > MAX_POINT_LIGHTS) count = MAX_POINT_LIGHTS;
     
-    for(int i = 0; i < count; ++i) {
-        PointLight light = pointLights[i];
-        
-        vec3 lightVec = light.position - crntPos;
-        float dist = length(lightVec);
-        float attenuation = 1.0 / (light.constant + light.linear * dist + light.quadratic * dist * dist);
-        
-        vec3 lightDirection = normalize(lightVec);
-        
-        // Diffuse
-        float diffuse = max(dot(normal, lightDirection), 0.0);
-        
-        // Specular (Blinn-Phong)
-        vec3 halfwayDir = normalize(lightDirection + viewDirection);
-        float specAmount = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
-        float specStrength = GetSpecularStrength();
-        
-        // Combine with material
-        vec3 diffuseColor = baseColor * diffuse * vec3(light.color);
-        vec3 specularColor = specStrength * specAmount * vec3(light.color) * mix(vec3(1.0), baseColor, material.metallic);
-        
-        float shadow = 0.0;
-        if (light.shadowIndex >= 0) {
-            shadow = PointShadowCalculation(crntPos, light.position, light.shadowIndex);
+    bool skipExpensive = false;
+    vec2 fragCoord = gl_FragCoord.xy;
+    if (vrsMode == 1) {
+        if (int(fragCoord.x) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 2) {
+        if (int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 3) {
+        if (int(fragCoord.x) % 2 == 1 || int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    }
+
+    if (!skipExpensive || debugVRS) {
+        for(int i = 0; i < count; ++i) {
+            PointLight light = pointLights[i];
+            
+            vec3 lightVec = light.position - crntPos;
+            float dist = length(lightVec);
+            float attenuation = 1.0 / (light.constant + light.linear * dist + light.quadratic * dist * dist);
+            
+            vec3 lightDirection = normalize(lightVec);
+            
+            // Diffuse
+            float diffuse = max(dot(normal, lightDirection), 0.0);
+            
+            // Specular (Blinn-Phong)
+            vec3 halfwayDir = normalize(lightDirection + viewDirection);
+            float specAmount = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
+            float specStrength = GetSpecularStrength();
+            
+            vec3 diffuseColor = baseColor * diffuse * vec3(light.color);
+            vec3 specularColor = specStrength * specAmount * vec3(light.color) * mix(vec3(1.0), baseColor, material.metallic);
+            
+            float shadow = 0.0;
+            if (light.shadowIndex >= 0) {
+                shadow = PointShadowCalculation(crntPos, light.position, light.shadowIndex);
+            }
+            
+            totalLighting += (diffuseColor + specularColor) * light.intensity * attenuation * (1.0 - shadow);
         }
-        
-        totalLighting += (diffuseColor + specularColor) * light.intensity * attenuation * (1.0 - shadow);
     }
 
     vec3 finalResult = totalLighting;
@@ -231,15 +270,15 @@ void main()
         finalResult = mix(finalResult, vec3(0.0, 1.0, 0.0), 0.7);
     }
     if (debugVRS) {
-        vec2 dx = dFdx(texCoord);
-        vec2 dy = dFdy(texCoord);
-        float rate = length(dx) + length(dy);
-        float normalized = clamp(rate * 500.0, 0.0, 1.0);
-        vec3 heatmap = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), normalized);
-        finalResult = mix(finalResult, heatmap, 0.6);
+        vec3 heatColor;
+        if (vrsMode == 0) heatColor = vec3(1.0, 0.0, 0.0); 
+        else if (vrsMode == 1 || vrsMode == 2) heatColor = vec3(1.0, 1.0, 0.0);
+        else if (vrsMode == 3) heatColor = vec3(0.0, 1.0, 0.0);
+        else heatColor = vec3(1.0, 0.0, 0.0);
+        
+        finalResult = mix(finalResult, heatColor, 0.7);
     }
     
     FragColor = vec4(finalResult, 1.0);
-    // Write world-space normal. Extract metallic value into alpha channel.
     NormalColor = vec4(normal, material.metallic);
 }

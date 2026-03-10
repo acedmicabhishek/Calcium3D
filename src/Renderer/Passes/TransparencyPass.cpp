@@ -41,6 +41,12 @@ void TransparencyPass::Execute(const RenderContext &context) {
         ctx.cloud2d->cloudCover = ctx.cloudCover;
         ctx.cloud2d->density = ctx.cloudDensity;
 
+        bool useVRS = Renderer::s_VRS && !Renderer::s_VRSExcludeClouds;
+        cloud2dShader.use();
+        cloud2dShader.setInt("vrsMode",
+                             useVRS ? 3 : 0); 
+        cloud2dShader.setBool("debugVRS", Renderer::s_VisualizeVRS);
+
         glm::mat4 cloud2dModel = glm::mat4(1.0f);
         cloud2dModel = glm::translate(
             cloud2dModel, glm::vec3(ctx.camera->Position.x, ctx.cloudHeight,
@@ -59,7 +65,11 @@ void TransparencyPass::Execute(const RenderContext &context) {
           glDisable(GL_CULL_FACE);
       } else if (ctx.cloudMode == 1 && ctx.volCloud) {
         Shader &volCloudShader = ResourceManager::GetShader("volumetric_cloud");
-        ctx.volCloud->cloudCover = ctx.cloudCover;
+        volCloudShader.setFloat("cloudCover", ctx.cloudCover);
+        volCloudShader.setInt(
+            "vrsMode",
+            Renderer::s_VRS ? 3 : 0); 
+        volCloudShader.setBool("debugVRS", Renderer::s_VisualizeVRS);
         glDisable(GL_DEPTH_TEST);
         ctx.volCloud->Draw(volCloudShader, *ctx.camera, ctx.cloudHeight,
                            ctx.camera->farPlane);
@@ -112,6 +122,20 @@ void TransparencyPass::Execute(const RenderContext &context) {
             "screenResolution",
             glm::vec2((float)context.width, (float)context.height));
 
+        int vrsMode = 0;
+        if (Renderer::s_VRS && !Renderer::s_VRSExcludeWater) {
+          float dist =
+              glm::distance(context.camera->Position, glm::vec3(model[3]));
+          if (dist > 60.0f)
+            vrsMode = 3;
+          else if (dist > 35.0f)
+            vrsMode = 2;
+          else if (dist > 15.0f)
+            vrsMode = 1;
+        }
+        waterShader.setInt("vrsMode", vrsMode);
+        waterShader.setBool("debugVRS", Renderer::s_VisualizeVRS);
+
         obj.mesh.Draw(waterShader, *context.camera, model);
       }
     }
@@ -127,8 +151,7 @@ void TransparencyPass::Execute(const RenderContext &context) {
     Renderer::RenderScene(
         *context.scene, *context.camera, defaultShader,
         context.globalTilingFactor, context.renderEditorObjects,
-        context.deltaTime, context.time, 2, nullptr, context.objCulling,
-        false, 
+        context.deltaTime, context.time, 2, nullptr, context.objCulling, false,
         context.materialOptimisation, context.visualizeCulling, context.autoLOD,
         context.zPrepass, context.staticBatching, context.dynamicBatching);
   }

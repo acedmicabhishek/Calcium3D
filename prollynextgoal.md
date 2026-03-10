@@ -9,10 +9,10 @@ forced optimiation
 
 global map 
 
-inbuilt gpu level fps limiter //done 
-nvidia relfex support // test needed ig
 
-build in streess test
+
+partical system and paint tool for stuff like grass and stuff 
+
 
 demo scene for all featuers 
 placeholder image for demo screen 

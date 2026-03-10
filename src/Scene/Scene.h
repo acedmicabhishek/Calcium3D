@@ -107,6 +107,14 @@ struct WaterComponent {
   float liquidDensity = 1.0f;
 };
 
+struct SDFComponent {
+  bool enabled = false;
+  unsigned int textureID = 0;
+  glm::vec3 minP;
+  glm::vec3 maxP;
+  int resolution = 32;
+};
+
 struct GameObject {
   Mesh mesh;
   glm::vec3 position;
@@ -134,6 +142,7 @@ struct GameObject {
   glm::vec3 angularVelocity;
   glm::vec3 torque;
   AABB collider;
+  bool isOccluder = false;
 
   std::vector<std::shared_ptr<Behavior>> behaviors;
   std::vector<std::string> scriptNames;
@@ -155,11 +164,15 @@ struct GameObject {
   bool hasWater = false;
   WaterComponent water;
 
+  bool hasSDF = false;
+  SDFComponent sdf;
+
   glm::vec3 prevPosition = glm::vec3(0.0f);
 
   std::string modelPath = "";
   int meshIndex = -1;
   MeshType meshType = MeshType::None;
+  bool isStreamedOut = false;
 
   void ApplyImpulse(const glm::vec3 &impulse) {
     if (!isStatic && mass > 0.0f) {
@@ -174,7 +187,7 @@ struct GameObject {
         friction(0.5f), restitution(0.5f), enableCollision(true),
         centerOfMassOffset(0.0f), velocity(0.0f), acceleration(0.0f),
         angularVelocity(0.0f), torque(0.0f), hasAudio(false), hasCamera(false),
-        hasScreen(false), hasWater(false) {
+        hasScreen(false), hasWater(false), hasSDF(false) {
 
     if (!mesh.vertices.empty()) {
       glm::vec3 minExtent = mesh.vertices[0].position;

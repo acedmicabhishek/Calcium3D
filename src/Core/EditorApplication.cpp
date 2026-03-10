@@ -1,6 +1,7 @@
 #define EDITORAPPLICATION_CPP
 #include "EditorApplication.h"
 #include "../Physics/HitboxGraphics.h"
+#include "../Renderer/StreamingManager.h"
 #include "../Scene/SceneManager.h"
 #include "../Scene/ScriptCompiler.h"
 #include "../Tools/Profiler/GpuProfiler.h"
@@ -608,6 +609,7 @@ void EditorApplication::OnUpdate(float deltaTime) {
     }
 
     m_Scene->Update(deltaTime, (float)glfwGetTime());
+    StreamingManager::Update(m_Camera->Position, *m_Scene);
 
     if (gameCamIdx != -1) {
       s_GameCam.Position = m_Camera->Position;
@@ -767,8 +769,7 @@ void EditorApplication::RenderEditor(float deltaTime) {
 
   m_RenderContext.cullingCamera = nullptr;
   m_RenderContext.wireframe = m_EditorLayer->wireframe;
-  
-  
+
   m_RenderContext.backfaceCulling = Renderer::s_BackfaceCulling;
   m_RenderContext.objCulling = Renderer::s_ObjFrustumCulling;
   m_RenderContext.lightCulling = Renderer::s_LightFrustumCulling;
@@ -792,16 +793,11 @@ void EditorApplication::RenderEditor(float deltaTime) {
   }
   glViewport(0, 0, m_ViewportWidth, m_ViewportHeight);
 
-  
-  
   if (m_Camera) {
     m_Camera->width = m_ViewportWidth;
     m_Camera->height = m_ViewportHeight;
   }
 
-  
-  
-  
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

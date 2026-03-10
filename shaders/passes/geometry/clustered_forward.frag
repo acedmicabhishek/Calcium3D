@@ -15,6 +15,7 @@ uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform bool debugZPrepass;
 uniform bool debugVRS;
+uniform int vrsMode;
 
 // Camera
 uniform vec3 camPos;
@@ -186,21 +187,33 @@ void main() {
     
     ClusterData cluster = clusters[clusterIndex];
     
-    for (int i = 0; i < cluster.count; ++i) {
-        int lightIdx = cluster.lightIndices[i];
-        result += CalcPointLightStruct(lights[lightIdx], normal, crntPos, viewDir);
+    bool skipExpensive = false;
+    if (vrsMode == 1) {
+        if (int(fragCoord.x) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 2) {
+        if (int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 3) {
+        if (int(fragCoord.x) % 2 == 1 || int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    }
+
+    if (!skipExpensive || debugVRS) {
+        for (int i = 0; i < cluster.count; ++i) {
+            int lightIdx = cluster.lightIndices[i];
+            result += CalcPointLightStruct(lights[lightIdx], normal, crntPos, viewDir);
+        }
     }
     
     if (debugZPrepass) {
         result = mix(result, vec3(0.0, 1.0, 0.0), 0.7);
     }
     if (debugVRS) {
-        vec2 dx = dFdx(texCoord);
-        vec2 dy = dFdy(texCoord);
-        float rate = length(dx) + length(dy);
-        float normalized = clamp(rate * 500.0, 0.0, 1.0);
-        vec3 heatmap = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), normalized);
-        result = mix(result, heatmap, 0.6);
+        vec3 heatColor;
+        if (vrsMode == 0) heatColor = vec3(1.0, 0.0, 0.0); 
+        else if (vrsMode == 1 || vrsMode == 2) heatColor = vec3(1.0, 1.0, 0.0);
+        else if (vrsMode == 3) heatColor = vec3(0.0, 1.0, 0.0);
+        else heatColor = vec3(1.0, 0.0, 0.0);
+        
+        result = mix(result, heatColor, 0.7);
     }
     
     FragColor = vec4(result, 1.0);

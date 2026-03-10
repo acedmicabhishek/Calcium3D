@@ -4,10 +4,13 @@
 #include "Core/ResourceManager.h"
 #include "DynamicBatcher.h"
 #include "Frustum.h"
+#include "HLODManager.h"
+#include "Physics/PhysicsEngine.h"
 #include "StaticBatcher.h"
 #include "Tools/Profiler/GpuProfiler.h"
 #include "Tools/Profiler/Profiler.h"
 #include "VideoPlayer.h"
+#include <set>
 
 bool Renderer::s_BackfaceCulling = true;
 bool Renderer::s_ObjFrustumCulling = true;
@@ -17,6 +20,12 @@ bool Renderer::s_MaterialOptimisation = false;
 bool Renderer::s_ZPrepass = false;
 bool Renderer::s_ShowCulledAsWireframe = true;
 bool Renderer::s_VRS = false;
+bool Renderer::s_VRSExcludeClouds = false;
+bool Renderer::s_VRSExcludeWater = true;
+bool Renderer::s_VRSExcludeModels = false;
+bool Renderer::s_EnableSDFShadows = true;
+bool Renderer::s_EnableHLOD = true;
+bool Renderer::s_EnableOcclusionCulling = true;
 bool Renderer::s_VisualizeZPrepass = false;
 bool Renderer::s_VisualizeVRS = false;
 bool Renderer::s_AdaptiveShadowRes = true;
@@ -146,10 +155,70 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
                                                cRef.GetViewMatrix());
   }
 
+  std::vector<bool> skipObjects(objects.size(), false);
+  if (s_EnableHLOD) {
+    const auto &proxies = HLODManager::GetProxies();
+    for (const auto &proxy : proxies) {
+      if (!proxy.active)
+        continue;
+      float dist = glm::distance(cameraPos, proxy.center);
+      if (dist > proxy.threshold) {
+        
+        proxy.mesh.Draw(shader, camera, proxy.center);
+        
+        for (int idx : proxy.originalObjectIndices) {
+          if (idx >= 0 && idx < (int)skipObjects.size()) {
+            skipObjects[idx] = true;
+          }
+        }
+      }
+    }
+  }
+
+  std::vector<AABB> occluders;
+  if (s_EnableOcclusionCulling) {
+    for (const auto &obj : objects) {
+      if (obj.isActive && obj.isOccluder) {
+        occluders.push_back(PhysicsEngine::GetTransformedAABB(
+            obj.collider, obj.position, obj.rotation, obj.scale));
+      }
+    }
+  }
+
   for (size_t i = 0; i < objects.size(); ++i) {
+    if (skipObjects[i])
+      continue;
     auto &object = objects[i];
     if (!object.isActive)
       continue;
+
+    
+    if (s_EnableOcclusionCulling && !object.isOccluder) {
+      AABB worldAABB = PhysicsEngine::GetTransformedAABB(
+          object.collider, object.position, object.rotation, object.scale);
+      bool isOccluded = false;
+      for (const auto &occ : occluders) {
+        
+        
+        glm::vec3 toOcc =
+            glm::normalize(occ.min + (occ.max - occ.min) * 0.5f - cameraPos);
+        glm::vec3 toObj = glm::normalize(
+            worldAABB.min + (worldAABB.max - worldAABB.min) * 0.5f - cameraPos);
+
+        float dot = glm::dot(toOcc, toObj);
+        if (dot > 0.99f) { 
+          float distToOcc = glm::length(occ.min - cameraPos);
+          float distToObj = glm::length(worldAABB.min - cameraPos);
+          if (distToObj > distToOcc + glm::length(occ.max - occ.min)) {
+            isOccluded = true;
+            break;
+          }
+        }
+      }
+      if (isOccluded)
+        continue;
+    }
+
     if (!renderEditorObjects && object.meshType == MeshType::Camera)
       continue;
 
@@ -248,6 +317,19 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       finalAlbedo *= object.screen.brightness;
     }
 
+    int vrsMode = 0;
+    if (s_VRS && !s_VRSExcludeModels) {
+      float dist = glm::distance(cameraPos, glm::vec3(globalTransform[3]));
+      if (dist > 60.0f)
+        vrsMode = 3; 
+      else if (dist > 35.0f)
+        vrsMode = 2; 
+      else if (dist > 15.0f)
+        vrsMode = 1; 
+    }
+    activeShader->setInt("vrsMode", vrsMode);
+    activeShader->setBool("debugVRS", s_VisualizeVRS);
+
     if (!useMaterialOptimisation) {
       activeShader->setVec3("material.albedo", finalAlbedo);
       activeShader->setFloat("material.metallic", object.material.metallic);
@@ -256,7 +338,6 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       activeShader->setFloat("material.shininess", object.material.shininess);
       activeShader->setBool("material.useTexture", object.material.useTexture);
     } else {
-
       activeShader->setVec3("material.albedo", finalAlbedo);
       activeShader->setBool("material.useTexture", object.material.useTexture);
     }
@@ -380,7 +461,20 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       }
     }
 
-    object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride);
+    unsigned int finalTexOverride = texOverride;
+    if (object.material.isAtlased) {
+      finalTexOverride = object.material.atlasTextureID;
+    }
+    activeShader->setBool("useSDF", s_EnableSDFShadows && object.hasSDF);
+    if (s_EnableSDFShadows && object.hasSDF) {
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_3D, object.sdf.textureID);
+      activeShader->setInt("sdfTexture", 2);
+      activeShader->setVec3("sdfMin", object.sdf.minP);
+      activeShader->setVec3("sdfMax", object.sdf.maxP);
+    }
+
+    object.mesh.Draw(*activeShader, camera, finalMatrix, finalTexOverride);
 
     if (visualizeCulling && renderLayer != 2) {
       if (!ResourceManager::HasShader("culling_vis")) {

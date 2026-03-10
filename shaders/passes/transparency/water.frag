@@ -20,6 +20,8 @@ uniform sampler2D depthTexture;
 uniform mat4 invView;
 uniform mat4 invProjection;
 uniform vec2 screenResolution;
+uniform int vrsMode;
+uniform bool debugVRS;
 
 // Reconstruct world position from depth
 vec3 worldPosFromDepth(float depth, vec2 uv) {
@@ -129,6 +131,23 @@ float fresnel(vec3 viewDir, vec3 normal, float power) {
 
 void main()
 {
+    // Software VRS: Skip expensive calculations
+    bool skipExpensive = false;
+    vec2 fragCoord = gl_FragCoord.xy;
+    if (vrsMode == 1) {
+        if (int(fragCoord.x) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 2) {
+        if (int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 3) {
+        if (int(fragCoord.x) % 2 == 1 || int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    }
+
+    if (skipExpensive && !debugVRS) {
+        FragColor = vec4(waterColor, 0.7);
+        NormalColor = vec4(0.0, 1.0, 0.0, 0.85);
+        return;
+    }
+
     // Calculate normal with finer detail
     // We use a delta of 1.0 because our waves are large scale
     vec3 normal = calculateNormal(OriginalWorldPos, 1.0, time * waveSpeed);

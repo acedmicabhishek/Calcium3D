@@ -1,27 +1,27 @@
 #ifndef TEXTURE_CLASS_H
 #define TEXTURE_CLASS_H
 
-#include<glad/glad.h>
-#include<stb/stb_image.h>
+#include <glad/glad.h>
+#include <stb/stb_image.h>
 
-#include"Shader.h"
+#include "Shader.h"
 
-class Texture
-{
+class Texture {
 public:
-	GLuint ID;
-	const char* type;
-	GLuint unit;
-	std::string path;
+  GLuint ID;
+  const char *type;
+  GLuint unit;
+  std::string path;
 
-	Texture(const char* image = "../Resource/default/texture/DefaultTex.png", const char* texType = "diffuse", GLuint slot = 0);
+  Texture(const char *image = "../Resource/default/texture/DefaultTex.png",
+          const char *texType = "diffuse", GLuint slot = 0);
 
-	void texUnit(Shader& shader, const char* uniform, GLuint unit);
-	
-	void Bind();
-	
-	void Unbind();
-	
-	void Delete();
+  void texUnit(Shader &shader, const char *uniform, GLuint unit) const;
+
+  void Bind() const;
+
+  void Unbind() const;
+
+  void Delete();
 };
 #endif

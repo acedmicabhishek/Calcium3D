@@ -15,6 +15,8 @@ uniform float cloudCover;
 uniform float speed;
 uniform int quality; // 0 for Performance, 1 for Quality
 uniform float detail;
+uniform int vrsMode;
+uniform bool debugVRS;
 
 // --- Optimized 3D Perlin Noise ---
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -148,6 +150,22 @@ void main()
 {
     vec3 rayDir = normalize(farPoint - nearPoint);
     vec3 rayOrigin = cameraPosition;
+
+    bool skipExpensive = false;
+    vec2 fragCoord = gl_FragCoord.xy;
+    if (vrsMode == 1) { 
+        if (int(fragCoord.x) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 2) {
+        if (int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 3) { 
+        if (int(fragCoord.x) % 2 == 1 || int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    }
+
+    if (skipExpensive && !debugVRS) {
+        FragColor = vec4(0.0);
+        NormalColor = vec4(0.0);
+        return;
+    }
 
     // Early exit if not looking at cloud layer
     float tMin, tMax;

@@ -117,13 +117,19 @@ void Mesh::UpdateVBO() {
 
 void Mesh::Delete() {
   vao.Delete();
-  glDeleteBuffers(1, &vboID);
-  glDeleteBuffers(1, &eboID);
+  if (vboID != 0)
+    glDeleteBuffers(1, &vboID);
+  if (eboID != 0)
+    glDeleteBuffers(1, &eboID);
+  vboID = 0;
+  eboID = 0;
+  vertices.clear();
+  indices.clear();
 }
 
 void Mesh::Draw(Shader &shader, Camera &camera, glm::vec3 position,
                 glm::quat rotation, glm::vec3 scale,
-                unsigned int textureOverride) {
+                unsigned int textureOverride) const {
   shader.use();
   vao.Bind();
   unsigned int numDiffuse = 0;
@@ -172,7 +178,7 @@ void Mesh::Draw(Shader &shader, Camera &camera, glm::vec3 position,
 }
 
 void Mesh::Draw(Shader &shader, Camera &camera, const glm::mat4 &model,
-                unsigned int textureOverride) {
+                unsigned int textureOverride) const {
   shader.use();
 
   unsigned int numDiffuse = 0;
@@ -268,4 +274,23 @@ bool Mesh::Intersect(const glm::vec3 &ray_origin,
   intersection_distance = glm::length(worldIntersectionPoint - ray_origin);
 
   return true;
+}
+
+void Mesh::RemapUVs(const glm::vec2 &offset, const glm::vec2 &scale) {
+  
+  for (auto &v : vertices) {
+    v.texUV = offset + v.texUV * scale;
+  }
+  UpdateVBO();
+
+  
+  for (auto &lod : lodLevels) {
+    for (auto &v : lod.vertices) {
+      v.texUV = offset + v.texUV * scale;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, lod.vbo);
+    glBufferData(GL_ARRAY_BUFFER, lod.vertices.size() * sizeof(Vertex),
+                 lod.vertices.data(), GL_STATIC_DRAW);
+  }
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

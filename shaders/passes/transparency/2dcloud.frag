@@ -83,9 +83,27 @@ uniform float u_randomness;      // 0.0 - 1.0
 uniform vec3 u_lightDir = vec3(0.5, 1.0, 0.3);
 uniform float u_lightIntensity = 0.3;
 uniform vec3 u_ambientColor = vec3(0.9, 0.95, 1.0);
+uniform int vrsMode;
+uniform bool debugVRS;
 
 void main()
 {
+    bool skipExpensive = false;
+    vec2 fragCoord = gl_FragCoord.xy;
+    if (vrsMode == 1) {
+        if (int(fragCoord.x) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 2) {
+        if (int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    } else if (vrsMode == 3) {
+        if (int(fragCoord.x) % 2 == 1 || int(fragCoord.y) % 2 == 1) skipExpensive = true;
+    }
+
+    if (skipExpensive && !debugVRS) {
+        FragColor = vec4(u_cloudColor * 0.8, u_density * 0.3);
+        NormalColor = vec4(0.0);
+        return;
+    }
+
     // Use world position for stable, tiling clouds
     vec2 uv = WorldPos.xz * 0.01 * u_tiling;
     vec2 motion = vec2(u_time * u_cloudSpeed * 0.1, 0.0);

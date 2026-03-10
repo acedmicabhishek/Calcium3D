@@ -42,6 +42,12 @@ public:
   static bool s_ZPrepass;
   static bool s_ShowCulledAsWireframe;
   static bool s_VRS;
+  static bool s_VRSExcludeClouds;
+  static bool s_VRSExcludeWater;
+  static bool s_VRSExcludeModels;
+  static bool s_EnableSDFShadows;
+  static bool s_EnableHLOD;
+  static bool s_EnableOcclusionCulling;
   static bool s_VisualizeZPrepass;
   static bool s_VisualizeVRS;
   static bool s_AdaptiveShadowRes;

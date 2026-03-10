@@ -20,6 +20,7 @@ public:
   GLuint eboID;
   glm::vec3 minAABB;
   glm::vec3 maxAABB;
+  Mesh() : vboID(0), eboID(0) {}
 
   Mesh(const std::vector<Vertex> &vertices, const std::vector<GLuint> &indices,
        std::vector<Texture> textures);
@@ -27,18 +28,18 @@ public:
             glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f),
             glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f),
             glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f),
-            unsigned int textureOverride = 0);
+            unsigned int textureOverride = 0) const;
 
   void Draw(Shader &shader, Camera &camera, const glm::mat4 &matrix,
-            unsigned int textureOverride = 0);
+            unsigned int textureOverride = 0) const;
 
   void UpdateVBO();
   void Delete();
 
   bool Intersect(const glm::vec3 &ray_origin, const glm::vec3 &ray_direction,
                  const glm::mat4 &modelMatrix, float &intersection_distance);
+  void RemapUVs(const glm::vec2 &offset, const glm::vec2 &scale);
 
-  
   struct LODLevel {
     std::vector<Vertex> vertices;
     std::vector<GLuint> indices;
