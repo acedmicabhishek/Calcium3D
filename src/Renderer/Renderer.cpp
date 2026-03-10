@@ -24,7 +24,7 @@ bool Renderer::s_StaticBatching = false;
 bool Renderer::s_DynamicBatching = false;
 bool Renderer::s_ClusteredShading = false;
 bool Renderer::s_AutoLOD = true;
-int Renderer::s_MaxFPS = 60;
+int Renderer::s_MaxFPS = 144;
 bool Renderer::s_LowLatencyMode = false;
 
 static GLuint s_boxVAO = 0;

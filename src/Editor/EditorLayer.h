@@ -91,7 +91,7 @@ public:
   bool showWater = false;
 
   bool wireframe = false;
-  bool vsync = true;
+  bool vsync = false;
   int msaaSamples = 4;
   bool msaaSkyPass = true;
   bool msaaGeometryPass = true;

@@ -271,6 +271,7 @@ void EditorLayer::TriggerAutoSave(Scene &scene) {
 
 void EditorLayer::Init(GLFWwindow *window) {
   m_Window = window;
+  glfwSwapInterval(vsync ? 1 : 0);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
