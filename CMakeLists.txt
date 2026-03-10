@@ -81,6 +81,7 @@ set(SOURCES
     src/Renderer/Passes/SkyPass.cpp
     src/Renderer/Passes/TransparencyPass.cpp
     src/Renderer/Passes/UnderwaterPass.cpp
+    src/Renderer/Passes/DepthPrepass.cpp
     src/Renderer/Pipelines/StandardPipeline.cpp
     src/Renderer/RenderPipeline.cpp
 
@@ -244,6 +245,7 @@ set(TESTBUILD_SOURCES
     src/Renderer/Passes/SkyPass.cpp
     src/Renderer/Passes/TransparencyPass.cpp
     src/Renderer/Passes/UnderwaterPass.cpp
+    src/Renderer/Passes/DepthPrepass.cpp
     src/Renderer/Pipelines/StandardPipeline.cpp
     src/Renderer/RenderPipeline.cpp
 
@@ -336,3 +338,12 @@ target_link_directories(calcium3d_testbuild PRIVATE
 
 # Set optimization level
 # target_compile_options(calcium3d PRIVATE -O0)
+target_sources(calcium3d PRIVATE src/Renderer/StaticBatcher.cpp)
+target_sources(calcium3d PRIVATE src/Renderer/DynamicBatcher.cpp)
+target_sources(calcium3d PRIVATE src/Renderer/ClusteredLighting.cpp)
+target_sources(calcium3d PRIVATE src/Renderer/LODGenerator.cpp)
+
+target_sources(calcium3d_testbuild PRIVATE src/Renderer/StaticBatcher.cpp)
+target_sources(calcium3d_testbuild PRIVATE src/Renderer/DynamicBatcher.cpp)
+target_sources(calcium3d_testbuild PRIVATE src/Renderer/ClusteredLighting.cpp)
+target_sources(calcium3d_testbuild PRIVATE src/Renderer/LODGenerator.cpp)

@@ -1,6 +1,7 @@
 ![C3D Preview](C3dpeview.png)
 
-# Calcium3D Engine
+# Calcium3D Engine (OUTDATED README)
+## i have transformed this into a true chad 
 
 **Calcium3D** is a lightweight 3D game engine and editor built from the ground up using modern C++ and OpenGL. It provides a feature-rich, real-time editing environment powered by Dear ImGui, along with a flexible rendering pipeline that supports various lighting models, atmospheric effects, and post-processing.
 

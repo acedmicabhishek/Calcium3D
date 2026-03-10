@@ -7,6 +7,11 @@ animator is kinda kicking my ass
 forced optimiation 
 
 
+global map 
+
+inbuilt gpu level fps limiter //done 
+nvidia relfex support // test needed ig
+
 build in streess test
 
 demo scene for all featuers 

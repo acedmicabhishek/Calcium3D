@@ -87,3 +87,14 @@ bool Frustum::IsOnFrustum(const glm::vec3 &min, const glm::vec3 &max) const {
          checkPlane(bottomFace) && checkPlane(topFace) &&
          checkPlane(nearFace) && checkPlane(farFace);
 }
+
+bool Frustum::IsSphereOnFrustum(const glm::vec3 &center, float radius) const {
+  auto checkPlane = [&](const Plane &plane) {
+    float dist = glm::dot(plane.normal, center) + plane.distance;
+    return dist >= -radius;
+  };
+
+  return checkPlane(leftFace) && checkPlane(rightFace) &&
+         checkPlane(bottomFace) && checkPlane(topFace) &&
+         checkPlane(nearFace) && checkPlane(farFace);
+}

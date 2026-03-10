@@ -14,6 +14,8 @@ in vec4 FragPosLightSpace;
 // Textures
 uniform sampler2D tex0;
 uniform sampler2D tex1;
+uniform bool debugZPrepass;
+uniform bool debugVRS;
 
 // Camera
 uniform vec3 camPos;
@@ -224,7 +226,20 @@ void main()
         totalLighting += (diffuseColor + specularColor) * light.intensity * attenuation * (1.0 - shadow);
     }
 
-    FragColor = vec4(totalLighting, 1.0);
+    vec3 finalResult = totalLighting;
+    if (debugZPrepass) {
+        finalResult = mix(finalResult, vec3(0.0, 1.0, 0.0), 0.7);
+    }
+    if (debugVRS) {
+        vec2 dx = dFdx(texCoord);
+        vec2 dy = dFdy(texCoord);
+        float rate = length(dx) + length(dy);
+        float normalized = clamp(rate * 500.0, 0.0, 1.0);
+        vec3 heatmap = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), normalized);
+        finalResult = mix(finalResult, heatmap, 0.6);
+    }
+    
+    FragColor = vec4(finalResult, 1.0);
     // Write world-space normal. Extract metallic value into alpha channel.
     NormalColor = vec4(normal, material.metallic);
 }

@@ -24,4 +24,5 @@ struct Frustum {
 
   static Frustum CreateFrustumFromCamera(const glm::mat4 &viewProj);
   bool IsOnFrustum(const glm::vec3 &min, const glm::vec3 &max) const;
+  bool IsSphereOnFrustum(const glm::vec3 &center, float radius) const;
 };

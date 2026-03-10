@@ -78,6 +78,20 @@ struct RenderContext {
 
   bool renderEditorObjects = false;
   bool backfaceCulling = true;
-  bool frustumCulling = false;
+  bool objCulling = false;
+  bool lightCulling = false;
+  bool shadowCulling = false;
+  bool materialOptimisation = false;
+
+  
+  bool zPrepass = false;
+  bool autoLOD = true;
+  bool clusteredShading = false;
+  bool adaptiveShadowRes = true;
+  bool staticBatching = false;
+  bool dynamicBatching = false;
+  bool vrs = false;
+
   Camera *cullingCamera = nullptr;
+  bool visualizeCulling = false;
 };

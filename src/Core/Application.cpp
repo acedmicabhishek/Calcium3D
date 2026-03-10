@@ -3,10 +3,14 @@
 #include "2dCloud.h"
 #include "Logger.h"
 #include "ResourceManager.h"
+#include "Tools/Profiler/GpuProfiler.h"
+#include "Tools/Profiler/Profiler.h"
 #include "VolumetricCloud.h"
+#include <chrono>
 #include <imgui.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <thread>
 
 #include "../AudioEngine/AudioEngine.h"
 #include "../UI/Screens/FallbackScreen.h"
@@ -24,6 +28,10 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
   if (Application::GetInstance() &&
       Application::GetInstance()->GetWindow() == window) {
+    auto app = Application::GetInstance();
+    if (app->GetCamera()) {
+      app->GetCamera()->UpdateSize(width, height);
+    }
   }
 }
 
@@ -303,7 +311,25 @@ void Application::Run() {
 
     PostRender();
 
+    if (Renderer::s_LowLatencyMode) {
+      glFinish();
+    }
+
     glfwSwapBuffers(m_Window);
+
+    if (Renderer::s_MaxFPS > 0) {
+      double targetFrameTime = 1.0 / (double)Renderer::s_MaxFPS;
+      double currentTime = glfwGetTime();
+      double frameTime = currentTime - currentFrame;
+      if (frameTime < targetFrameTime) {
+        double sleepTime = targetFrameTime - frameTime;
+        std::this_thread::sleep_for(std::chrono::microseconds(
+            (long long)(sleepTime * 1000000.0 * 0.95))); 
+        while (glfwGetTime() < currentFrame + targetFrameTime) {
+          
+        }
+      }
+    }
   }
 }
 
@@ -409,9 +435,25 @@ void Application::ProcessSceneCameras() {
       camCtx.camera = &sceneCam;
       camCtx.renderEditorObjects = false;
 
+      
+      
+      camCtx.wireframe = false;
+
+      
+      
       camCtx.cullingCamera = nullptr;
+      camCtx.objCulling = false;
+      camCtx.backfaceCulling = false;
+      camCtx.lightCulling = false;
+      camCtx.shadowCulling = false;
+      camCtx.materialOptimisation = false;
+
       if (obj.camera.isDebugCamera &&
           obj.camera.targetCullingCameraIndex != -1) {
+        
+        
+        camCtx.visualizeCulling = true;
+
         int targetIdx = obj.camera.targetCullingCameraIndex;
         if (targetIdx == -10) {
           
@@ -433,14 +475,16 @@ void Application::ProcessSceneCameras() {
           targetObj.camera.cam->farPlane = targetObj.camera.farPlane;
 
           camCtx.cullingCamera = targetObj.camera.cam.get();
-
-          
           camCtx.cullingCamera->GetProjectionMatrix();
           camCtx.cullingCamera->GetViewMatrix();
         }
       }
 
-      m_RenderPipeline->Execute(camCtx);
+      {
+        PROFILE_SCOPE("SceneCameras_Preview");
+        GPU_PROFILE_SCOPE("SceneCameras_Preview");
+        m_RenderPipeline->Execute(camCtx);
+      }
     }
   }
 

@@ -4,12 +4,16 @@
 #include "../Core/ThreadManager.h"
 #include "../Physics/HitboxGraphics.h"
 #include "../Physics/PhysicsEngine.h"
+#include "../Renderer/Pipelines/StandardPipeline.h"
+#include "../Renderer/Renderer.h"
+#include "../Renderer/StaticBatcher.h"
 #include "../Scene/Builtin/SceneTransitionBehavior.h"
 #include "../Scene/SceneIO.h"
 #include "../Scene/SceneManager.h"
 #include "../Tools/Profiler/ProfilerUI.h"
 #include "../UI/UIManager.h"
 #include "BuildManager/BuildManager.h"
+#include "Console.h"
 #include "Core/Application.h"
 #include "Core/EditorApplication.h"
 #include "Editor.h"
@@ -2060,7 +2064,6 @@ void EditorLayer::DrawInspector(Scene &scene) {
             camNames.push_back("(None)");
             camIndices.push_back(-1);
 
-            
             camNames.push_back("Active Editor Camera");
             camIndices.push_back(-10);
 
@@ -2568,6 +2571,10 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
   if (ImGui::CollapsingHeader("Optimizations")) {
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Forced (Global)");
 
+    
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "OBJ Category");
+    ImGui::Indent();
     if (ImGui::Checkbox("Backface Culling", &Renderer::s_BackfaceCulling)) {
       Logger::AddLog("[Optimization] Backface Culling %s",
                      Renderer::s_BackfaceCulling ? "Enabled" : "Disabled");
@@ -2575,23 +2582,133 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
-      ImGui::SetTooltip(
-          "Prevents rendering triangles facing away from the camera.");
+      ImGui::SetTooltip("Skips triangles facing away from the camera.");
 
-    if (ImGui::Checkbox("Frustum Culling", &Renderer::s_FrustumCulling)) {
-      Logger::AddLog("[Optimization] Frustum Culling %s",
-                     Renderer::s_FrustumCulling ? "Enabled" : "Disabled");
+    if (ImGui::Checkbox("Frustum Culling", &Renderer::s_ObjFrustumCulling)) {
+      Logger::AddLog("[Optimization] Object Culling %s",
+                     Renderer::s_ObjFrustumCulling ? "Enabled" : "Disabled");
     }
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
-      ImGui::SetTooltip(
-          "Skips rendering objects outside the active camera's view.");
+      ImGui::SetTooltip("Skips objects outside the view frustum.");
 
+    if (ImGui::Checkbox("Z-Pass Culling", &Renderer::s_ZPrepass)) {
+      Logger::AddLog("[Optimization] Z-Pass Culling %s",
+                     Renderer::s_ZPrepass ? "Enabled" : "Disabled");
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Renders depth-only pass to eliminate overdraw.");
+
+    if (ImGui::Checkbox("Auto-LOD Generation", &Renderer::s_AutoLOD)) {
+      Logger::AddLog("[Optimization] Auto-LOD %s",
+                     Renderer::s_AutoLOD ? "Enabled" : "Disabled");
+    }
+    ImGui::Unindent();
+
+    
     ImGui::Separator();
-    // ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
-    //                    "Sophisticated (Per-Object)");
-    // ImGui::TextDisabled("Future: LODs, Occlusion Culling, Batching");
+    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f), "LIGHT Category");
+    ImGui::Indent();
+    if (ImGui::Checkbox("Light Culling", &Renderer::s_LightFrustumCulling)) {
+      Logger::AddLog("[Optimization] Light Culling %s",
+                     Renderer::s_LightFrustumCulling ? "Enabled" : "Disabled");
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Skips processing for lights outside view.");
+
+    if (ImGui::Checkbox("Clustered Forward", &Renderer::s_ClusteredShading)) {
+      Logger::AddLog("[Optimization] Clustered Shading %s",
+                     Renderer::s_ClusteredShading ? "Enabled" : "Disabled");
+    }
+    ImGui::Unindent();
+
+    
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.8f, 0.4f, 1.0f, 1.0f), "SHADOW Category");
+    ImGui::Indent();
+    if (ImGui::Checkbox("Shadow Culling", &Renderer::s_ShadowFrustumCulling)) {
+      Logger::AddLog("[Optimization] Shadow Culling %s",
+                     Renderer::s_ShadowFrustumCulling ? "Enabled" : "Disabled");
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Skips shadow casters outside light volume.");
+
+    if (ImGui::Checkbox("Adaptive Resolution",
+                        &Renderer::s_AdaptiveShadowRes)) {
+      Logger::AddLog("[Optimization] Adaptive Shadows %s",
+                     Renderer::s_AdaptiveShadowRes ? "Enabled" : "Disabled");
+    }
+    ImGui::Unindent();
+
+    
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "BATCH Category");
+    ImGui::Indent();
+    if (ImGui::Checkbox("Static Batching", &Renderer::s_StaticBatching)) {
+      Logger::AddLog("[Optimization] Static Batching %s",
+                     Renderer::s_StaticBatching ? "Enabled" : "Disabled");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Bake")) {
+      StaticBatcher::Bake(*Application::Get().GetScene());
+      Logger::AddLog("[Optimization] Baked Static Batches.");
+    }
+    if (ImGui::Checkbox("Dynamic Batching", &Renderer::s_DynamicBatching)) {
+      Logger::AddLog("[Optimization] Dynamic Batching %s",
+                     Renderer::s_DynamicBatching ? "Enabled" : "Disabled");
+    }
+    ImGui::Unindent();
+
+    
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "SYSTEM Category");
+    ImGui::Indent();
+    if (ImGui::Checkbox("Material Opt", &Renderer::s_MaterialOptimisation)) {
+      Logger::AddLog("[Optimization] Material Optimisation %s",
+                     Renderer::s_MaterialOptimisation ? "Enabled" : "Disabled");
+    }
+    if (ImGui::Checkbox("Variable Rate Shading", &Renderer::s_VRS)) {
+      Logger::AddLog("[Optimization] VRS %s",
+                     Renderer::s_VRS ? "Enabled" : "Disabled");
+    }
+    if (ImGui::Checkbox("Low Latency (Reflex)", &Renderer::s_LowLatencyMode)) {
+      Logger::AddLog("[Performance] Low Latency Mode %s",
+                     Renderer::s_LowLatencyMode ? "Enabled" : "Disabled");
+    }
+    ImGui::PushItemWidth(150);
+    if (ImGui::SliderInt("Max FPS", &Renderer::s_MaxFPS, 0, 1000,
+                         Renderer::s_MaxFPS == 0 ? "Unlimited" : "%d")) {
+    }
+    ImGui::PopItemWidth();
+    ImGui::Unindent();
+
+    
+    ImGui::Separator();
+    ImGui::Text("Visualization");
+    ImGui::Indent();
+    ImGui::Checkbox("Show Culled as Wireframe",
+                    &Renderer::s_ShowCulledAsWireframe);
+    ImGui::Checkbox("Z-Prepass Map", &Renderer::s_VisualizeZPrepass);
+    ImGui::Checkbox("VRS Heatmap", &Renderer::s_VisualizeVRS);
+    ImGui::Unindent();
+
+    
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.6f, 1.0f), "AUDIO Category");
+    ImGui::Indent();
+    if (ImGui::Checkbox("Spatial Culling", &AudioEngine::s_CullWhenInaudible)) {
+      Logger::AddLog("[Audio] Spatial Culling %s",
+                     AudioEngine::s_CullWhenInaudible ? "Enabled" : "Disabled");
+    }
+    ImGui::SliderInt("Voices", &AudioEngine::s_MaxRealVoices, 1, 128);
+    ImGui::Unindent();
   }
 
   if (ImGui::CollapsingHeader("Environment Settings")) {
@@ -3001,8 +3118,7 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
 }
 
 void EditorLayer::UpdateViewportResolution(Scene &scene) {
-  
-  
+
   ImGuiWindowFlags lockFlags =
       fixedLayout ? (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoCollapse)
@@ -3047,9 +3163,6 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
        scene.GetObjects()[selectedCube].hasCamera &&
        scene.GetObjects()[selectedCube].camera.enabled &&
        !scene.GetObjects()[selectedCube].camera.isDebugCamera);
-
-  
-  
 
   if (viewportTextureID != 0 && viewportWidth > 0 && viewportHeight > 0) {
     ImVec2 cursorPos = ImGui::GetCursorScreenPos();
@@ -3098,12 +3211,11 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
                    ImVec2(1, 0));
     }
 
-    
     auto &objects = scene.GetObjects();
     for (int i = 0; i < (int)objects.size(); ++i) {
       auto &obj = objects[i];
       if (obj.hasCamera && obj.camera.isDebugCamera && obj.camera.enabled) {
-        
+
         float previewSize = 200.0f;
         float padding = 10.0f;
         ImVec2 overlayPos =
@@ -3111,10 +3223,13 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
                    cursorPos.y + padding);
 
         ImGui::SetCursorScreenPos(overlayPos);
+        
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.6f));
         ImGui::BeginChild(
             (std::string("DebugPreviewOverlay") + std::to_string(i)).c_str(),
-            ImVec2(previewSize, previewSize + 20), true,
+            ImVec2(previewSize + 2 * padding, previewSize + 40), true,
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::PopStyleColor();
 
         ImGui::TextColored(ImVec4(1, 1, 0, 1), "Debug: %s", obj.name.c_str());
 
@@ -3133,7 +3248,6 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
                      ImVec2(1, 0));
         ImGui::EndChild();
 
-        
         break;
       }
     }

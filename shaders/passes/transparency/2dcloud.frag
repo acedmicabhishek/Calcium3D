@@ -90,52 +90,34 @@ void main()
     vec2 uv = WorldPos.xz * 0.01 * u_tiling;
     vec2 motion = vec2(u_time * u_cloudSpeed * 0.1, 0.0);
     
-    // Controls overall cloud distribution
-    float weatherNoise = fbm4(uv * 0.5 + motion * 0.5);
-    float weatherMap = weatherNoise * 0.5 + 0.5; // Remap to 0-1
-    
-    // Dynamic coverage based on weather map
-    float coverage = mix(u_cloudCover - 0.1, u_cloudCover + 0.1, 
-                        weatherMap * u_randomness);
-    coverage = clamp(coverage, 0.0, 1.0);
-    
-    float baseNoise = fbm4(uv * u_cloudSize + motion);
-    baseNoise = baseNoise * 0.5 + 0.5; // Remap to 0-1
-    
-    // Apply coverage threshold
+    float baseNoise = fbm(uv * u_cloudSize + motion, 3);
+    baseNoise = baseNoise * 0.5 + 0.5;
+
+    float coverage = clamp(u_cloudCover, 0.0, 1.0);
     float cloudShape = smoothstep(1.0 - coverage, 1.0, baseNoise);
     
-    // Early discard for performance
     if (cloudShape < 0.01) discard;
     
-    // Add fine detail to cloud edges
-    float detailNoise = fbm4(uv * u_cloudSize * 3.5 + motion * 1.8);
+    float detailNoise = snoise(uv * u_cloudSize * 3.5 + motion * 1.8);
     detailNoise = detailNoise * 0.5 + 0.5;
     
-
     float detailMask = smoothstep(0.3, 0.7, detailNoise);
     cloudShape *= mix(1.0, detailMask, 0.6);
 
-    // Simulate volumetric lighting effect
     vec3 lightDir = normalize(u_lightDir);
     
-    // Thickness-based lighting (thicker clouds are darker underneath)
     float thickness = cloudShape * baseNoise;
     float lightPenetration = exp(-thickness * 2.0);
     
-    // Soft lighting gradient
     float lightAmount = mix(0.6, 1.0, lightPenetration) * (1.0 + u_lightIntensity);
     
-    // Add rim lighting effect on cloud edges
     float edgeMask = 1.0 - smoothstep(0.0, 0.3, cloudShape);
     float rimLight = edgeMask * 0.4;
 
     vec3 cloudLit = u_cloudColor * u_ambientColor * lightAmount;
     cloudLit += rimLight * vec3(1.0, 1.0, 1.0);
     
-    // Add subtle color variation based on noise
-    float colorVariation = fbm4(uv * u_cloudSize * 0.3 + motion * 0.3);
-    cloudLit *= 1.0 + colorVariation * 0.1;
+    cloudLit *= 1.0 + detailNoise * 0.1;
 
     float alpha = cloudShape * u_density;
     alpha = smoothstep(0.0, 0.1, alpha);
@@ -143,5 +125,5 @@ void main()
     if (alpha < 0.01) discard;
     
     FragColor = vec4(cloudLit, alpha);
-    NormalColor = vec4(0.0, 0.0, 0.0, 0.0); // No SSR on clouds; metallic = 0
+    NormalColor = vec4(0.0, 0.0, 0.0, 0.0);
 }

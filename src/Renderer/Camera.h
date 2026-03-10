@@ -11,44 +11,44 @@
 
 #include "Shader.h"
 
-class Camera
-{
+class Camera {
 public:
-	
-	glm::vec3 Position;
-	glm::vec3 Orientation = glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::vec3 Up = glm::vec3(0.0f, 1.0f, 0.0f);
+  glm::vec3 Position;
+  glm::vec3 Orientation = glm::vec3(0.0f, 0.0f, -1.0f);
+  glm::vec3 Up = glm::vec3(0.0f, 1.0f, 0.0f);
 
-	
-	bool firstClick = true;
+  bool firstClick = true;
 
-	int parentIndex = -1; 
+  int parentIndex = -1;
 
-	
-	int width;
-	int height;
+  int width;
+  int height;
 
-	
-	bool m_cameraEnabled;
+  bool m_cameraEnabled;
 
-	
-	float speed = 0.5f;
-	float sensitivity = 100.0f;
-	float nearPlane = 0.1f;
-	float farPlane = 100.0f;
-	float FOV = 45.0f;
-	float yaw = -90.0f;   
-	float pitch = 0.0f;   
+  float speed = 0.5f;
+  float sensitivity = 100.0f;
+  float nearPlane = 0.1f;
+  float farPlane = 100.0f;
+  float FOV = 45.0f;
+  float yaw = -90.0f;
+  float pitch = 0.0f;
 
-	
-	Camera(int width, int height, glm::vec3 position);
+  Camera(int width, int height, glm::vec3 position);
 
-	
-	void Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shader, const char* uniform);
-	
-	void Inputs(GLFWwindow* window, float deltaTime = 1.0f/60.0f, bool forceFreeMove = false);
-	glm::mat4 GetViewMatrix();
-	glm::mat4 GetProjectionMatrix();
-	glm::vec3 GetRay(GLFWwindow* window);
+  void Matrix(float FOVdeg, float nearPlane, float farPlane, Shader &shader,
+              const char *uniform);
+
+  void Inputs(GLFWwindow *window, float deltaTime = 1.0f / 60.0f,
+              bool forceFreeMove = false);
+  void UpdateSize(int width, int height);
+  void SetFirstClick(bool first) { firstClick = first; }
+
+  glm::mat4 GetViewMatrix();
+  glm::mat4 GetProjectionMatrix();
+  glm::vec3 GetRay(GLFWwindow *window);
+
+private:
+  bool lastMouseUpdated = false;
 };
 #endif

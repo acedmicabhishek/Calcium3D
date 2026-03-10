@@ -766,6 +766,22 @@ void EditorApplication::RenderEditor(float deltaTime) {
   m_RenderContext.ssrFadeStart = m_EditorLayer->ssrFadeStart;
 
   m_RenderContext.cullingCamera = nullptr;
+  m_RenderContext.wireframe = m_EditorLayer->wireframe;
+  
+  
+  m_RenderContext.backfaceCulling = Renderer::s_BackfaceCulling;
+  m_RenderContext.objCulling = Renderer::s_ObjFrustumCulling;
+  m_RenderContext.lightCulling = Renderer::s_LightFrustumCulling;
+  m_RenderContext.shadowCulling = Renderer::s_ShadowFrustumCulling;
+  m_RenderContext.materialOptimisation = Renderer::s_MaterialOptimisation;
+
+  m_RenderContext.zPrepass = Renderer::s_ZPrepass;
+  m_RenderContext.autoLOD = Renderer::s_AutoLOD;
+  m_RenderContext.clusteredShading = Renderer::s_ClusteredShading;
+  m_RenderContext.adaptiveShadowRes = Renderer::s_AdaptiveShadowRes;
+  m_RenderContext.staticBatching = Renderer::s_StaticBatching;
+  m_RenderContext.dynamicBatching = Renderer::s_DynamicBatching;
+  m_RenderContext.vrs = Renderer::s_VRS;
 
   ProcessSceneCameras();
 
@@ -775,6 +791,19 @@ void EditorApplication::RenderEditor(float deltaTime) {
     glBindFramebuffer(GL_FRAMEBUFFER, m_ViewportFBO);
   }
   glViewport(0, 0, m_ViewportWidth, m_ViewportHeight);
+
+  
+  
+  if (m_Camera) {
+    m_Camera->width = m_ViewportWidth;
+    m_Camera->height = m_ViewportHeight;
+  }
+
+  
+  
+  
+  glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   m_RenderContext.renderEditorObjects = true;
   {

@@ -2,13 +2,87 @@
 #include "AudioEngine/AudioEngine.h"
 #include "Core/Logger.h"
 #include "Core/ResourceManager.h"
+#include "DynamicBatcher.h"
 #include "Frustum.h"
+#include "StaticBatcher.h"
+#include "Tools/Profiler/GpuProfiler.h"
+#include "Tools/Profiler/Profiler.h"
 #include "VideoPlayer.h"
 
 bool Renderer::s_BackfaceCulling = true;
-bool Renderer::s_FrustumCulling = false;
+bool Renderer::s_ObjFrustumCulling = true;
+bool Renderer::s_LightFrustumCulling = true;
+bool Renderer::s_ShadowFrustumCulling = true;
+bool Renderer::s_MaterialOptimisation = false;
+bool Renderer::s_ZPrepass = false;
+bool Renderer::s_ShowCulledAsWireframe = true;
+bool Renderer::s_VRS = false;
+bool Renderer::s_VisualizeZPrepass = false;
+bool Renderer::s_VisualizeVRS = false;
+bool Renderer::s_AdaptiveShadowRes = true;
+bool Renderer::s_StaticBatching = false;
+bool Renderer::s_DynamicBatching = false;
+bool Renderer::s_ClusteredShading = false;
+bool Renderer::s_AutoLOD = true;
+int Renderer::s_MaxFPS = 60;
+bool Renderer::s_LowLatencyMode = false;
 
-void Renderer::Init() { glEnable(GL_DEPTH_TEST); }
+static GLuint s_boxVAO = 0;
+static GLuint s_boxVBO = 0;
+static GLuint s_boxEBO = 0;
+
+void Renderer::Init() {
+  glEnable(GL_DEPTH_TEST);
+
+  
+  bool vrsSupported = false;
+  int numExtensions;
+  glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+  for (int i = 0; i < numExtensions; i++) {
+    const char *ext = (const char *)glGetStringi(GL_EXTENSIONS, i);
+    if (std::string(ext) == "GL_NV_shading_rate_image") {
+      vrsSupported = true;
+      break;
+    }
+  }
+
+  if (vrsSupported) {
+    Logger::AddLog("[Renderer] Variable Rate Shading (VRS) supported "
+                   "(NV_shading_rate_image).");
+  } else {
+    Logger::AddLog(
+        "[Renderer] Variable Rate Shading (VRS) not supported on this "
+        "hardware.");
+  }
+
+  
+  float vertices[] = {
+      -0.5f, -0.5f, -0.5f, 0.5f,  -0.5f, -0.5f, 0.5f, 0.5f,
+      -0.5f, -0.5f, 0.5f,  -0.5f, -0.5f, -0.5f, 0.5f, 0.5f,
+      -0.5f, 0.5f,  0.5f,  0.5f,  0.5f,  -0.5f, 0.5f, 0.5f,
+  };
+
+  unsigned int indices[] = {
+      0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0,
+      4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7 
+                                                  
+  };
+
+  glGenVertexArrays(1, &s_boxVAO);
+  glGenBuffers(1, &s_boxVBO);
+  glGenBuffers(1, &s_boxEBO);
+
+  glBindVertexArray(s_boxVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, s_boxVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_boxEBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+               GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  glBindVertexArray(0);
+}
 
 void Renderer::Shutdown() {}
 
@@ -25,26 +99,50 @@ void Renderer::RenderMesh(Mesh &mesh, Shader &shader, const glm::vec3 &position,
 void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
                            float tilingFactor, bool renderEditorObjects,
                            float dt, float time, int renderLayer,
-                           Camera *cullingCamera) {
+                           Camera *cullingCamera, bool useObjCulling,
+                           bool useBackfaceCulling,
+                           bool useMaterialOptimisation, bool visualizeCulling,
+                           bool useAutoLOD, bool useZPrepass,
+                           bool useStaticBatching, bool useDynamicBatching) {
+  PROFILE_SCOPE("RenderScene_Iterate");
   auto &objects = scene.GetObjects();
 
+  glm::mat4 viewMatrix = camera.GetViewMatrix();
+  glm::mat4 projectionMatrix = camera.GetProjectionMatrix();
+  glm::mat4 camMatrix = projectionMatrix * viewMatrix;
+  glm::vec3 cameraPos = camera.Position;
+
   shader.use();
-  shader.setMat4("view", camera.GetViewMatrix());
-  shader.setMat4("projection", camera.GetProjectionMatrix());
+  shader.setMat4("view", viewMatrix);
+  shader.setMat4("projection", projectionMatrix);
+  shader.setMat4("camMatrix", camMatrix);
+  shader.setVec3("viewPos", cameraPos);
+  shader.setVec3("camPos", cameraPos);
   shader.setFloat("time", time);
   shader.setFloat("iTime", time);
   shader.setFloat("deltaTime", dt);
 
-  if (s_BackfaceCulling && renderLayer != 2) {
+  if (useBackfaceCulling && renderLayer != 2) {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glFrontFace(GL_CCW); 
+    glFrontFace(GL_CCW);
   } else {
     glDisable(GL_CULL_FACE);
   }
 
+  
+  GLint incomingPolyMode[2];
+  glGetIntegerv(GL_POLYGON_MODE, incomingPolyMode);
+  GLenum basePolyMode = (GLenum)incomingPolyMode[0]; 
+
+  glPolygonMode(GL_FRONT_AND_BACK, basePolyMode);
+
+  Shader *lastShader = &shader;
+  bool currentIsWireframe = false;
+
   Frustum frustum;
-  if (s_FrustumCulling) {
+  if (useObjCulling || (cullingCamera != nullptr && cullingCamera != &camera &&
+                        s_ObjFrustumCulling)) {
     Camera &cRef = cullingCamera ? *cullingCamera : camera;
     frustum = Frustum::CreateFrustumFromCamera(cRef.GetProjectionMatrix() *
                                                cRef.GetViewMatrix());
@@ -57,9 +155,12 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
     if (!renderEditorObjects && object.meshType == MeshType::Camera)
       continue;
 
+    glm::mat4 globalTransform = scene.GetGlobalTransform(i);
+    glm::mat4 finalMatrix =
+        glm::scale(globalTransform, glm::vec3(tilingFactor));
+
     bool isCulled = false;
-    if (s_FrustumCulling) {
-      glm::mat4 model = scene.GetGlobalTransform(i);
+    if (useObjCulling || (visualizeCulling && s_ObjFrustumCulling)) {
       glm::vec3 minP = object.mesh.minAABB;
       glm::vec3 maxP = object.mesh.maxAABB;
 
@@ -73,7 +174,8 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       glm::vec3 worldMax(-1e30f);
 
       for (int c = 0; c < 8; c++) {
-        glm::vec3 worldCorner = glm::vec3(model * glm::vec4(corners[c], 1.0f));
+        glm::vec3 worldCorner =
+            glm::vec3(finalMatrix * glm::vec4(corners[c], 1.0f));
         worldMin = glm::min(worldMin, worldCorner);
         worldMax = glm::max(worldMax, worldCorner);
       }
@@ -83,22 +185,7 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       }
     }
 
-    bool isDebugCamera =
-        (camera.width > 0 &&
-         object.name ==
-             "debug_cameraobj"); 
-    
-    
-    
-    
-
-    bool visualizingCulling =
-        (cullingCamera != nullptr && cullingCamera != &camera);
-
-    
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    if (isCulled && !visualizingCulling) {
+    if (isCulled && (!visualizeCulling || !s_ShowCulledAsWireframe)) {
       continue;
     }
 
@@ -111,45 +198,55 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
 
     
     
-    bool renderAsWireframe = (isCulled && visualizingCulling);
-    if (renderAsWireframe) {
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    if (useBackfaceCulling && renderLayer != 2) {
+      float det = glm::determinant(glm::mat3(globalTransform));
+      glFrontFace(det < 0 ? GL_CW : GL_CCW);
     }
-    if (!object.material.customShaderName.empty()) {
-      if (!ResourceManager::HasShader(object.material.customShaderName)) {
 
-        std::string sName = object.material.customShaderName;
-        std::string vFile = sName + ".vert";
-        std::string fFile = sName + ".frag";
+    bool shouldBeWireframe = (isCulled && visualizeCulling && renderLayer != 2);
 
-        std::string resolvedV = ResourceManager::ResolvePath(vFile);
-        if (!std::filesystem::exists(resolvedV)) {
-          vFile = "default.vert";
-        }
-
-        try {
-          ResourceManager::LoadShader(sName, vFile.c_str(), fFile.c_str());
-          Logger::AddLog("Auto-loaded custom shader: %s", sName.c_str());
-        } catch (...) {
-        }
+    if (shouldBeWireframe != currentIsWireframe) {
+      glPolygonMode(GL_FRONT_AND_BACK,
+                    shouldBeWireframe ? GL_LINE : basePolyMode);
+      if (shouldBeWireframe) {
+        glDisable(GL_CULL_FACE);
+      } else if (useBackfaceCulling && renderLayer != 2) {
+        glEnable(GL_CULL_FACE);
       }
+      currentIsWireframe = shouldBeWireframe;
+    }
 
+    if (!object.material.customShaderName.empty()) {
       if (ResourceManager::HasShader(object.material.customShaderName)) {
         activeShader =
             &ResourceManager::GetShader(object.material.customShaderName);
+      } else {
+        
+        std::string name = object.material.customShaderName;
+        ResourceManager::LoadShader(name, (name + ".vert").c_str(),
+                                    (name + ".frag").c_str());
+        if (ResourceManager::HasShader(name)) {
+          activeShader = &ResourceManager::GetShader(name);
+        }
       }
     }
-    if (!activeShader) {
-      continue;
+
+    if (activeShader != lastShader) {
+      activeShader->use();
+      activeShader->setMat4("view", viewMatrix);
+      activeShader->setMat4("projection", projectionMatrix);
+      activeShader->setMat4("camMatrix", camMatrix);
+      activeShader->setVec3("viewPos", cameraPos);
+      activeShader->setVec3("camPos", cameraPos);
+      activeShader->setFloat("time", time);
+      activeShader->setFloat("iTime", time);
+      activeShader->setFloat("deltaTime", dt);
+      lastShader = activeShader;
     }
 
-    activeShader->use();
-    activeShader->setMat4("view", camera.GetViewMatrix());
-    activeShader->setMat4("projection", camera.GetProjectionMatrix());
-    activeShader->setFloat("time", time);
-    activeShader->setFloat("iTime", time);
-    activeShader->setFloat("deltaTime", dt);
-    activeShader->setFloat("intensity", 1.0f);
+    
+    
+    activeShader->setFloat("intensity", object.material.intensity);
 
     glm::vec3 finalAlbedo = object.material.albedo;
     if (object.hasScreen && (object.screen.type == ScreenType::Image ||
@@ -157,18 +254,23 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       finalAlbedo *= object.screen.brightness;
     }
 
-    activeShader->setVec3("material.albedo", finalAlbedo);
-    activeShader->setFloat("material.metallic", object.material.metallic);
-    activeShader->setFloat("material.roughness", object.material.roughness);
-    activeShader->setFloat("material.ao", object.material.ao);
-    activeShader->setFloat("material.shininess", object.material.shininess);
-    activeShader->setBool("material.useTexture", object.material.useTexture);
+    
+    
+    
+    if (!useMaterialOptimisation) {
+      activeShader->setVec3("material.albedo", finalAlbedo);
+      activeShader->setFloat("material.metallic", object.material.metallic);
+      activeShader->setFloat("material.roughness", object.material.roughness);
+      activeShader->setFloat("material.ao", object.material.ao);
+      activeShader->setFloat("material.shininess", object.material.shininess);
+      activeShader->setBool("material.useTexture", object.material.useTexture);
+    } else {
+      
+      activeShader->setVec3("material.albedo", finalAlbedo);
+      activeShader->setBool("material.useTexture", object.material.useTexture);
+    }
 
-    glm::mat4 globalTransform = scene.GetGlobalTransform(i);
-
-    glm::mat4 finalMatrix =
-        glm::scale(globalTransform, glm::vec3(tilingFactor));
-
+    
     unsigned int texOverride = 0;
     if (object.hasScreen && object.screen.enabled) {
       if (object.screen.type == ScreenType::CameraFeed &&
@@ -256,7 +358,11 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       }
     }
 
-    if (s_BackfaceCulling && renderLayer != 2) {
+    if (useBackfaceCulling) {
+      
+      
+      
+      
       float det = glm::determinant(glm::mat3(finalMatrix));
       if (det < 0)
         glFrontFace(GL_CW);
@@ -264,11 +370,31 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
         glFrontFace(GL_CCW);
     }
 
+    
+    object.mesh.currentLOD = 0;
+    if (useAutoLOD && !object.mesh.lodLevels.empty()) {
+      float distance = glm::distance(cameraPos, glm::vec3(finalMatrix[3]));
+      float maxScale =
+          glm::max(glm::length(glm::vec3(finalMatrix[0])),
+                   glm::max(glm::length(glm::vec3(finalMatrix[1])),
+                            glm::length(glm::vec3(finalMatrix[2]))));
+      float radius = glm::length(object.mesh.maxAABB - object.mesh.minAABB) *
+                     0.5f * maxScale;
+
+      
+      float coverage = radius / glm::max(distance, 0.1f);
+
+      if (coverage < 0.05f && object.mesh.lodLevels.size() >= 3)
+        object.mesh.currentLOD = 3;
+      else if (coverage < 0.15f && object.mesh.lodLevels.size() >= 2)
+        object.mesh.currentLOD = 2;
+      else if (coverage < 0.3f && object.mesh.lodLevels.size() >= 1)
+        object.mesh.currentLOD = 1;
+    }
+
     object.mesh.Draw(*activeShader, camera, finalMatrix, texOverride);
 
-    
-    
-    if (visualizingCulling && s_BackfaceCulling && renderLayer != 2) {
+    if (visualizeCulling && renderLayer != 2) {
       if (!ResourceManager::HasShader("culling_vis")) {
         ResourceManager::LoadShader("culling_vis",
                                     "shaders/editor/culling_vis.vert",
@@ -280,37 +406,77 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       debugShader.setMat4("view", camera.GetViewMatrix());
       debugShader.setMat4("projection", camera.GetProjectionMatrix());
       debugShader.setMat4("model", finalMatrix);
-      debugShader.setVec3("color", glm::vec3(1.0f, 0.0f, 0.0f));
       debugShader.setVec3("cullingCameraPos", cullingCamera->Position);
-      debugShader.setBool("isBackfacePass", true);
+      debugShader.setBool("isFrustumCulled", isCulled);
 
-      glDisable(GL_CULL_FACE); 
+      glDisable(GL_CULL_FACE);
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-      glDisable(GL_DEPTH_TEST);
       glLineWidth(2.0f);
-
-      object.mesh.vao.Bind();
-      glDrawElements(GL_TRIANGLES, object.mesh.indices.size(), GL_UNSIGNED_INT,
-                     0);
+      glEnable(GL_DEPTH_TEST);
 
       
+      int indicesCount = object.mesh.indices.size();
+      if (object.mesh.currentLOD != -1 &&
+          (size_t)object.mesh.currentLOD < object.mesh.lodLevels.size()) {
+        glBindVertexArray(object.mesh.lodLevels[object.mesh.currentLOD].vao);
+        indicesCount =
+            object.mesh.lodLevels[object.mesh.currentLOD].indices.size();
+      } else {
+        object.mesh.vao.Bind();
+      }
+
+      
+      debugShader.setInt("cullingMode", 0);
+      glDepthFunc(GL_LEQUAL);
+      glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, 0);
+
+      
+      if (s_BackfaceCulling) {
+        debugShader.setInt("cullingMode", 1);
+        glDepthFunc(GL_GREATER);
+        glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, 0);
+      }
+
+      glDepthFunc(useZPrepass ? GL_LEQUAL : GL_LESS);
       glLineWidth(1.0f);
-      glEnable(GL_DEPTH_TEST);
-      if (s_BackfaceCulling && renderLayer != 2) {
+      
+      if (useBackfaceCulling && renderLayer != 2) {
         glEnable(GL_CULL_FACE);
       }
-      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      glPolygonMode(GL_FRONT_AND_BACK, basePolyMode);
+      currentIsWireframe = false;
       activeShader->use();
     }
 
-    
-    if (s_BackfaceCulling && renderLayer != 2) {
-      glFrontFace(GL_CCW);
+    if (useBackfaceCulling && renderLayer != 2) {
+      glFrontFace(GL_CCW); 
     }
+  }
+
+  
+  
+  if (renderLayer <= 1) {
+    if (useStaticBatching && StaticBatcher::HasBatches()) {
+      PROFILE_SCOPE("StaticBatching");
+      GPU_PROFILE_SCOPE("StaticBatching");
+      StaticBatcher::DrawBatches(shader, camera);
+    }
+    if (useDynamicBatching) {
+      PROFILE_SCOPE("DynamicBatching");
+      GPU_PROFILE_SCOPE("DynamicBatching");
+      DynamicBatcher::DrawBatches(scene, shader, camera);
+    }
+  }
+
+  if (useBackfaceCulling) {
+    glFrontFace(GL_CCW);
   }
 }
 
 void Renderer::RenderHitboxes(Scene &scene, Camera &camera) {
+  PROFILE_SCOPE("HitboxPass");
+  GPU_PROFILE_SCOPE("HitboxPass");
+
   if (!ResourceManager::HasShader("hitbox")) {
 
     try {
@@ -321,38 +487,15 @@ void Renderer::RenderHitboxes(Scene &scene, Camera &camera) {
     }
   }
 
-  static unsigned int boxVAO = 0, boxVBO = 0, boxEBO = 0;
-  if (boxVAO == 0) {
-    float vertices[] = {-0.5f, -0.5f, -0.5f, 0.5f,  -0.5f, -0.5f, 0.5f, 0.5f,
-                        -0.5f, -0.5f, 0.5f,  -0.5f, -0.5f, -0.5f, 0.5f, 0.5f,
-                        -0.5f, 0.5f,  0.5f,  0.5f,  0.5f,  -0.5f, 0.5f, 0.5f};
-    unsigned int indices[] = {0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6,
-                              6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7};
-
-    glGenVertexArrays(1, &boxVAO);
-    glGenBuffers(1, &boxVBO);
-    glGenBuffers(1, &boxEBO);
-
-    glBindVertexArray(boxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, boxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boxEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-                 GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
-                          (void *)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
-  }
-
   Shader &hbShader = ResourceManager::GetShader("hitbox");
   hbShader.use();
   hbShader.setMat4("view", camera.GetViewMatrix());
   hbShader.setMat4("projection", camera.GetProjectionMatrix());
+  hbShader.setMat4("camMatrix",
+                   camera.GetProjectionMatrix() * camera.GetViewMatrix());
 
   auto &objects = scene.GetObjects();
-  glBindVertexArray(boxVAO);
+  glBindVertexArray(s_boxVAO);
   glLineWidth(2.0f);
 
   for (size_t i = 0; i < objects.size(); ++i) {
