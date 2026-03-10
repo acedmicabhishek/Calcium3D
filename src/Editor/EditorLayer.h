@@ -179,8 +179,6 @@ public:
         std::filesystem::copy(sourceShaders, targetShadersDir,
                               std::filesystem::copy_options::recursive |
                                   std::filesystem::copy_options::skip_existing);
-        std::cout << "[EditorLayer] Successfully copied shaders from "
-                  << sourceShaders << " to " << targetShadersDir << "\n";
       } catch (const std::exception &e) {
         std::cerr << "[EditorLayer] Failed to copy shaders: " << e.what()
                   << "\n";
