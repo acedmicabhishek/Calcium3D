@@ -105,6 +105,7 @@ set(SOURCES
     src/Tools/Profiler/Profiler.cpp
     src/Tools/Profiler/ProfilerUI.cpp
     src/Tools/Profiler/GpuProfiler.cpp
+    src/Tools/Stress/StressUI.cpp
     
     # Model Import
     src/ModelImport/ModelImporter.cpp
@@ -154,8 +155,7 @@ target_include_directories(calcium3d PUBLIC
     src
     include/ufbx
     src/Tools/Profiler
-    include/ufbx
-    src/Tools/Profiler
+    src/Tools/Stress
 )
 
 # Exclude 3rd party libraries from Unity Build to avoid header pollution and loader conflicts

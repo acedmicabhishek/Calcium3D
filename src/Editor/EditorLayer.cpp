@@ -323,6 +323,7 @@ void EditorLayer::SetupDockLayout() {
   ImGui::DockBuilderDockWindow("Content Browser", dock_bottom_id);
   ImGui::DockBuilderDockWindow("Console", dock_bottom_id);
   ImGui::DockBuilderDockWindow("Profiler##C3D", dock_bottom_id);
+  ImGui::DockBuilderDockWindow("Stress Test", dock_bottom_id);
   ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
 
   ImGui::DockBuilderFinish(dockspace_id);
@@ -442,6 +443,8 @@ void EditorLayer::Render(Scene &scene, Camera &camera, float dt) {
     DrawContentBrowser();
   if (showProfiler)
     ProfilerUI::Draw(&showProfiler);
+  if (showStressTests)
+    StressUI::Draw(&showStressTests, scene);
 
   if (!m_EditingShaderPath.empty())
     DrawShaderEditor();
@@ -614,6 +617,7 @@ void EditorLayer::DrawMenuBar(Scene &scene) {
       ImGui::MenuItem("Project Settings", NULL, &showProjectSettings);
       ImGui::Separator();
       ImGui::MenuItem("Profiler", NULL, &showProfiler);
+      ImGui::MenuItem("Stress Test", NULL, &showStressTests);
       ImGui::EndMenu();
     }
 
@@ -2571,7 +2575,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
   if (ImGui::CollapsingHeader("Optimizations")) {
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Forced (Global)");
 
-    
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "OBJ Category");
     ImGui::Indent();
@@ -2608,7 +2611,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     }
     ImGui::Unindent();
 
-    
     ImGui::Separator();
     ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f), "LIGHT Category");
     ImGui::Indent();
@@ -2627,7 +2629,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     }
     ImGui::Unindent();
 
-    
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.8f, 0.4f, 1.0f, 1.0f), "SHADOW Category");
     ImGui::Indent();
@@ -2647,7 +2648,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     }
     ImGui::Unindent();
 
-    
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "BATCH Category");
     ImGui::Indent();
@@ -2666,7 +2666,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     }
     ImGui::Unindent();
 
-    
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "SYSTEM Category");
     ImGui::Indent();
@@ -2689,7 +2688,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     ImGui::PopItemWidth();
     ImGui::Unindent();
 
-    
     ImGui::Separator();
     ImGui::Text("Visualization");
     ImGui::Indent();
@@ -2699,7 +2697,6 @@ void EditorLayer::DrawSettings(Scene &scene, Camera &camera) {
     ImGui::Checkbox("VRS Heatmap", &Renderer::s_VisualizeVRS);
     ImGui::Unindent();
 
-    
     ImGui::Separator();
     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.6f, 1.0f), "AUDIO Category");
     ImGui::Indent();
@@ -3223,7 +3220,7 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
                    cursorPos.y + padding);
 
         ImGui::SetCursorScreenPos(overlayPos);
-        
+
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.6f));
         ImGui::BeginChild(
             (std::string("DebugPreviewOverlay") + std::to_string(i)).c_str(),

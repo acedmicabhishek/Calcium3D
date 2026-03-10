@@ -44,6 +44,7 @@ inc_dirs = include_directories(
   'src/ModelImport',
   'src/AudioEngine',
   'src/Tools/Profiler',
+  'src/Tools/Stress',
   'imgui',
   'imgui/backends',
   'include/ufbx'
@@ -127,6 +128,7 @@ editor_sources = common_sources + files(
   'src/Tools/Profiler/Profiler.cpp',
   'src/Tools/Profiler/ProfilerUI.cpp',
   'src/Tools/Profiler/GpuProfiler.cpp',
+  'src/Tools/Stress/StressUI.cpp',
   'imgui/ImGuizmo.cpp',
   'src/Game/game_code.cpp',
   'src/UI/UIManager.cpp',

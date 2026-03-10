@@ -22,6 +22,7 @@
 #include "Model.h"
 #include "Scene.h"
 #include "Shader.h"
+#include "Tools/Stress/StressUI.h"
 
 class EditorLayer {
 public:
@@ -45,6 +46,7 @@ public:
   bool showInspector = true;
   bool showConsole = true;
   bool showContentBrowser = true;
+  bool showStressTests = true;
 
   bool showProfiler = false;
   bool showProjectSettings = false;
@@ -238,7 +240,7 @@ private:
   bool m_EnableMasterControlInBuild = false;
   bool m_EnableHitboxesInBuild = false;
 
-  int m_CullingSourceIndex = 0; 
+  int m_CullingSourceIndex = 0;
   int m_CullingCameraObjectIndex = -1;
 };
 
