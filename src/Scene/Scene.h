@@ -91,6 +91,11 @@ struct ScreenComponent {
   float videoPlaybackSpeed = 1.0f;
   float videoVolume = 1.0f;
   bool videoKeepAspect = true;
+  std::string videoDirectory = "";
+  std::vector<std::string> videoPlaylist;
+  int playlistIndex = 0;
+  bool shuffle = false;
+  bool playlistMode = false;
 };
 
 struct WaterComponent {
@@ -127,6 +132,7 @@ struct GameObject {
   glm::quat rotation;
   glm::vec3 scale;
   std::string name;
+  std::string tag = "";
 
   ColliderShape shape = ColliderShape::Box;
   float collisionRadius = 0.5f;

@@ -10,6 +10,7 @@
 #include "Tools/Profiler/GpuProfiler.h"
 #include "Tools/Profiler/Profiler.h"
 #include "VideoPlayer.h"
+#include "C3DprogrammingApi/C3D.h"
 #include <set>
 
 bool Renderer::s_BackfaceCulling = true;
@@ -398,6 +399,10 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
           if (!object.screen.videoPaused) {
             vp->Update(dt * object.screen.videoPlaybackSpeed);
           }
+          
+          if (!vp->IsPlaying() && object.screen.playlistMode && !object.screen.videoPlaylist.empty()) {
+              C3D::Video::Next(&object);
+          }
           texOverride = vp->GetTextureID();
 
           if (object.hasAudio) {
@@ -479,6 +484,9 @@ void Renderer::RenderScene(Scene &scene, Camera &camera, Shader &shader,
       activeShader->setVec3("sdfMin", object.sdf.minP);
       activeShader->setVec3("sdfMax", object.sdf.maxP);
     }
+
+    activeShader->setBool("textureScaling", object.material.textureScaling);
+    activeShader->setFloat("textureScaleValue", object.material.textureScale);
 
     object.mesh.Draw(*activeShader, camera, finalMatrix, finalTexOverride);
 

@@ -50,7 +50,6 @@ set(SOURCES
     src/UI/UIManager.cpp
     src/UI/UICreationEngine.cpp
     src/UI/Screens/StartScreen.cpp
-    src/UI/Screens/StartScreen.cpp
     src/UI/Screens/GameplayScreen.cpp
     src/UI/Screens/GameScreen.cpp
     src/UI/Screens/FallbackScreen.cpp
@@ -114,6 +113,9 @@ set(SOURCES
     # Audio
     src/AudioEngine/audioEngine.cpp
     
+    # Programming API
+    src/C3DprogrammingApi/C3D.cpp
+    
 
     
     # Environment
@@ -156,6 +158,7 @@ target_include_directories(calcium3d PUBLIC
     include/ufbx
     src/Tools/Profiler
     src/Tools/Stress
+    src/C3DprogrammingApi
 )
 
 # Exclude 3rd party libraries from Unity Build to avoid header pollution and loader conflicts
@@ -270,6 +273,9 @@ set(TESTBUILD_SOURCES
     # Audio
     src/AudioEngine/audioEngine.cpp
     
+    # Programming API
+    src/C3DprogrammingApi/C3D.cpp
+    
 
     
     # Glad
@@ -295,6 +301,9 @@ target_include_directories(calcium3d_testbuild PUBLIC
     src/Scene
     src/Environment
     src/AudioEngine
+
+    src/AudioEngine
+    src/C3DprogrammingApi
 
     src
 )

@@ -80,7 +80,11 @@ json SceneIO::SerializeObject(const GameObject &obj) {
                     {"videoPaused", obj.screen.videoPaused},
                     {"videoPlaybackSpeed", obj.screen.videoPlaybackSpeed},
                     {"videoVolume", obj.screen.videoVolume},
-                    {"videoKeepAspect", obj.screen.videoKeepAspect}};
+                    {"videoKeepAspect", obj.screen.videoKeepAspect},
+                    {"videoDirectory", obj.screen.videoDirectory},
+                    {"playlistIndex", obj.screen.playlistIndex},
+                    {"shuffle", obj.screen.shuffle},
+                    {"playlistMode", obj.screen.playlistMode}};
 
   jObj["hasWater"] = obj.hasWater;
   jObj["water"] = {{"waveSpeed", obj.water.waveSpeed},
@@ -261,6 +265,14 @@ void SceneIO::DeserializeObject(const json &jObj, GameObject &obj) {
       obj.screen.videoVolume = s["videoVolume"];
     if (s.contains("videoKeepAspect"))
       obj.screen.videoKeepAspect = s["videoKeepAspect"];
+    if (s.contains("videoDirectory"))
+      obj.screen.videoDirectory = s["videoDirectory"];
+    if (s.contains("playlistIndex"))
+      obj.screen.playlistIndex = s["playlistIndex"];
+    if (s.contains("shuffle"))
+      obj.screen.shuffle = s["shuffle"];
+    if (s.contains("playlistMode"))
+      obj.screen.playlistMode = s["playlistMode"];
   }
 
   if (jObj.contains("hasWater"))

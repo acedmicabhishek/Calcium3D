@@ -591,6 +591,14 @@ void PhysicsEngine::Update(float deltaTime, float time, std::vector<GameObject>&
                                 }
                             }
 
+                            
+                            for (auto& behavior : objA.behaviors) {
+                                if (behavior && behavior->enabled) behavior->OnCollisionEnter(&objB);
+                            }
+                            for (auto& behavior : objB.behaviors) {
+                                if (behavior && behavior->enabled) behavior->OnCollisionEnter(&objA);
+                            }
+
                         }
                     }
                     obbA = GetGameObjectOBB(objA);
@@ -621,4 +629,56 @@ void PhysicsEngine::Update(float deltaTime, float time, std::vector<GameObject>&
         obj.acceleration = glm::vec3(0.0f);
         obj.torque = glm::vec3(0.0f);
     }
+}
+
+bool PhysicsEngine::Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, std::vector<GameObject>& objects, RaycastHit& outHit) {
+    float closestDist = maxDistance;
+    bool hitFound = false;
+    glm::vec3 norm(0, 0, 0);
+
+    for (auto& obj : objects) {
+        if (!obj.isActive || !obj.enableCollision) continue;
+
+        AABB worldAABB = GetTransformedAABB(obj.collider, obj.position, obj.rotation, obj.scale);
+        
+        float tmin = (worldAABB.min.x - origin.x) / direction.x;
+        float tmax = (worldAABB.max.x - origin.x) / direction.x;
+        if (tmin > tmax) std::swap(tmin, tmax);
+
+        float tymin = (worldAABB.min.y - origin.y) / direction.y;
+        float tymax = (worldAABB.max.y - origin.y) / direction.y;
+        if (tymin > tymax) std::swap(tymin, tymax);
+
+        if ((tmin > tymax) || (tymin > tmax)) continue;
+        if (tymin > tmin) tmin = tymin;
+        if (tymax < tmax) tmax = tymax;
+
+        float tzmin = (worldAABB.min.z - origin.z) / direction.z;
+        float tzmax = (worldAABB.max.z - origin.z) / direction.z;
+        if (tzmin > tzmax) std::swap(tzmin, tzmax);
+
+        if ((tmin > tzmax) || (tzmin > tmax)) continue;
+        if (tzmin > tmin) tmin = tzmin;
+        if (tzmax < tmax) tmax = tzmax;
+
+        if (tmin > 0.0f && tmin < closestDist) {
+            closestDist = tmin;
+            outHit.object = &obj;
+            outHit.point = origin + direction * tmin;
+            outHit.distance = tmin;
+            
+            
+            glm::vec3 center = (worldAABB.max + worldAABB.min) * 0.5f;
+            glm::vec3 rel = outHit.point - center;
+            glm::vec3 extents = (worldAABB.max - worldAABB.min) * 0.5f;
+            glm::vec3 absRel = glm::abs(rel / extents);
+            if (absRel.x > absRel.y && absRel.x > absRel.z) outHit.normal = glm::vec3(rel.x > 0 ? 1 : -1, 0, 0);
+            else if (absRel.y > absRel.z) outHit.normal = glm::vec3(0, rel.y > 0 ? 1 : -1, 0);
+            else outHit.normal = glm::vec3(0, 0, rel.z > 0 ? 1 : -1);
+
+            hitFound = true;
+        }
+    }
+
+    return hitFound;
 }

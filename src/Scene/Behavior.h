@@ -5,6 +5,7 @@
 #include <any>
 #include <glm/glm.hpp>
 #include "TransitionType.h"
+#include "../C3DprogrammingApi/C3D.h"
 
 struct GameObject;
 class Camera;
@@ -17,6 +18,9 @@ public:
     virtual void OnStart() {}
     virtual void OnUpdate(float dt) {}
     virtual void OnUI() {}
+
+    virtual void OnCollisionEnter(GameObject* other) {}
+    virtual void OnTriggerEnter(GameObject* other) {}
 
     GameObject* gameObject = nullptr;
     bool enabled = true;

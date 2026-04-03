@@ -19,6 +19,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <nlohmann/json.hpp>
 
+
+
 static Camera s_GameCam(800, 600, glm::vec3(0.0f));
 static bool s_GameCamInitialized = false;
 
@@ -231,9 +233,6 @@ void EditorApplication::SaveProject(bool silent) {
   std::ofstream file(configPath);
   if (file.is_open()) {
     file << config.dump(4);
-    if (!silent)
-      Logger::AddLog("Saved Project Configuration: %s", configPath.c_str());
-    SaveGlobalSettings();
   } else {
     Logger::AddLog("[ERROR] Failed to save Project Configuration: %s",
                    configPath.c_str());
@@ -551,6 +550,11 @@ void EditorApplication::TogglePlayMode() {
 }
 
 void EditorApplication::OnUpdate(float deltaTime) {
+  if (m_State == AppState::Home) {
+    if (m_Home)
+      m_Home->Update(deltaTime);
+    return;
+  }
   static bool f7Pressed = false;
   if (glfwGetKey(m_Window, GLFW_KEY_F7) == GLFW_PRESS) {
     if (!f7Pressed) {
@@ -672,6 +676,7 @@ void EditorApplication::OnRender() {
     RenderHome();
   } else {
     RenderEditor(0.016f);
+    m_EditorLayer->Render(*m_Scene, *m_Camera, 0.016f);
   }
 }
 
@@ -843,7 +848,7 @@ void EditorApplication::RenderEditor(float deltaTime) {
 
   {
     PROFILE_SCOPE("UI");
-    m_EditorLayer->Render(*m_Scene, *m_Camera, deltaTime);
+    // m_EditorLayer->Render moved to OnRender conditioned by AppState
   }
 
   m_EditorLayer->RenderTransitions();
@@ -953,3 +958,4 @@ void EditorApplication::CreateViewportFramebuffer(int width, int height) {
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+

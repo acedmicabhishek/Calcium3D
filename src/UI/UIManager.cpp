@@ -109,6 +109,14 @@ void UIManager::RenderElement(const UIElement& element, glm::vec2 canvasSize, gl
                 }
             }
         }
+
+        if (ImGui::IsItemActive() && element.onHold) element.onHold();
+        if (ImGui::IsItemDeactivated() && element.onRelease) element.onRelease();
+
+        bool h = ImGui::IsItemHovered();
+        if (h && !element.wasHovered && element.onHoverEnter) element.onHoverEnter();
+        if (!h && element.wasHovered && element.onHoverExit) element.onHoverExit();
+        element.wasHovered = h;
     } else if (element.type == UIElementType::CHECKBOX) {
         bool val = false;
         ImGui::Checkbox(element.text.c_str(), &val);

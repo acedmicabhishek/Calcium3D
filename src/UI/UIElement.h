@@ -38,6 +38,12 @@ struct UIElement {
     float transitionDuration = 1.0f;
     
     std::function<void()> onClick;
+    std::function<void()> onHold;
+    std::function<void()> onRelease;
+    std::function<void()> onHoverEnter;
+    std::function<void()> onHoverExit;
+    
+    mutable bool wasHovered = false;
 
     nlohmann::json Serialize() const {
         nlohmann::json j;

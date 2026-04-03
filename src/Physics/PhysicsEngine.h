@@ -36,6 +36,15 @@ public:
 
     
     static AABB GetTransformedAABB(const AABB& localAABB, const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale);
+
+    struct RaycastHit {
+        GameObject* object;
+        glm::vec3 point;
+        glm::vec3 normal;
+        float distance;
+    };
+
+    static bool Raycast(const glm::vec3& origin, const glm::vec3& direction, float maxDistance, std::vector<GameObject>& objects, RaycastHit& outHit);
 };
 
 #endif

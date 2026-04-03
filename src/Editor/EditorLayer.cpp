@@ -1,5 +1,6 @@
 #include "EditorLayer.h"
 #include "../AudioEngine/AudioEngine.h"
+#include "../C3DprogrammingApi/C3D.h"
 #include "../Core/GPUManager.h"
 #include "../Core/ThreadManager.h"
 #include "../Physics/HitboxGraphics.h"
@@ -467,7 +468,7 @@ void EditorLayer::RenderOverlay(Scene &scene, Camera &camera) {
     gizmoProgram = &ResourceManager::GetShader("gizmo");
   }
 
-  if (selectedCube != -1) {
+  if (selectedCube >= 0) {
     auto &objects = scene.GetObjects();
     if (selectedCube < objects.size()) {
       glm::vec3 pos = objects[selectedCube].position;
@@ -1436,7 +1437,7 @@ void EditorLayer::DrawInspector(Scene &scene) {
         }
       }
     }
-  } else if (selectedCube != -1) {
+  } else if (selectedCube >= 0) {
     auto &objects = scene.GetObjects();
     if (selectedCube < objects.size()) {
       GameObject &obj = objects[selectedCube];
@@ -1529,6 +1530,18 @@ void EditorLayer::DrawInspector(Scene &scene) {
       }
       if (ImGui::Checkbox("Use Texture", &obj.material.useTexture))
         TriggerAutoSave(scene);
+      if (obj.material.useTexture) {
+        if (ImGui::Checkbox("Texture Scaling (Stretch)",
+                            &obj.material.textureScaling))
+          TriggerAutoSave(scene);
+        if (obj.material.textureScaling) {
+          if (ImGui::DragFloat("Texture Scale", &obj.material.textureScale,
+                               0.01f, 0.01f, 50.0f, "%.2f")) {
+            if (ImGui::IsItemDeactivatedAfterEdit())
+              TriggerAutoSave(scene);
+          }
+        }
+      }
 
       ImGui::Text("Diffuse Texture:");
       std::string diffLabel =
@@ -2298,6 +2311,51 @@ void EditorLayer::DrawInspector(Scene &scene) {
                                0.1f, 10.0f);
               ImGui::SliderFloat("Volume##Video", &obj.screen.videoVolume, 0.0f,
                                  1.0f);
+
+              ImGui::Separator();
+              ImGui::Text("Playlist Settings");
+              ImGui::Checkbox("Playlist Mode", &obj.screen.playlistMode);
+              
+              char dirBuf[512];
+              strncpy(dirBuf, obj.screen.videoDirectory.c_str(), 512);
+              if (ImGui::InputText("Video Directory", dirBuf, 512)) {
+                  obj.screen.videoDirectory = dirBuf;
+              }
+              if (ImGui::BeginDragDropTarget()) {
+                  if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                      const char* path = (const char*)payload->Data;
+                      if (std::filesystem::is_directory(path)) {
+                          obj.screen.videoDirectory = path;
+                          obj.screen.playlistMode = true;
+                          C3D::Video::SetDirectory(&obj, path);
+                      }
+                  }
+                  ImGui::EndDragDropTarget();
+              }
+
+              if (ImGui::Button("Refresh Playlist")) {
+                  C3D::Video::SetDirectory(&obj, obj.screen.videoDirectory);
+              }
+
+              ImGui::Checkbox("Shuffle", &obj.screen.shuffle);
+              
+              if (!obj.screen.videoPlaylist.empty()) {
+                  ImGui::Text("Playlist: %d / %d", obj.screen.playlistIndex + 1, (int)obj.screen.videoPlaylist.size());
+                  if (ImGui::Button("Previous")) C3D::Video::Previous(&obj);
+                  ImGui::SameLine();
+                  if (ImGui::Button("Next")) C3D::Video::Next(&obj);
+                  
+                  if (ImGui::TreeNode("Current Playlist Files")) {
+                      for (int k = 0; k < (int)obj.screen.videoPlaylist.size(); k++) {
+                          bool isSelected = (k == obj.screen.playlistIndex);
+                          if (ImGui::Selectable(std::filesystem::path(obj.screen.videoPlaylist[k]).filename().string().c_str(), isSelected)) {
+                              obj.screen.playlistIndex = k;
+                          }
+                      }
+                      ImGui::TreePop();
+                  }
+              }
+
               ImGui::TreePop();
             }
           } else if (obj.screen.type == ScreenType::CameraFeed) {
@@ -2342,7 +2400,9 @@ void EditorLayer::DrawInspector(Scene &scene) {
 
       ImGui::Separator();
       if (ImGui::Button("Delete Object")) {
+      if (selectedCube >= 0 && selectedCube < (int)scene.GetObjects().size()) {
         scene.RemoveObject(selectedCube);
+      }
         TriggerAutoSave(scene);
         selectedCube = -1;
       }
@@ -3309,7 +3369,7 @@ void EditorLayer::UpdateViewportResolution(Scene &scene) {
   ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 
   bool showSplit =
-      (selectedCube != -1 && selectedCube < (int)scene.GetObjects().size() &&
+      (selectedCube >= 0 && selectedCube < (int)scene.GetObjects().size() &&
        scene.GetObjects()[selectedCube].hasCamera &&
        scene.GetObjects()[selectedCube].camera.enabled &&
        !scene.GetObjects()[selectedCube].camera.isDebugCamera);
@@ -3338,7 +3398,7 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
   ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 
   bool showSplit =
-      (selectedCube != -1 && selectedCube < scene.GetObjects().size() &&
+      (selectedCube >= 0 && selectedCube < (int)scene.GetObjects().size() &&
        scene.GetObjects()[selectedCube].hasCamera &&
        scene.GetObjects()[selectedCube].camera.enabled &&
        !scene.GetObjects()[selectedCube].camera.isDebugCamera);
@@ -3788,12 +3848,13 @@ void EditorLayer::DrawViewport(Scene &scene, Camera &camera) {
           float screenX = cursorPos.x + (ndc.x + 1.0f) * 0.5f * viewportWidth;
           float screenY = cursorPos.y + (1.0f - ndc.y) * 0.5f * viewportHeight;
 
-          ImDrawList *drawList = ImGui::GetWindowDrawList();
-          drawList->AddCircleFilled(ImVec2(screenX, screenY), 8.0f,
-                                    IM_COL32(255, 200, 50, 255));
-          if (selectedPointLightIndex == i)
+          if (selectedPointLightIndex == i) {
+            ImDrawList *drawList = ImGui::GetWindowDrawList();
+            drawList->AddCircleFilled(ImVec2(screenX, screenY), 8.0f,
+                                      IM_COL32(255, 200, 50, 255));
             drawList->AddCircle(ImVec2(screenX, screenY), 10.0f,
                                 IM_COL32(255, 255, 255, 255), 0, 2.0f);
+          }
         }
       }
     }
@@ -4343,7 +4404,7 @@ void EditorLayer::DrawContentBrowserGrid() {
 
       bool isVideoFile =
           (ext == ".mp4" || ext == ".avi" || ext == ".mkv" || ext == ".mov");
-      if (!entry.is_directory() && (isImage || isVideoFile)) {
+      if (!entry.is_directory() && isVideoFile) {
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
           std::string path = entry.path().string();
           ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", path.c_str(),

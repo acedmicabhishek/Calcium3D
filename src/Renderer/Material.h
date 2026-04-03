@@ -25,6 +25,8 @@ struct Material {
   bool useAlphaDiscard = false;
   bool useTexture = true;
   bool isTransparent = false;
+  bool textureScaling = false;
+  float textureScale = 1.0f;
   bool isAtlased = false;
   unsigned int atlasTextureID = 0;
   std::string diffusePath = "";
@@ -43,6 +45,8 @@ struct Material {
     j["useTexture"] = useTexture;
     j["isTransparent"] = isTransparent;
     j["useAlphaDiscard"] = useAlphaDiscard;
+    j["textureScaling"] = textureScaling;
+    j["textureScale"] = textureScale;
     return j;
   }
 
@@ -74,6 +78,10 @@ struct Material {
       isTransparent = j["isTransparent"].get<bool>();
     if (j.contains("useAlphaDiscard"))
       useAlphaDiscard = j["useAlphaDiscard"].get<bool>();
+    if (j.contains("textureScaling"))
+      textureScaling = j["textureScaling"].get<bool>();
+    if (j.contains("textureScale"))
+      textureScale = j["textureScale"].get<float>();
   }
 };
 

@@ -46,6 +46,7 @@ public:
 public:
   Scene *GetScene() { return m_Scene.get(); }
   Camera *GetCamera() { return m_Camera.get(); }
+  RenderContext &GetRenderContext() { return m_RenderContext; }
 
 protected:
   virtual void Shutdown();

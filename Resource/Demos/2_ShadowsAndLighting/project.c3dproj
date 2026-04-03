@@ -1,12 +1,78 @@
 {
     "camera": {
-        "pitch": -20.0,
-        "yaw": -45.0,
+        "pitch": -18.032209396362305,
         "position": [
-            10.0,
-            5.0,
-            10.0
-        ]
+            15.92129135131836,
+            14.51982307434082,
+            13.942269325256348
+        ],
+        "yaw": -145.37705993652344
+    },
+    "environment": {
+        "cloudColor": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "cloudCover": 0.5,
+        "cloudDensity": 0.5,
+        "cloudHeight": 50.0,
+        "cloudMode": 0,
+        "cloudRandomness": 0.5,
+        "cloudSize": 1.0,
+        "cloudSpeed": 0.10000000149011612,
+        "cloudTiling": 1.0,
+        "enablePointShadows": false,
+        "enableShadows": true,
+        "moonBloom": 0.019999999552965164,
+        "moonColor": [
+            0.800000011920929,
+            0.800000011920929,
+            0.8999999761581421,
+            1.0
+        ],
+        "moonEnabled": true,
+        "moonIntensity": 0.5,
+        "shadowBias": 0.004999999888241291,
+        "showClouds": false,
+        "showGradientSky": false,
+        "showSkybox": true,
+        "showWater": false,
+        "sunBloom": 0.029999999329447746,
+        "sunColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "sunEnabled": true,
+        "sunIntensity": 1.0,
+        "timeOfDay": 2.58135986328125,
+        "waterColor": [
+            0.0,
+            0.30000001192092896,
+            0.5
+        ],
+        "waterHeight": 0.0,
+        "waveSpeed": 1.0,
+        "waveStrength": 0.10000000149011612
+    },
+    "graphics": {
+        "msaaGeometryPass": true,
+        "msaaSamples": 2,
+        "msaaSkyPass": true,
+        "msaaTransparencyPass": true,
+        "reflectionMode": 1,
+        "ssrAll": true,
+        "ssrFadeStart": 400.0,
+        "ssrGeometry": true,
+        "ssrMaxDistance": 150.0,
+        "ssrMaxSteps": 80,
+        "ssrRenderDistance": 600.0,
+        "ssrResolution": 1.0,
+        "ssrThickness": 2.5,
+        "ssrTransparency": true,
+        "ssrUseCubemapFallback": true
     },
     "last_scene": "Scenes/main.scene",
     "start_state": 0,
